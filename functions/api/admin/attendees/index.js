@@ -77,7 +77,8 @@ export async function onRequestPost(context) {
     }
     
     // Hash password (simplified for now)
-    const password_hash = await hashPassword(password);
+    const password_hash = await hashPasswordConsistent(password);
+    console.log('Creating attendee with password hash:', password_hash);
     
     // Insert new attendee
     const result = await context.env.DB.prepare(`
@@ -124,17 +125,13 @@ export async function onRequestPost(context) {
 }
 
 // Simple password hashing function
-async function hashPassword(password) {
-  // This is a simplified version. In production, use bcrypt.hash()
-  // For now, we'll use a basic approach
-  
-  // Generate a simple hash (not secure, just for testing)
+async function hashPasswordConsistent(password) {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'salt123');
+  const data = encoder.encode(password + 'salt123'); // Same salt everywhere
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  // For compatibility with bcrypt format, prefix with $2a$10$
-  return '$2a$10$' + hashHex.substring(0, 53);
+  const finalHash = '$2a$10$' + hashHex.substring(0, 53);
+  console.log('Generated hash for new password:', finalHash);
+  return finalHash;
 }

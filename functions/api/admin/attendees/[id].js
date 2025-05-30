@@ -132,8 +132,10 @@ export async function onRequestPut(context) {
         if (key === 'password') {
           // Hash the password if it's being updated
           if (value && value.trim() !== '') {
+            const hashedPassword = await hashPasswordConsistent(value);
             updateFields.push('password_hash = ?');
-            updateValues.push(await hashPassword(value));
+            updateValues.push(hashedPassword);
+            console.log('Updating password for attendee', id, 'with hash:', hashedPassword);
           }
         } else {
           updateFields.push(`${key} = ?`);
@@ -259,14 +261,13 @@ export async function onRequestDelete(context) {
 }
 
 // Helper function for password hashing (same as in other files)
-async function hashPassword(password) {
-  // This is a simplified version. In production, use bcrypt.hash()
+async function hashPasswordConsistent(password) {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'salt123');
+  const data = encoder.encode(password + 'salt123'); // Same salt everywhere
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  // For compatibility with bcrypt format, prefix with $2a$10$
-  return '$2a$10$' + hashHex.substring(0, 53);
+  const finalHash = '$2a$10$' + hashHex.substring(0, 53);
+  console.log('Generated hash for password update:', finalHash);
+  return finalHash;
 }
