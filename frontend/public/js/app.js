@@ -1,7 +1,8 @@
-// Fixed app.js - Main Application Controller
+// frontend/public/js/app.js - Fixed main application controller
 const App = {
     currentView: 'login',
     currentUser: null,
+    initialized: false,
     
     /**
      * Initialize the application
@@ -9,13 +10,38 @@ const App = {
     async init() {
         console.log('Initializing Retreat Portal...');
         
+        if (this.initialized) {
+            console.log('App already initialized');
+            return;
+        }
+        
         try {
+            // Set up global error handling
+            this.setupGlobalErrorHandling();
+            
             // Check for existing authentication
             await this.checkAuthentication();
+            
+            this.initialized = true;
         } catch (error) {
             console.error('Initialization error:', error);
             await this.showLoginView();
         }
+    },
+
+    /**
+     * Set up global error handling
+     */
+    setupGlobalErrorHandling() {
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            Utils.showAlert('An unexpected error occurred. Please refresh the page.', 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            Utils.showAlert('A network error occurred. Please check your connection.', 'error');
+        });
     },
 
     /**
@@ -43,16 +69,16 @@ const App = {
     async showLoginView() {
         this.currentView = 'login';
         
-        // Check if Login component is available
-        if (window.Login) {
-            try {
-                await Login.init('attendee');
-            } catch (error) {
-                console.error('Error loading Login component:', error);
+        try {
+            // Try to use Login component if available
+            if (window.Login && typeof window.Login.init === 'function') {
+                await window.Login.init('attendee');
+            } else {
+                console.warn('Login component not available, using fallback');
                 this.showFallbackLogin();
             }
-        } else {
-            console.warn('Login component not found, using fallback');
+        } catch (error) {
+            console.error('Error loading Login component:', error);
             this.showFallbackLogin();
         }
     },
@@ -63,16 +89,16 @@ const App = {
     async showAdminLoginView() {
         this.currentView = 'admin-login';
         
-        // Check if Login component is available
-        if (window.Login) {
-            try {
-                await Login.init('admin');
-            } catch (error) {
-                console.error('Error loading Admin Login component:', error);
+        try {
+            // Try to use Login component if available
+            if (window.Login && typeof window.Login.init === 'function') {
+                await window.Login.init('admin');
+            } else {
+                console.warn('Login component not available, using fallback');
                 this.showFallbackAdminLogin();
             }
-        } else {
-            console.warn('Login component not found, using fallback');
+        } catch (error) {
+            console.error('Error loading Admin Login component:', error);
             this.showFallbackAdminLogin();
         }
     },
@@ -89,22 +115,30 @@ const App = {
                         <p>Welcome back</p>
                     </div>
                     <div class="card-body">
-                        <div id="login-alert" class="hidden"></div>
+                        <div id="login-alert" class="alert alert-error hidden"></div>
                         <form id="login-form">
                             <div class="form-group">
                                 <label for="ref" class="form-label">
                                     <i class="fas fa-id-card"></i> Reference Number
                                 </label>
-                                <input type="text" id="ref" name="ref" class="form-input" required>
+                                <input type="text" id="ref" name="ref" class="form-input" required 
+                                       placeholder="Enter your reference number" autocomplete="username">
                             </div>
                             <div class="form-group">
                                 <label for="password" class="form-label">
                                     <i class="fas fa-lock"></i> Password
                                 </label>
-                                <input type="password" id="password" name="password" class="form-input" required>
+                                <div class="password-input-container">
+                                    <input type="password" id="password" name="password" class="form-input" required 
+                                           placeholder="Enter your password" autocomplete="current-password">
+                                    <button type="button" class="password-toggle" id="toggle-password">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <button type="submit" class="btn btn-primary" style="width: 100%;">
-                                Sign In
+                            <button type="submit" class="btn btn-primary" style="width: 100%;" id="login-btn">
+                                <span id="login-text">Sign In</span>
+                                <div id="login-spinner" class="loading-spinner hidden"></div>
                             </button>
                         </form>
                         <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
@@ -133,22 +167,30 @@ const App = {
                         <p>Administrative Access</p>
                     </div>
                     <div class="card-body">
-                        <div id="admin-login-alert" class="hidden"></div>
+                        <div id="admin-login-alert" class="alert alert-error hidden"></div>
                         <form id="admin-login-form">
                             <div class="form-group">
                                 <label for="admin-user" class="form-label">
                                     <i class="fas fa-user"></i> Username
                                 </label>
-                                <input type="text" id="admin-user" name="user" class="form-input" required>
+                                <input type="text" id="admin-user" name="user" class="form-input" required
+                                       placeholder="Enter admin username" autocomplete="username">
                             </div>
                             <div class="form-group">
                                 <label for="admin-pass" class="form-label">
                                     <i class="fas fa-lock"></i> Password
                                 </label>
-                                <input type="password" id="admin-pass" name="pass" class="form-input" required>
+                                <div class="password-input-container">
+                                    <input type="password" id="admin-pass" name="pass" class="form-input" required
+                                           placeholder="Enter admin password" autocomplete="current-password">
+                                    <button type="button" class="password-toggle" id="toggle-admin-password">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <button type="submit" class="btn btn-primary" style="width: 100%;">
-                                Sign In
+                            <button type="submit" class="btn btn-primary" style="width: 100%;" id="admin-login-btn">
+                                <span id="admin-login-text">Sign In</span>
+                                <div id="admin-login-spinner" class="loading-spinner hidden"></div>
                             </button>
                         </form>
                         <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
@@ -170,25 +212,29 @@ const App = {
     bindFallbackLoginEvents() {
         const loginForm = document.getElementById('login-form');
         const adminLink = document.getElementById('admin-link');
+        const togglePassword = document.getElementById('toggle-password');
 
         if (loginForm) {
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
-                const ref = formData.get('ref');
+                const ref = formData.get('ref').trim();
                 const password = formData.get('password');
                 
-                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const submitBtn = document.getElementById('login-btn');
                 
                 try {
-                    Utils.showLoading(submitBtn);
+                    this.showButtonLoading(submitBtn, 'login-spinner', 'login-text');
                     await Auth.attendeeLogin(ref, password);
-                    Utils.showAlert('Login successful!', 'success');
-                    await this.loadAttendeeView();
+                    this.showAlert('login-alert', 'Login successful! Redirecting...', 'success');
+                    
+                    setTimeout(async () => {
+                        await this.loadAttendeeView();
+                    }, 1000);
                 } catch (error) {
-                    Utils.showAlert(error.message, 'error');
+                    this.showAlert('login-alert', error.message, 'error');
                 } finally {
-                    Utils.hideLoading(submitBtn);
+                    this.hideButtonLoading(submitBtn, 'login-spinner', 'login-text', 'Sign In');
                 }
             });
         }
@@ -199,6 +245,21 @@ const App = {
                 await this.showAdminLoginView();
             });
         }
+
+        if (togglePassword) {
+            togglePassword.addEventListener('click', () => {
+                const passwordInput = document.getElementById('password');
+                const icon = togglePassword.querySelector('i');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.className = 'fas fa-eye-slash';
+                } else {
+                    passwordInput.type = 'password';
+                    icon.className = 'fas fa-eye';
+                }
+            });
+        }
     },
 
     /**
@@ -207,25 +268,29 @@ const App = {
     bindFallbackAdminLoginEvents() {
         const adminForm = document.getElementById('admin-login-form');
         const attendeeLink = document.getElementById('attendee-link');
+        const togglePassword = document.getElementById('toggle-admin-password');
 
         if (adminForm) {
             adminForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
-                const user = formData.get('user');
+                const user = formData.get('user').trim();
                 const pass = formData.get('pass');
                 
-                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const submitBtn = document.getElementById('admin-login-btn');
                 
                 try {
-                    Utils.showLoading(submitBtn);
+                    this.showButtonLoading(submitBtn, 'admin-login-spinner', 'admin-login-text');
                     await Auth.adminLogin(user, pass);
-                    Utils.showAlert('Login successful!', 'success');
-                    await this.loadAdminView();
+                    this.showAlert('admin-login-alert', 'Login successful! Redirecting...', 'success');
+                    
+                    setTimeout(async () => {
+                        await this.loadAdminView();
+                    }, 1000);
                 } catch (error) {
-                    Utils.showAlert(error.message, 'error');
+                    this.showAlert('admin-login-alert', error.message, 'error');
                 } finally {
-                    Utils.hideLoading(submitBtn);
+                    this.hideButtonLoading(submitBtn, 'admin-login-spinner', 'admin-login-text', 'Sign In');
                 }
             });
         }
@@ -234,6 +299,21 @@ const App = {
             attendeeLink.addEventListener('click', async (e) => {
                 e.preventDefault();
                 await this.showLoginView();
+            });
+        }
+
+        if (togglePassword) {
+            togglePassword.addEventListener('click', () => {
+                const passwordInput = document.getElementById('admin-pass');
+                const icon = togglePassword.querySelector('i');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.className = 'fas fa-eye-slash';
+                } else {
+                    passwordInput.type = 'password';
+                    icon.className = 'fas fa-eye';
+                }
             });
         }
     },
@@ -249,75 +329,13 @@ const App = {
             const attendeeData = await API.get('/me');
             this.currentUser = attendeeData;
 
-            // For now, show a simple dashboard
-            // In Phase 3, we'll load this from a template and component
-            document.getElementById('app').innerHTML = `
-                <div class="dashboard" style="background: var(--background); min-height: 100vh;">
-                    <div class="dashboard-header">
-                        <div>
-                            <h1 class="dashboard-title">Welcome, ${Utils.escapeHtml(attendeeData.name)}</h1>
-                            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Your retreat information and details</p>
-                        </div>
-                        <div class="dashboard-actions">
-                            <button class="btn btn-secondary" id="attendee-logout">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-value">${attendeeData.room ? attendeeData.room.number : 'Not assigned'}</div>
-                            <div class="stat-label">Room Assignment</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${Utils.formatCurrency(attendeeData.payment_due)}</div>
-                            <div class="stat-label">Payment Due</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${attendeeData.group ? attendeeData.group.name : 'No Group'}</div>
-                            <div class="stat-label">Group Assignment</div>
-                        </div>
-                    </div>
-
-                    <div class="data-table">
-                        <div class="table-header">
-                            <h3 class="table-title">Your Information</h3>
-                        </div>
-                        <div style="padding: 2rem;">
-                            ${attendeeData.room ? `
-                                <div style="margin-bottom: 1.5rem;">
-                                    <h4 style="color: var(--primary); margin-bottom: 0.5rem;">
-                                        <i class="fas fa-bed"></i> Room Details
-                                    </h4>
-                                    <p><strong>Room:</strong> ${attendeeData.room.number}</p>
-                                    <p><strong>Description:</strong> ${attendeeData.room.description || 'No description available'}</p>
-                                </div>
-                            ` : '<p>No room assigned yet.</p>'}
-                            
-                            ${attendeeData.group && attendeeData.group.members && attendeeData.group.members.length > 0 ? `
-                                <div style="margin-bottom: 1.5rem;">
-                                    <h4 style="color: var(--primary); margin-bottom: 0.5rem;">
-                                        <i class="fas fa-users"></i> Group Members
-                                    </h4>
-                                    <ul style="list-style: none; padding: 0;">
-                                        ${attendeeData.group.members.map(member => `
-                                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
-                                                ${Utils.escapeHtml(member.name)} (${Utils.escapeHtml(member.ref_number)})
-                                            </li>
-                                        `).join('')}
-                                    </ul>
-                                </div>
-                            ` : '<p>No group members assigned.</p>'}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Bind logout event
-            document.getElementById('attendee-logout').addEventListener('click', () => {
-                Auth.logout();
-            });
+            // Try to use AttendeeDashboard component if available
+            if (window.AttendeeDashboard && typeof window.AttendeeDashboard.init === 'function') {
+                await window.AttendeeDashboard.init();
+            } else {
+                // Fallback to simple dashboard
+                this.showFallbackAttendeeDashboard(attendeeData);
+            }
 
         } catch (error) {
             console.error('Failed to load attendee view:', error);
@@ -328,113 +346,78 @@ const App = {
     },
 
     /**
+     * Fallback attendee dashboard
+     */
+    showFallbackAttendeeDashboard(attendeeData) {
+        document.getElementById('app').innerHTML = `
+            <div class="dashboard" style="background: var(--background); min-height: 100vh;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1 class="dashboard-title">Welcome, ${Utils.escapeHtml(attendeeData.name)}</h1>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Your retreat information and details</p>
+                    </div>
+                    <div class="dashboard-actions">
+                        <button class="btn btn-secondary" id="attendee-logout">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3><i class="fas fa-bed"></i> Room Assignment</h3>
+                        <div class="info-value">${attendeeData.room ? attendeeData.room.number : 'Not assigned'}</div>
+                        ${attendeeData.room ? `<p>${attendeeData.room.description || ''}</p>` : '<p>No room assigned yet.</p>'}
+                    </div>
+                    <div class="info-card">
+                        <h3><i class="fas fa-credit-card"></i> Payment Due</h3>
+                        <div class="info-value" style="color: ${(attendeeData.payment_due || 0) > 0 ? 'var(--warning)' : 'var(--success)'};">
+                            ${Utils.formatCurrency(attendeeData.payment_due)}
+                        </div>
+                        <span class="badge ${(attendeeData.payment_due || 0) > 0 ? 'badge-warning' : 'badge-success'}">
+                            ${(attendeeData.payment_due || 0) > 0 ? 'Payment Pending' : 'Paid in Full'}
+                        </span>
+                    </div>
+                    <div class="info-card">
+                        <h3><i class="fas fa-users"></i> Group Assignment</h3>
+                        <div class="info-value">${attendeeData.group ? attendeeData.group.name : 'No Group'}</div>
+                        ${attendeeData.group && attendeeData.group.members && attendeeData.group.members.length > 0 ? `
+                            <ul style="list-style: none; padding: 0; margin-top: 1rem;">
+                                ${attendeeData.group.members.map(member => `
+                                    <li style="padding: 0.25rem 0; font-size: 0.9rem;">
+                                        ${Utils.escapeHtml(member.name)} (${Utils.escapeHtml(member.ref_number)})
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        ` : '<p>No group members assigned.</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Bind logout event
+        document.getElementById('attendee-logout').addEventListener('click', () => {
+            if (confirm('Are you sure you want to logout?')) {
+                Auth.logout();
+            }
+        });
+    },
+
+    /**
      * Load admin dashboard view
      */
     async loadAdminView() {
         this.currentView = 'admin';
         
         try {
-            // Get admin data
-            const attendeesData = await API.get('/admin/attendees');
-
-            // Calculate stats
-            const totalAttendees = attendeesData.length;
-            const totalRevenue = attendeesData.reduce((sum, a) => sum + (a.payment_due || 0), 0);
-            const pendingPayments = attendeesData.filter(a => (a.payment_due || 0) > 0).length;
-            const roomsOccupied = attendeesData.filter(a => a.room).length;
-            const occupancyRate = totalAttendees > 0 ? Math.round((roomsOccupied / totalAttendees) * 100) : 0;
-
-            // For now, show a simple admin dashboard
-            // In Phase 3, we'll load this from a template and component
-            document.getElementById('app').innerHTML = `
-                <div class="dashboard" style="background: var(--background); min-height: 100vh;">
-                    <div class="dashboard-header">
-                        <div>
-                            <h1 class="dashboard-title">Admin Dashboard</h1>
-                            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, and groups</p>
-                        </div>
-                        <div class="dashboard-actions">
-                            <button class="btn btn-primary" id="add-attendee-btn">
-                                <i class="fas fa-plus"></i> Add Attendee
-                            </button>
-                            <button class="btn btn-secondary" id="admin-logout">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-value">${totalAttendees}</div>
-                            <div class="stat-label">Total Attendees</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${Utils.formatCurrency(totalRevenue)}</div>
-                            <div class="stat-label">Total Revenue</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${pendingPayments}</div>
-                            <div class="stat-label">Pending Payments</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${occupancyRate}%</div>
-                            <div class="stat-label">Room Occupancy</div>
-                        </div>
-                    </div>
-
-                    <div class="data-table">
-                        <div class="table-header">
-                            <h3 class="table-title">Attendees</h3>
-                            <input type="search" class="search-box" id="search-attendees" placeholder="Search attendees...">
-                        </div>
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Reference</th>
-                                    <th>Name</th>
-                                    <th>Room</th>
-                                    <th>Payment Due</th>
-                                    <th>Group</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${attendeesData.map(attendee => {
-                                    const paymentDue = attendee.payment_due || 0;
-                                    const statusBadge = paymentDue > 0 
-                                        ? `<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Payment Due</span>`
-                                        : `<span class="badge badge-success"><i class="fas fa-check"></i> Paid</span>`;
-                                        
-                                    return `
-                                        <tr>
-                                            <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
-                                            <td>${Utils.escapeHtml(attendee.name)}</td>
-                                            <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
-                                            <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
-                                            <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : '<span class="badge badge-secondary">No Group</span>'}</td>
-                                            <td>${statusBadge}</td>
-                                            <td>
-                                                <div class="action-buttons">
-                                                    <button class="btn btn-sm btn-primary edit-attendee" data-id="${attendee.id}">
-                                                        <i class="fas fa-edit"></i> Edit
-                                                    </button>
-                                                    <button class="btn btn-sm btn-danger delete-attendee" data-id="${attendee.id}">
-                                                        <i class="fas fa-trash"></i> Delete
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-
-            // Bind admin dashboard events
-            this.bindAdminDashboardEvents(attendeesData);
+            // Try to use AdminDashboard component if available
+            if (window.AdminDashboard && typeof window.AdminDashboard.init === 'function') {
+                await window.AdminDashboard.init();
+            } else {
+                // Fallback to simple admin dashboard
+                const attendeesData = await API.get('/admin/attendees');
+                this.showFallbackAdminDashboard(attendeesData);
+            }
 
         } catch (error) {
             console.error('Failed to load admin view:', error);
@@ -445,73 +428,145 @@ const App = {
     },
 
     /**
-     * Bind admin dashboard events
+     * Fallback admin dashboard
      */
-    bindAdminDashboardEvents(attendeesData) {
-        // Logout event
-        const logoutBtn = document.getElementById('admin-logout');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
+    showFallbackAdminDashboard(attendeesData) {
+        // Calculate stats
+        const totalAttendees = attendeesData.length;
+        const totalRevenue = attendeesData.reduce((sum, a) => sum + (a.payment_due || 0), 0);
+        const pendingPayments = attendeesData.filter(a => (a.payment_due || 0) > 0).length;
+        const roomsOccupied = attendeesData.filter(a => a.room).length;
+
+        document.getElementById('app').innerHTML = `
+            <div class="dashboard" style="background: var(--background); min-height: 100vh;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1 class="dashboard-title">Admin Dashboard</h1>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, and groups</p>
+                    </div>
+                    <div class="dashboard-actions">
+                        <button class="btn btn-secondary" id="admin-logout">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${totalAttendees}</div>
+                        <div class="stat-label">Total Attendees</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${Utils.formatCurrency(totalRevenue)}</div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${pendingPayments}</div>
+                        <div class="stat-label">Pending Payments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${roomsOccupied}</div>
+                        <div class="stat-label">Rooms Occupied</div>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3 class="table-title">Attendees</h3>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Reference</th>
+                                <th>Name</th>
+                                <th>Room</th>
+                                <th>Payment Due</th>
+                                <th>Group</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${attendeesData.map(attendee => {
+                                const paymentDue = attendee.payment_due || 0;
+                                const statusBadge = paymentDue > 0 
+                                    ? `<span class="badge badge-warning">Payment Due</span>`
+                                    : `<span class="badge badge-success">Paid</span>`;
+                                    
+                                return `
+                                    <tr>
+                                        <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
+                                        <td>${Utils.escapeHtml(attendee.name)}</td>
+                                        <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : 'Unassigned'}</td>
+                                        <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
+                                        <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : 'No Group'}</td>
+                                        <td>${statusBadge}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        // Bind logout event
+        document.getElementById('admin-logout').addEventListener('click', () => {
+            if (confirm('Are you sure you want to logout?')) {
                 Auth.logout();
-            });
-        }
-
-        // Add attendee event
-        const addBtn = document.getElementById('add-attendee-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => {
-                Utils.showAlert('Add attendee functionality will be implemented in Phase 3', 'warning');
-            });
-        }
-
-        // Edit attendee events
-        document.querySelectorAll('.edit-attendee').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.id;
-                Utils.showAlert(`Edit attendee ${id} functionality will be implemented in Phase 3`, 'warning');
-            });
+            }
         });
+    },
 
-        // Delete attendee events
-        document.querySelectorAll('.delete-attendee').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const id = btn.dataset.id;
-                const attendee = attendeesData.find(a => a.id == id);
-                
-                if (!confirm(`Are you sure you want to delete ${attendee ? attendee.name : 'this attendee'}?`)) {
-                    return;
-                }
+    /**
+     * Utility functions for UI feedback
+     */
+    showAlert(alertId, message, type = 'error') {
+        const alert = document.getElementById(alertId);
+        if (alert) {
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> ${message}`;
+            alert.classList.remove('hidden');
+        }
+    },
 
-                try {
-                    Utils.showLoading(btn);
-                    await API.delete(`/admin/attendees/${id}`);
-                    Utils.showAlert('Attendee deleted successfully', 'success');
-                    // Reload the admin view
-                    await this.loadAdminView();
-                } catch (error) {
-                    Utils.showAlert('Failed to delete attendee: ' + error.message, 'error');
-                } finally {
-                    Utils.hideLoading(btn);
-                }
-            });
-        });
+    hideAlert(alertId) {
+        const alert = document.getElementById(alertId);
+        if (alert) {
+            alert.classList.add('hidden');
+        }
+    },
 
-        // Search functionality
-        const searchInput = document.getElementById('search-attendees');
-        if (searchInput) {
-            const debouncedSearch = Utils.debounce((query) => {
-                // Simple client-side search for now
-                const rows = document.querySelectorAll('.table tbody tr');
-                rows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    const visible = text.includes(query.toLowerCase());
-                    row.style.display = visible ? '' : 'none';
-                });
-            }, 300);
+    getAlertIcon(type) {
+        const icons = {
+            error: 'exclamation-circle',
+            success: 'check-circle',
+            warning: 'exclamation-triangle'
+        };
+        return icons[type] || 'info-circle';
+    },
 
-            searchInput.addEventListener('input', (e) => {
-                debouncedSearch(e.target.value);
-            });
+    showButtonLoading(button, spinnerId, textId) {
+        if (button) {
+            button.disabled = true;
+            const spinner = document.getElementById(spinnerId);
+            const text = document.getElementById(textId);
+            
+            if (spinner) spinner.classList.remove('hidden');
+            if (text) text.style.opacity = '0.7';
+        }
+    },
+
+    hideButtonLoading(button, spinnerId, textId, originalText) {
+        if (button) {
+            button.disabled = false;
+            const spinner = document.getElementById(spinnerId);
+            const text = document.getElementById(textId);
+            
+            if (spinner) spinner.classList.add('hidden');
+            if (text) {
+                text.style.opacity = '1';
+                if (originalText) text.textContent = originalText;
+            }
         }
     },
 
@@ -529,6 +584,11 @@ const App = {
 window.App = App;
 
 // Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        App.init();
+    });
+} else {
+    // DOM is already loaded
     App.init();
-});
+}

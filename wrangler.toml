@@ -1,4 +1,4 @@
-name = "attendance-portal"
+name = "retreat-portal"
 account_id = "9dbefd5c67069aa84dbc395946c55839"
 compatibility_date = "2025-05-30"
 
@@ -11,3 +11,4 @@ database_id = "19c293e9-c7b2-4fb6-bbee-e7960698cd8d"
 # Pages configuration
 [build]
 command = "echo 'No build needed'"
+publish = "frontend/public"

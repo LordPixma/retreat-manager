@@ -1,28 +1,25 @@
-// functions/api/admin/attendees/[id].js
-// Handles GET, PUT, and DELETE requests for individual attendees
+// functions/api/admin/attendees/[id].js - Updated individual attendee operations
+import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../../_shared/auth.js';
+
+// Handle CORS preflight
+export async function onRequestOptions() {
+  return handleCORS();
+}
 
 // GET /api/admin/attendees/:id - Get single attendee
 export async function onRequestGet(context) {
   try {
     // Check admin authorization
-    const auth = context.request.headers.get('Authorization') || '';
-    const token = auth.replace('Bearer ', '');
-    
-    if (!token || !token.startsWith('admin-token-')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    const admin = checkAdminAuth(context.request);
+    if (!admin) {
+      return createResponse({ error: 'Unauthorized' }, 401);
     }
     
     // Get attendee ID from URL params
     const id = context.params.id;
     
     if (!id) {
-      return new Response(JSON.stringify({ error: 'Attendee ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Attendee ID is required' }, 400);
     }
     
     // Query specific attendee with room and group information
@@ -45,10 +42,7 @@ export async function onRequestGet(context) {
     `).bind(id).all();
     
     if (!results.length) {
-      return new Response(JSON.stringify({ error: 'Attendee not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Attendee not found' }, 404);
     }
     
     const attendee = results[0];
@@ -69,16 +63,11 @@ export async function onRequestGet(context) {
       group: attendee.group_name ? { name: attendee.group_name } : null
     };
     
-    return new Response(JSON.stringify(formattedResult), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse(formattedResult);
     
   } catch (error) {
     console.error('Error fetching attendee:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch attendee' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Failed to fetch attendee' }, 500);
   }
 }
 
@@ -86,24 +75,16 @@ export async function onRequestGet(context) {
 export async function onRequestPut(context) {
   try {
     // Check admin authorization
-    const auth = context.request.headers.get('Authorization') || '';
-    const token = auth.replace('Bearer ', '');
-    
-    if (!token || !token.startsWith('admin-token-')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    const admin = checkAdminAuth(context.request);
+    if (!admin) {
+      return createResponse({ error: 'Unauthorized' }, 401);
     }
     
     // Get attendee ID from URL params
     const id = context.params.id;
     
     if (!id) {
-      return new Response(JSON.stringify({ error: 'Attendee ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Attendee ID is required' }, 400);
     }
     
     // Get update data from request body
@@ -115,10 +96,7 @@ export async function onRequestPut(context) {
     ).bind(id).all();
     
     if (!existingResults.length) {
-      return new Response(JSON.stringify({ error: 'Attendee not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Attendee not found' }, 404);
     }
     
     // Build dynamic UPDATE query
@@ -132,10 +110,10 @@ export async function onRequestPut(context) {
         if (key === 'password') {
           // Hash the password if it's being updated
           if (value && value.trim() !== '') {
-            const hashedPassword = await hashPasswordConsistent(value);
+            const hashedPassword = await hashPassword(value);
             updateFields.push('password_hash = ?');
             updateValues.push(hashedPassword);
-            console.log('Updating password for attendee', id, 'with hash:', hashedPassword);
+            console.log('Updating password for attendee', id);
           }
         } else {
           updateFields.push(`${key} = ?`);
@@ -145,10 +123,7 @@ export async function onRequestPut(context) {
     }
     
     if (updateFields.length === 0) {
-      return new Response(JSON.stringify({ error: 'No valid fields to update' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'No valid fields to update' }, 400);
     }
     
     // Add the ID as the last parameter
@@ -164,12 +139,10 @@ export async function onRequestPut(context) {
     
     console.log('Successfully updated attendee:', id);
     
-    return new Response(JSON.stringify({ 
+    return createResponse({ 
       success: true,
       message: 'Attendee updated successfully',
       id: id
-    }), {
-      headers: { 'Content-Type': 'application/json' }
     });
     
   } catch (error) {
@@ -177,16 +150,10 @@ export async function onRequestPut(context) {
     
     // Handle unique constraint violation
     if (error.message.includes('UNIQUE constraint failed')) {
-      return new Response(JSON.stringify({ error: 'Reference number already exists' }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Reference number already exists' }, 409);
     }
     
-    return new Response(JSON.stringify({ error: 'Failed to update attendee' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Failed to update attendee' }, 500);
   }
 }
 
@@ -194,24 +161,16 @@ export async function onRequestPut(context) {
 export async function onRequestDelete(context) {
   try {
     // Check admin authorization
-    const auth = context.request.headers.get('Authorization') || '';
-    const token = auth.replace('Bearer ', '');
-    
-    if (!token || !token.startsWith('admin-token-')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    const admin = checkAdminAuth(context.request);
+    if (!admin) {
+      return createResponse({ error: 'Unauthorized' }, 401);
     }
     
     // Get attendee ID from URL params
     const id = context.params.id;
     
     if (!id) {
-      return new Response(JSON.stringify({ error: 'Attendee ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Attendee ID is required' }, 400);
     }
     
     // Check if attendee exists before deleting
@@ -220,10 +179,7 @@ export async function onRequestDelete(context) {
     ).bind(id).all();
     
     if (!existingResults.length) {
-      return new Response(JSON.stringify({ error: 'Attendee not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Attendee not found' }, 404);
     }
     
     const attendee = existingResults[0];
@@ -239,7 +195,7 @@ export async function onRequestDelete(context) {
     
     console.log('Successfully deleted attendee:', attendee.name, '(', attendee.ref_number, ')');
     
-    return new Response(JSON.stringify({ 
+    return createResponse({ 
       success: true,
       message: `Attendee ${attendee.name} deleted successfully`,
       deleted_attendee: {
@@ -247,27 +203,10 @@ export async function onRequestDelete(context) {
         name: attendee.name,
         ref_number: attendee.ref_number
       }
-    }), {
-      headers: { 'Content-Type': 'application/json' }
     });
     
   } catch (error) {
     console.error('Error deleting attendee:', error);
-    return new Response(JSON.stringify({ error: 'Failed to delete attendee' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Failed to delete attendee' }, 500);
   }
-}
-
-// Helper function for password hashing (same as in other files)
-async function hashPasswordConsistent(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'salt123'); // Same salt everywhere
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  const finalHash = '$2a$10$' + hashHex.substring(0, 53);
-  console.log('Generated hash for password update:', finalHash);
-  return finalHash;
 }

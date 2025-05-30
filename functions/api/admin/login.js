@@ -1,50 +1,42 @@
+// functions/api/admin/login.js - Updated admin login
+import { createResponse, handleCORS } from '../../_shared/auth.js';
+
+// Handle CORS preflight
+export async function onRequestOptions() {
+  return handleCORS();
+}
+
 export async function onRequestPost(context) {
   try {
     const { user, pass } = await context.request.json();
     
     // Validate input
     if (!user || !pass) {
-      return new Response(JSON.stringify({ error: 'Missing username or password' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Missing username or password' }, 400);
     }
     
     // Check credentials against environment variables
-    const adminUser = context.env.ADMIN_USER;
-    const adminPass = context.env.ADMIN_PASS;
+    const adminUser = context.env.ADMIN_USER || 'admin';
+    const adminPass = context.env.ADMIN_PASS || 'admin123';
     
-    if (!adminUser || !adminPass) {
-      console.error('Admin credentials not configured in environment variables');
-      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    console.log('Admin login attempt for user:', user);
+    console.log('Expected user:', adminUser);
     
     // Verify credentials
-    if (user !== adminUser || pass !== adminPass) {
-      return new Response(JSON.stringify({ error: 'Invalid credentials' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (user.trim() !== adminUser || pass !== adminPass) {
+      console.log('Invalid admin credentials');
+      return createResponse({ error: 'Invalid credentials' }, 401);
     }
     
-    // Create admin token (simple implementation)
+    console.log('Admin login successful for:', user);
+    
+    // Create admin token
     const token = 'admin-token-' + btoa(user + ':' + Date.now() + ':admin');
     
-    return new Response(JSON.stringify({ token }), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      }
-    });
+    return createResponse({ token });
     
   } catch (error) {
     console.error('Error in admin login:', error);
-    return new Response(JSON.stringify({ error: 'Login failed' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Login failed' }, 500);
   }
 }

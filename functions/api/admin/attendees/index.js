@@ -1,14 +1,18 @@
+// functions/api/admin/attendees/index.js - Updated with standardized auth
+import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../../_shared/auth.js';
+
+// Handle CORS preflight
+export async function onRequestOptions() {
+  return handleCORS();
+}
+
+// GET /api/admin/attendees - List all attendees
 export async function onRequestGet(context) {
   try {
     // Check admin authorization
-    const auth = context.request.headers.get('Authorization') || '';
-    const token = auth.replace('Bearer ', '');
-    
-    if (!token || !token.startsWith('admin-token-')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    const admin = checkAdminAuth(context.request);
+    if (!admin) {
+      return createResponse({ error: 'Unauthorized' }, 401);
     }
     
     // Query all attendees with room and group information
@@ -36,58 +40,63 @@ export async function onRequestGet(context) {
       name: attendee.name,
       email: attendee.email,
       payment_due: attendee.payment_due || 0,
+      room_id: attendee.room_id,
+      group_id: attendee.group_id,
       room: attendee.room_number ? { number: attendee.room_number } : null,
       group: attendee.group_name ? { name: attendee.group_name } : null
     }));
     
-    return new Response(JSON.stringify(formattedResults), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse(formattedResults);
     
   } catch (error) {
     console.error('Error fetching attendees:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch attendees' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Failed to fetch attendees' }, 500);
   }
 }
 
+// POST /api/admin/attendees - Create new attendee
 export async function onRequestPost(context) {
   try {
     // Check admin authorization
-    const auth = context.request.headers.get('Authorization') || '';
-    const token = auth.replace('Bearer ', '');
-    
-    if (!token || !token.startsWith('admin-token-')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    const admin = checkAdminAuth(context.request);
+    if (!admin) {
+      return createResponse({ error: 'Unauthorized' }, 401);
     }
     
     const { name, email, ref_number, password, room_id, group_id, payment_due } = await context.request.json();
     
     // Validate required fields
-    if (!name || !ref_number || !password) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: name, ref_number, password' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (!name || !name.trim()) {
+      return createResponse({ error: 'Name is required' }, 400);
+    }
+    if (!ref_number || !ref_number.trim()) {
+      return createResponse({ error: 'Reference number is required' }, 400);
+    }
+    if (!password || !password.trim()) {
+      return createResponse({ error: 'Password is required' }, 400);
     }
     
-    // Hash password (simplified for now)
-    const password_hash = await hashPasswordConsistent(password);
-    console.log('Creating attendee with password hash:', password_hash);
+    // Check if reference number already exists
+    const { results: existing } = await context.env.DB.prepare(`
+      SELECT id FROM attendees WHERE ref_number = ?
+    `).bind(ref_number.trim()).all();
+    
+    if (existing.length > 0) {
+      return createResponse({ error: 'Reference number already exists' }, 409);
+    }
+    
+    // Hash password using standardized method
+    const password_hash = await hashPassword(password);
+    console.log('Creating attendee with ref:', ref_number);
     
     // Insert new attendee
     const result = await context.env.DB.prepare(`
       INSERT INTO attendees (name, email, ref_number, password_hash, room_id, group_id, payment_due)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      name,
-      email || null,
-      ref_number,
+      name.trim(),
+      email?.trim() || null,
+      ref_number.trim(),
       password_hash,
       room_id || null,
       group_id || null,
@@ -98,40 +107,19 @@ export async function onRequestPost(context) {
       throw new Error('Failed to create attendee');
     }
     
-    return new Response(JSON.stringify({ 
+    return createResponse({ 
       id: result.meta.last_row_id,
       message: 'Attendee created successfully'
-    }), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    }, 201);
     
   } catch (error) {
     console.error('Error creating attendee:', error);
     
     // Handle unique constraint violation
     if (error.message.includes('UNIQUE constraint failed')) {
-      return new Response(JSON.stringify({ error: 'Reference number already exists' }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return createResponse({ error: 'Reference number already exists' }, 409);
     }
     
-    return new Response(JSON.stringify({ error: 'Failed to create attendee' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Failed to create attendee' }, 500);
   }
-}
-
-// Simple password hashing function
-async function hashPasswordConsistent(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'salt123'); // Same salt everywhere
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  const finalHash = '$2a$10$' + hashHex.substring(0, 53);
-  console.log('Generated hash for new password:', finalHash);
-  return finalHash;
 }

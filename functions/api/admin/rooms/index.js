@@ -1,17 +1,21 @@
+// functions/api/admin/rooms/index.js
+import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
+
+// Handle CORS preflight
+export async function onRequestOptions() {
+  return handleCORS();
+}
+
+// GET /api/admin/rooms - List all rooms
 export async function onRequestGet(context) {
   try {
     // Check admin authorization
-    const auth = context.request.headers.get('Authorization') || '';
-    const token = auth.replace('Bearer ', '');
-    
-    if (!token || !token.startsWith('admin-token-')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    const admin = checkAdminAuth(context.request);
+    if (!admin) {
+      return createResponse({ error: 'Unauthorized' }, 401);
     }
     
-    // Get all rooms with occupancy info
+    // Get all rooms with occupancy information
     const { results } = await context.env.DB.prepare(`
       SELECT 
         r.id,
@@ -30,76 +34,59 @@ export async function onRequestGet(context) {
       number: room.number,
       description: room.description || '',
       occupant_count: room.occupant_count || 0,
-      occupants: room.occupants ? room.occupants.split(', ') : []
+      occupants: room.occupants ? room.occupants.split(', ').filter(Boolean) : []
     }));
     
-    return new Response(JSON.stringify(formattedRooms), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse(formattedRooms);
     
   } catch (error) {
     console.error('Error fetching rooms:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch rooms' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Failed to fetch rooms' }, 500);
   }
 }
 
+// POST /api/admin/rooms - Create new room
 export async function onRequestPost(context) {
   try {
     // Check admin authorization
-    const auth = context.request.headers.get('Authorization') || '';
-    const token = auth.replace('Bearer ', '');
-    
-    if (!token || !token.startsWith('admin-token-')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    const admin = checkAdminAuth(context.request);
+    if (!admin) {
+      return createResponse({ error: 'Unauthorized' }, 401);
     }
     
     const { number, description } = await context.request.json();
     
     // Validate required fields
-    if (!number) {
-      return new Response(JSON.stringify({ error: 'Room number is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (!number || !number.trim()) {
+      return createResponse({ error: 'Room number is required' }, 400);
+    }
+    
+    // Check if room number already exists
+    const { results: existing } = await context.env.DB.prepare(`
+      SELECT id FROM rooms WHERE number = ?
+    `).bind(number.trim()).all();
+    
+    if (existing.length > 0) {
+      return createResponse({ error: 'Room number already exists' }, 409);
     }
     
     // Insert new room
     const result = await context.env.DB.prepare(`
       INSERT INTO rooms (number, description)
       VALUES (?, ?)
-    `).bind(number, description || null).run();
+    `).bind(number.trim(), description?.trim() || null).run();
     
     if (!result.success) {
       throw new Error('Failed to create room');
     }
     
-    return new Response(JSON.stringify({ 
+    return createResponse({ 
       id: result.meta.last_row_id,
       message: 'Room created successfully'
-    }), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    }, 201);
     
   } catch (error) {
     console.error('Error creating room:', error);
-    
-    if (error.message.includes('UNIQUE constraint failed')) {
-      return new Response(JSON.stringify({ error: 'Room number already exists' }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    return new Response(JSON.stringify({ error: 'Failed to create room' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return createResponse({ error: 'Failed to create room' }, 500);
   }
 }
