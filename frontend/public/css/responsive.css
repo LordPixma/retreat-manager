@@ -1,0 +1,93 @@
+@media (max-width: 768px) {
+    .page-container {
+        padding: 1rem;
+    }
+    
+    .dashboard {
+        padding: 1rem;
+    }
+    
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .dashboard-actions {
+        justify-content: center;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-box {
+        width: 100%;
+    }
+    
+    .table {
+        font-size: 0.9rem;
+    }
+    
+    .table th,
+    .table td {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .tab-navigation {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .tab-btn {
+        justify-content: flex-start;
+        padding: 0.75rem 1rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .card {
+        margin: 0.5rem;
+    }
+    
+    .alert {
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        right: 1rem;
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-header,
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .dashboard-header {
+        padding: 1.5rem;
+    }
+    
+    .table-header {
+        padding: 1rem;
+    }
+    
+    .btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .search-box {
+        font-size: 0.9rem;
+    }
+}
