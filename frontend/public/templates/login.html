@@ -1,0 +1,45 @@
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h1><i class="fas fa-mountain"></i> Retreat Portal</h1>
+            <p>Welcome back</p>
+        </div>
+        <div class="card-body">
+            <div id="login-alert" class="alert alert-error hidden"></div>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-ref" class="form-label">
+                        <i class="fas fa-id-card"></i> Reference Number
+                    </label>
+                    <input type="text" id="login-ref" name="ref" class="form-input" required 
+                           placeholder="Enter your reference number" autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password" class="form-label">
+                        <i class="fas fa-lock"></i> Password
+                    </label>
+                    <div class="password-input-container">
+                        <input type="password" id="login-password" name="password" class="form-input" required 
+                               placeholder="Enter your password" autocomplete="current-password">
+                        <button type="button" class="password-toggle" id="toggle-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="login-btn" style="width: 100%;">
+                    <span id="login-text">Sign In</span>
+                    <div id="login-spinner" class="loading-spinner hidden"></div>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <a href="#" id="admin-link" class="link-secondary">
+                    <i class="fas fa-cog"></i> Admin Access
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

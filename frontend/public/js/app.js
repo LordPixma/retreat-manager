@@ -42,165 +42,26 @@ const App = {
      */
     async showLoginView() {
         this.currentView = 'login';
-        
-        // For now, show a simple login form
-        // In Phase 2, we'll load this from a template
-        document.getElementById('app').innerHTML = `
-            <div class="page-container">
-                <div class="card">
-                    <div class="card-header">
-                        <h1><i class="fas fa-mountain"></i> Retreat Portal</h1>
-                        <p>Please log in to continue</p>
-                    </div>
-                    <div class="card-body">
-                        <div id="login-alert"></div>
-                        <form id="login-form">
-                            <div class="form-group">
-                                <label for="ref" class="form-label">
-                                    <i class="fas fa-id-card"></i> Reference Number
-                                </label>
-                                <input type="text" id="ref" name="ref" class="form-input" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="password" class="form-label">
-                                    <i class="fas fa-lock"></i> Password
-                                </label>
-                                <input type="password" id="password" name="password" class="form-input" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary" style="width: 100%;">
-                                Sign In
-                            </button>
-                        </form>
-                        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-                            <a href="#" id="admin-link" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">
-                                <i class="fas fa-cog"></i> Admin Access
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Bind login events
-        this.bindLoginEvents();
+        await Login.init('attendee');
     },
 
     /**
      * Bind login form events
      */
-    bindLoginEvents() {
-        const loginForm = document.getElementById('login-form');
-        const adminLink = document.getElementById('admin-link');
-
-        if (loginForm) {
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const ref = formData.get('ref');
-                const password = formData.get('password');
-                
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                
-                try {
-                    Utils.showLoading(submitBtn);
-                    await Auth.attendeeLogin(ref, password);
-                    Utils.showAlert('Login successful!', 'success');
-                    await this.loadAttendeeView();
-                } catch (error) {
-                    Utils.showAlert(error.message, 'error');
-                } finally {
-                    Utils.hideLoading(submitBtn);
-                }
-            });
-        }
-
-        if (adminLink) {
-            adminLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showAdminLoginView();
-            });
-        }
-    },
+    
 
     /**
      * Show admin login view
      */
     showAdminLoginView() {
-        document.getElementById('app').innerHTML = `
-            <div class="page-container">
-                <div class="card">
-                    <div class="card-header">
-                        <h1><i class="fas fa-shield-alt"></i> Admin Portal</h1>
-                        <p>Administrative Access</p>
-                    </div>
-                    <div class="card-body">
-                        <div id="admin-login-alert"></div>
-                        <form id="admin-login-form">
-                            <div class="form-group">
-                                <label for="admin-user" class="form-label">
-                                    <i class="fas fa-user"></i> Username
-                                </label>
-                                <input type="text" id="admin-user" name="user" class="form-input" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="admin-pass" class="form-label">
-                                    <i class="fas fa-lock"></i> Password
-                                </label>
-                                <input type="password" id="admin-pass" name="pass" class="form-input" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary" style="width: 100%;">
-                                Sign In
-                            </button>
-                        </form>
-                        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-                            <a href="#" id="attendee-link" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">
-                                <i class="fas fa-arrow-left"></i> Back to Attendee Login
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        this.bindAdminLoginEvents();
+        this.currentView = 'admin-login';
+        await Login.init('admin');
     },
 
     /**
      * Bind admin login events
      */
-    bindAdminLoginEvents() {
-        const adminForm = document.getElementById('admin-login-form');
-        const attendeeLink = document.getElementById('attendee-link');
-
-        if (adminForm) {
-            adminForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const user = formData.get('user');
-                const pass = formData.get('pass');
-                
-                const submitBtn = e.target.querySelector('button[type="submit"]');
-                
-                try {
-                    Utils.showLoading(submitBtn);
-                    await Auth.adminLogin(user, pass);
-                    Utils.showAlert('Login successful!', 'success');
-                    await this.loadAdminView();
-                } catch (error) {
-                    Utils.showAlert(error.message, 'error');
-                } finally {
-                    Utils.hideLoading(submitBtn);
-                }
-            });
-        }
-
-        if (attendeeLink) {
-            attendeeLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showLoginView();
-            });
-        }
-    },
+    
 
     /**
      * Load attendee dashboard view
