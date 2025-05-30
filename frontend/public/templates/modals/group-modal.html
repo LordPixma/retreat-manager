@@ -1,0 +1,33 @@
+<div class="modal-overlay" id="group-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="group-modal-title">Add New Group</h3>
+            <button type="button" class="modal-close" id="close-group-modal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="group-modal-alert" class="alert alert-error hidden"></div>
+            <form id="group-form">
+                <div class="form-group">
+                    <label for="group-name" class="form-label">Group Name</label>
+                    <input type="text" id="group-name" name="name" class="form-input" required 
+                           placeholder="e.g., VIP Group, Family Group, Workshop A">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Current Members</label>
+                    <div id="group-members-list" class="member-preview">
+                        <p class="text-secondary">No members assigned yet</p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancel-group-modal">Cancel</button>
+            <button type="submit" form="group-form" class="btn btn-primary" id="save-group">
+                <span>Save Group</span>
+            </button>
+        </div>
+    </div>
+</div>

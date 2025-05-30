@@ -1,0 +1,45 @@
+<div class="dashboard">
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">Welcome, <span id="attendee-name-display">Loading...</span></h1>
+            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Your retreat information and details</p>
+        </div>
+        <div class="dashboard-actions">
+            <button class="btn btn-secondary" id="attendee-logout">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-card" id="room-info-card">
+            <h3><i class="fas fa-bed"></i> Room Allocation</h3>
+            <div id="room-info-content">
+                <div class="loading-placeholder">Loading room information...</div>
+            </div>
+        </div>
+
+        <div class="info-card" id="payment-info-card">
+            <h3><i class="fas fa-credit-card"></i> Payment Information</h3>
+            <div id="payment-info-content">
+                <div class="loading-placeholder">Loading payment information...</div>
+            </div>
+        </div>
+
+        <div class="info-card" id="group-info-card">
+            <h3><i class="fas fa-users"></i> Group Information</h3>
+            <div id="group-info-content">
+                <div class="loading-placeholder">Loading group information...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="data-table" id="detailed-info">
+        <div class="table-header">
+            <h3 class="table-title">Detailed Information</h3>
+        </div>
+        <div class="table-content" id="detailed-info-content">
+            <div class="loading-placeholder">Loading detailed information...</div>
+        </div>
+    </div>
+</div>

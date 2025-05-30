@@ -1,0 +1,68 @@
+<div class="modal-overlay" id="attendee-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="attendee-modal-title">Add New Attendee</h3>
+            <button type="button" class="modal-close" id="close-attendee-modal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="attendee-modal-alert" class="alert alert-error hidden"></div>
+            <form id="attendee-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="attendee-name" class="form-label">Full Name</label>
+                        <input type="text" id="attendee-name" name="name" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="attendee-email" class="form-label">Email Address</label>
+                        <input type="email" id="attendee-email" name="email" class="form-input">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="attendee-ref" class="form-label">Reference Number</label>
+                        <input type="text" id="attendee-ref" name="ref_number" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="attendee-password" class="form-label">Password</label>
+                        <input type="password" id="attendee-password" name="password" class="form-input" required>
+                        <small class="form-help" id="password-help">Leave blank to keep current password when editing</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="attendee-room" class="form-label">Room Assignment</label>
+                        <select id="attendee-room" name="room_id" class="form-input">
+                            <option value="">No room assigned</option>
+                            <!-- Dynamic options loaded from API -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="attendee-group" class="form-label">Group Assignment</label>
+                        <select id="attendee-group" name="group_id" class="form-input">
+                            <option value="">No group assigned</option>
+                            <!-- Dynamic options loaded from API -->
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="attendee-payment" class="form-label">Payment Due (£)</label>
+                    <input type="number" id="attendee-payment" name="payment_due" class="form-input" step="0.01" min="0" value="0">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancel-attendee-modal">Cancel</button>
+            <button type="submit" form="attendee-form" class="btn btn-primary" id="save-attendee">
+                <span>Save Attendee</span>
+            </button>
+        </div>
+    </div>
+</div>
