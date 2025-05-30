@@ -1,19 +1,16 @@
 import { jsonResponse, badRequest, unauthorized } from '../utils/http.js';
-import { verifyAdminJWT } from '../auth.js';
+import { verifyAdminJWT, createAdminJWT, hashPassword } from '../auth.js';
 import { db } from '../db.js';
 
-// Admin login: POST /api/admin/login
 export async function login(request) {
   const { user, pass } = await request.json();
-  // TODO: validate against env.ADMIN_USER/PASS or admin table
-  if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+  if (user !== globalThis.ADMIN_USER || pass !== globalThis.ADMIN_PASS) {
     return unauthorized('Invalid credentials');
   }
   const token = await createAdminJWT({ user });
   return jsonResponse({ token });
 }
 
-// CRUD attendees
 async function requireAuth(request) {
   const auth = request.headers.get('Authorization') || '';
   const token = auth.replace('Bearer ', '');
@@ -22,7 +19,6 @@ async function requireAuth(request) {
   return payload;
 }
 
-// GET /api/admin/attendees
 export async function listAttendees(request) {
   try {
     await requireAuth(request);
@@ -48,7 +44,6 @@ export async function listAttendees(request) {
   }
 }
 
-// POST /api/admin/attendees
 export async function createAttendee(request) {
   try {
     await requireAuth(request);
@@ -67,7 +62,6 @@ export async function createAttendee(request) {
   }
 }
 
-// GET /api/admin/attendees/:id
 export async function getAttendee(request, { params }) {
   try {
     await requireAuth(request);
@@ -80,13 +74,11 @@ export async function getAttendee(request, { params }) {
   }
 }
 
-// PUT /api/admin/attendees/:id
 export async function updateAttendee(request, { params }) {
   try {
     await requireAuth(request);
     const id = params.id;
     const updates = await request.json();
-    // build SET clause dynamically
     const fields = Object.keys(updates);
     const values = fields.map(f => updates[f]);
     const setClause = fields.map(f => `${f} = ?`).join(', ');
@@ -97,7 +89,6 @@ export async function updateAttendee(request, { params }) {
   }
 }
 
-// DELETE /api/admin/attendees/:id
 export async function deleteAttendee(request, { params }) {
   try {
     await requireAuth(request);

@@ -1,23 +1,13 @@
 name = "attendance-portal"
-account_id = "<YOUR_ACCOUNT_ID>"
+account_id = "9dbefd5c67069aa84dbc395946c55839"
 compatibility_date = "2025-05-30"
-env = "production"
 
-# Static site on Pages
-[site]
-  bucket = "frontend/public"
-  entry-point = "worker"
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "attendance_db"
+database_id = "19c293e9-c7b2-4fb6-bbee-e7960698cd8d"
 
-# Optional build step (e.g., bundling with esbuild)
+# Pages configuration
 [build]
-  command = "npm run build"
-
-# D1 binding
-[d1_databases]
-bindings = [
-  { name = "DB", database_name = "ATTENDANCE_DB" }
-]
-
-# Local dev setup
-[dev]
-  site = { bucket = "frontend/public", entry-point = "worker" }
+command = "echo 'No build needed'"

@@ -1,8 +1,7 @@
 import { jsonResponse, unauthorized } from '../utils/http.js';
-import { verifyAttendeeJWT } from '../auth.js';
+import { verifyAttendeeJWT, createAttendeeJWT, verifyPassword } from '../auth.js';
 import { db } from '../db.js';
 
-// Attendee login: POST /api/login
 export async function login(request) {
   const { ref, password } = await request.json();
   const { results } = await db.prepare(
@@ -20,14 +19,12 @@ export async function login(request) {
   return jsonResponse({ token });
 }
 
-// GET /api/me
 export async function getMe(request) {
   const auth = request.headers.get('Authorization') || '';
   const token = auth.replace('Bearer ', '');
   const payload = await verifyAttendeeJWT(token).catch(() => null);
   if (!payload) return unauthorized();
 
-  // Fetch attendee + relations
   const { results } = await db.prepare(
     `SELECT a.name, a.payment_due,
             r.number AS room_number, r.description,
@@ -40,7 +37,6 @@ export async function getMe(request) {
 
   const me = results[0];
 
-  // Fetch group members
   let members = [];
   if (me.group_name) {
     const { results: mems } = await db.prepare(
