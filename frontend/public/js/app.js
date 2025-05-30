@@ -1,4 +1,4 @@
-// Main Application Controller
+// Fixed app.js - Main Application Controller
 const App = {
     currentView: 'login',
     currentUser: null,
@@ -14,7 +14,7 @@ const App = {
             await this.checkAuthentication();
         } catch (error) {
             console.error('Initialization error:', error);
-            this.showLoginView();
+            await this.showLoginView();
         }
     },
 
@@ -33,7 +33,7 @@ const App = {
             await this.loadAdminView();
         } else {
             console.log('No authentication found, showing login...');
-            this.showLoginView();
+            await this.showLoginView();
         }
     },
 
@@ -42,26 +42,201 @@ const App = {
      */
     async showLoginView() {
         this.currentView = 'login';
-        await Login.init('attendee');
+        
+        // Check if Login component is available
+        if (window.Login) {
+            try {
+                await Login.init('attendee');
+            } catch (error) {
+                console.error('Error loading Login component:', error);
+                this.showFallbackLogin();
+            }
+        } else {
+            console.warn('Login component not found, using fallback');
+            this.showFallbackLogin();
+        }
     },
-
-    /**
-     * Bind login form events
-     */
-    
 
     /**
      * Show admin login view
      */
-    showAdminLoginView() {
+    async showAdminLoginView() {
         this.currentView = 'admin-login';
-        await Login.init('admin');
+        
+        // Check if Login component is available
+        if (window.Login) {
+            try {
+                await Login.init('admin');
+            } catch (error) {
+                console.error('Error loading Admin Login component:', error);
+                this.showFallbackAdminLogin();
+            }
+        } else {
+            console.warn('Login component not found, using fallback');
+            this.showFallbackAdminLogin();
+        }
     },
 
     /**
-     * Bind admin login events
+     * Fallback login form (if templates fail to load)
      */
-    
+    showFallbackLogin() {
+        document.getElementById('app').innerHTML = `
+            <div class="page-container">
+                <div class="card">
+                    <div class="card-header">
+                        <h1><i class="fas fa-mountain"></i> Retreat Portal</h1>
+                        <p>Welcome back</p>
+                    </div>
+                    <div class="card-body">
+                        <div id="login-alert" class="hidden"></div>
+                        <form id="login-form">
+                            <div class="form-group">
+                                <label for="ref" class="form-label">
+                                    <i class="fas fa-id-card"></i> Reference Number
+                                </label>
+                                <input type="text" id="ref" name="ref" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock"></i> Password
+                                </label>
+                                <input type="password" id="password" name="password" class="form-input" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                Sign In
+                            </button>
+                        </form>
+                        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                            <a href="#" id="admin-link" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">
+                                <i class="fas fa-cog"></i> Admin Access
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Bind login events
+        this.bindFallbackLoginEvents();
+    },
+
+    /**
+     * Fallback admin login form
+     */
+    showFallbackAdminLogin() {
+        document.getElementById('app').innerHTML = `
+            <div class="page-container">
+                <div class="card">
+                    <div class="card-header">
+                        <h1><i class="fas fa-shield-alt"></i> Admin Portal</h1>
+                        <p>Administrative Access</p>
+                    </div>
+                    <div class="card-body">
+                        <div id="admin-login-alert" class="hidden"></div>
+                        <form id="admin-login-form">
+                            <div class="form-group">
+                                <label for="admin-user" class="form-label">
+                                    <i class="fas fa-user"></i> Username
+                                </label>
+                                <input type="text" id="admin-user" name="user" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="admin-pass" class="form-label">
+                                    <i class="fas fa-lock"></i> Password
+                                </label>
+                                <input type="password" id="admin-pass" name="pass" class="form-input" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                Sign In
+                            </button>
+                        </form>
+                        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                            <a href="#" id="attendee-link" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">
+                                <i class="fas fa-arrow-left"></i> Back to Attendee Login
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.bindFallbackAdminLoginEvents();
+    },
+
+    /**
+     * Bind fallback login form events
+     */
+    bindFallbackLoginEvents() {
+        const loginForm = document.getElementById('login-form');
+        const adminLink = document.getElementById('admin-link');
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const ref = formData.get('ref');
+                const password = formData.get('password');
+                
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                
+                try {
+                    Utils.showLoading(submitBtn);
+                    await Auth.attendeeLogin(ref, password);
+                    Utils.showAlert('Login successful!', 'success');
+                    await this.loadAttendeeView();
+                } catch (error) {
+                    Utils.showAlert(error.message, 'error');
+                } finally {
+                    Utils.hideLoading(submitBtn);
+                }
+            });
+        }
+
+        if (adminLink) {
+            adminLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await this.showAdminLoginView();
+            });
+        }
+    },
+
+    /**
+     * Bind fallback admin login events
+     */
+    bindFallbackAdminLoginEvents() {
+        const adminForm = document.getElementById('admin-login-form');
+        const attendeeLink = document.getElementById('attendee-link');
+
+        if (adminForm) {
+            adminForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const user = formData.get('user');
+                const pass = formData.get('pass');
+                
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                
+                try {
+                    Utils.showLoading(submitBtn);
+                    await Auth.adminLogin(user, pass);
+                    Utils.showAlert('Login successful!', 'success');
+                    await this.loadAdminView();
+                } catch (error) {
+                    Utils.showAlert(error.message, 'error');
+                } finally {
+                    Utils.hideLoading(submitBtn);
+                }
+            });
+        }
+
+        if (attendeeLink) {
+            attendeeLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await this.showLoginView();
+            });
+        }
+    },
 
     /**
      * Load attendee dashboard view
@@ -148,7 +323,7 @@ const App = {
             console.error('Failed to load attendee view:', error);
             Utils.showAlert('Failed to load dashboard. Please try logging in again.', 'error');
             Auth.clearAllTokens();
-            this.showLoginView();
+            await this.showLoginView();
         }
     },
 
@@ -265,7 +440,7 @@ const App = {
             console.error('Failed to load admin view:', error);
             Utils.showAlert('Failed to load admin dashboard. Please try logging in again.', 'error');
             Auth.clearAllTokens();
-            this.showLoginView();
+            await this.showLoginView();
         }
     },
 
@@ -312,7 +487,7 @@ const App = {
                     await API.delete(`/admin/attendees/${id}`);
                     Utils.showAlert('Attendee deleted successfully', 'success');
                     // Reload the admin view
-                    this.loadAdminView();
+                    await this.loadAdminView();
                 } catch (error) {
                     Utils.showAlert('Failed to delete attendee: ' + error.message, 'error');
                 } finally {
@@ -338,6 +513,15 @@ const App = {
                 debouncedSearch(e.target.value);
             });
         }
+    },
+
+    /**
+     * Logout current user
+     */
+    logout() {
+        Auth.clearAllTokens();
+        this.currentUser = null;
+        this.showLoginView();
     }
 };
 
