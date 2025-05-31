@@ -1,63 +1,4 @@
-setupGlobalErrorHandling(){
-    // Filter out browser extension errors
-    const originalConsoleError = console.error;
-    console.error = function(...args) {
-        const message = args.join(' ');
-        
-        // Filter out known extension-related errors
-        const extensionErrors = [
-            'FrameDoesNotExistError',
-            'runtime.lastError',
-            'DelayedMessageSender',
-            'extensionState.js',
-            'heuristicsRedefinitions.js',
-            'background.js',
-            'Extension context invalidated',
-            'message port closed',
-            'Could not establish connection'
-        ];
-        
-        // Don't log if it's an extension error
-        if (extensionErrors.some(error => message.includes(error))) {
-            return;
-        }
-        
-        // Log other errors normally
-        originalConsoleError.apply(console, args);
-    };
-
-    window.addEventListener('error', (event) => {
-        // Filter out extension errors
-        if (event.filename && (
-            event.filename.includes('extension://') ||
-            event.filename.includes('background.js') ||
-            event.filename.includes('extensionState.js') ||
-            event.filename.includes('heuristicsRedefinitions.js')
-        )) {
-            return; // Ignore extension errors
-        }
-        
-        console.error('Application error:', event.error);
-        
-        // Only show user alerts for actual application errors
-        if (event.error && !event.error.message.includes('extension')) {
-            Utils.showAlert('An unexpected error occurred. Please refresh the page.', 'error');
-        }
-    });
-
-    window.addEventListener('unhandledrejection', (event) => {
-        // Filter out extension-related promise rejections
-        const reason = event.reason?.toString() || '';
-        if (reason.includes('extension') || 
-            reason.includes('DelayedMessageSender') ||
-            reason.includes('FrameDoesNotExistError')) {
-            return;
-        }
-        
-        console.error('Unhandled promise rejection:', event.reason);
-        Utils.showAlert('A network error occurred. Please check your connection.', 'error');
-    });
-};
+// frontend/public/js/app.js - Complete updated main application controller
 
 const ComponentChecker = {
     /**
@@ -141,12 +82,61 @@ const App = {
      * Set up global error handling
      */
     setupGlobalErrorHandling() {
+        // Filter out browser extension errors
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+            const message = args.join(' ');
+            
+            // Filter out known extension-related errors
+            const extensionErrors = [
+                'FrameDoesNotExistError',
+                'runtime.lastError',
+                'DelayedMessageSender',
+                'extensionState.js',
+                'heuristicsRedefinitions.js',
+                'background.js',
+                'Extension context invalidated',
+                'message port closed',
+                'Could not establish connection'
+            ];
+            
+            // Don't log if it's an extension error
+            if (extensionErrors.some(error => message.includes(error))) {
+                return;
+            }
+            
+            // Log other errors normally
+            originalConsoleError.apply(console, args);
+        };
+
         window.addEventListener('error', (event) => {
-            console.error('Global error:', event.error);
-            Utils.showAlert('An unexpected error occurred. Please refresh the page.', 'error');
+            // Filter out extension errors
+            if (event.filename && (
+                event.filename.includes('extension://') ||
+                event.filename.includes('background.js') ||
+                event.filename.includes('extensionState.js') ||
+                event.filename.includes('heuristicsRedefinitions.js')
+            )) {
+                return; // Ignore extension errors
+            }
+            
+            console.error('Application error:', event.error);
+            
+            // Only show user alerts for actual application errors
+            if (event.error && !event.error.message.includes('extension')) {
+                Utils.showAlert('An unexpected error occurred. Please refresh the page.', 'error');
+            }
         });
 
         window.addEventListener('unhandledrejection', (event) => {
+            // Filter out extension-related promise rejections
+            const reason = event.reason?.toString() || '';
+            if (reason.includes('extension') || 
+                reason.includes('DelayedMessageSender') ||
+                reason.includes('FrameDoesNotExistError')) {
+                return;
+            }
+            
             console.error('Unhandled promise rejection:', event.reason);
             Utils.showAlert('A network error occurred. Please check your connection.', 'error');
         });
