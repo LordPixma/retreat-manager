@@ -1,0 +1,150 @@
+<!-- templates/modals/bulk-upload-modal.html -->
+<div class="modal-overlay" id="bulk-upload-modal">
+    <div class="modal" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Bulk Upload Attendees</h3>
+            <button type="button" class="modal-close" id="close-bulk-upload-modal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="bulk-upload-alert" class="alert alert-error hidden"></div>
+            
+            <!-- Step 1: File Upload -->
+            <div id="upload-step" class="upload-step">
+                <div class="step-header">
+                    <h4><i class="fas fa-upload"></i> Step 1: Upload CSV File</h4>
+                    <p>Upload a CSV file containing attendee information</p>
+                </div>
+                
+                <div class="file-upload-area" id="file-upload-area">
+                    <div class="file-upload-content">
+                        <i class="fas fa-file-csv fa-3x" style="color: var(--primary); margin-bottom: 1rem;"></i>
+                        <p><strong>Drag and drop your CSV file here</strong></p>
+                        <p>or</p>
+                        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                        <button type="button" class="btn btn-primary" id="browse-files-btn">
+                            <i class="fas fa-folder-open"></i> Browse Files
+                        </button>
+                        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 1rem;">
+                            Accepted format: CSV (.csv) • Max size: 5MB
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- CSV Format Help -->
+                <div class="info-card" style="margin-top: 1.5rem;">
+                    <h4><i class="fas fa-info-circle"></i> CSV Format Requirements</h4>
+                    <p>Your CSV file should include the following columns (header names must match exactly):</p>
+                    <div class="csv-format-example">
+                        <strong>Required columns:</strong>
+                        <ul>
+                            <li><code>name</code> - Full name of attendee</li>
+                            <li><code>ref_number</code> - Unique reference number</li>
+                            <li><code>password</code> - Login password</li>
+                        </ul>
+                        <strong>Optional columns:</strong>
+                        <ul>
+                            <li><code>email</code> - Email address</li>
+                            <li><code>room_number</code> - Room assignment (room must exist)</li>
+                            <li><code>group_name</code> - Group assignment (group must exist)</li>
+                            <li><code>payment_due</code> - Amount due (default: 0)</li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="download-template-btn">
+                        <i class="fas fa-download"></i> Download CSV Template
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 2: Preview Data -->
+            <div id="preview-step" class="upload-step" style="display: none;">
+                <div class="step-header">
+                    <h4><i class="fas fa-table"></i> Step 2: Preview & Validate Data</h4>
+                    <p>Review the data before importing</p>
+                </div>
+                
+                <div id="data-summary" class="data-summary">
+                    <div class="stats-grid" style="margin-bottom: 1.5rem;">
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-rows">0</div>
+                            <div class="stat-label">Total Rows</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="valid-rows">0</div>
+                            <div class="stat-label">Valid Rows</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="error-rows">0</div>
+                            <div class="stat-label">Errors</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Column Mapping -->
+                <div id="column-mapping" class="column-mapping">
+                    <h5>Column Mapping</h5>
+                    <p>Map your CSV columns to database fields:</p>
+                    <div id="mapping-controls"></div>
+                </div>
+                
+                <!-- Data Preview Table -->
+                <div class="table-container" style="max-height: 300px; overflow-y: auto; margin-top: 1.5rem;">
+                    <table class="table" id="preview-table">
+                        <thead id="preview-thead"></thead>
+                        <tbody id="preview-tbody"></tbody>
+                    </table>
+                </div>
+                
+                <!-- Validation Errors -->
+                <div id="validation-errors" style="display: none; margin-top: 1rem;">
+                    <h5 style="color: var(--error);">Validation Errors</h5>
+                    <div id="error-list" class="error-list"></div>
+                </div>
+            </div>
+            
+            <!-- Step 3: Import Results -->
+            <div id="results-step" class="upload-step" style="display: none;">
+                <div class="step-header">
+                    <h4><i class="fas fa-check-circle"></i> Step 3: Import Complete</h4>
+                    <p>Import results summary</p>
+                </div>
+                
+                <div id="import-results" class="import-results">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="imported-count">0</div>
+                            <div class="stat-label">Successfully Imported</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="failed-count">0</div>
+                            <div class="stat-label">Failed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="skipped-count">0</div>
+                            <div class="stat-label">Skipped</div>
+                        </div>
+                    </div>
+                    
+                    <div id="import-details" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancel-bulk-upload">Cancel</button>
+            <button type="button" class="btn btn-secondary" id="back-step-btn" style="display: none;">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+            <button type="button" class="btn btn-primary" id="next-step-btn" style="display: none;">
+                Next <i class="fas fa-arrow-right"></i>
+            </button>
+            <button type="button" class="btn btn-success" id="import-data-btn" style="display: none;">
+                <i class="fas fa-upload"></i> Import Data
+            </button>
+            <button type="button" class="btn btn-primary" id="close-results-btn" style="display: none;">
+                <i class="fas fa-check"></i> Close
+            </button>
+        </div>
+    </div>
+</div>

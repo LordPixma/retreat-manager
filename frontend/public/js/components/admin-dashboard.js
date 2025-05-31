@@ -638,6 +638,12 @@ const AdminDashboard = {
             btn.addEventListener('click', () => this.showAddAttendeeModal());
         });
 
+        // NEW: Bulk upload button
+        const bulkUploadBtn = document.getElementById('bulk-upload-btn');
+        if (bulkUploadBtn) {
+            bulkUploadBtn.addEventListener('click', () => this.showBulkUploadModal());
+        }
+
         // Add announcement button
         const addAnnouncementBtn = document.getElementById('add-announcement-btn');
         if (addAnnouncementBtn) {
@@ -776,6 +782,14 @@ const AdminDashboard = {
         }
     },
 
+    async showBulkUploadModal() {
+        if (window.BulkUpload) {
+            await window.BulkUpload.showModal(this.data.rooms, this.data.groups);
+        } else {
+            Utils.showAlert('Bulk upload component not loaded', 'error');
+        }
+    },
+    
     /**
      * Edit methods
      */

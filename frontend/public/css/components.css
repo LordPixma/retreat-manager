@@ -1140,3 +1140,261 @@
     position: relative;
     z-index: 1;
 }
+
+
+/* Add this to your components.css file */
+
+/* Bulk Upload Styles */
+.upload-step {
+    padding: 1rem 0;
+}
+
+.step-header {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.step-header h4 {
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.step-header p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* File Upload Area */
+.file-upload-area {
+    border: 2px dashed var(--border);
+    border-radius: var(--border-radius);
+    padding: 3rem 2rem;
+    text-align: center;
+    background: var(--background);
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.file-upload-area.drag-over {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+    transform: scale(1.02);
+}
+
+.file-upload-content p {
+    margin: 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+.file-upload-content p:first-of-type {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+/* CSV Format Example */
+.csv-format-example {
+    background: var(--background);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin: 1rem 0;
+    font-size: 0.9rem;
+}
+
+.csv-format-example ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.csv-format-example code {
+    background: rgba(37, 99, 235, 0.1);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85rem;
+}
+
+/* Data Summary */
+.data-summary .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+/* Column Mapping */
+.column-mapping {
+    background: var(--background);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin: 1rem 0;
+}
+
+.column-mapping h5 {
+    margin: 0 0 0.5rem 0;
+    color: var(--primary);
+}
+
+.mapping-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.mapping-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.mapping-control label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Error List */
+.error-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.error-item {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* Import Results */
+.import-results .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Preview Table Enhancements */
+.table-container {
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.table-container .table {
+    margin: 0;
+}
+
+/* Modal Size Override for Bulk Upload */
+#bulk-upload-modal .modal {
+    max-width: 900px;
+    width: 90vw;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .file-upload-area {
+        padding: 2rem 1rem;
+    }
+    
+    .data-summary .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .import-results .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .mapping-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    #bulk-upload-modal .modal {
+        width: 95vw;
+        margin: 1rem;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .modal-footer .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .file-upload-area {
+        padding: 1.5rem 0.5rem;
+    }
+    
+    .step-header h4 {
+        font-size: 1rem;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .csv-format-example {
+        padding: 0.75rem;
+    }
+    
+    .csv-format-example ul {
+        padding-left: 1rem;
+    }
+}
+
+/* Loading States */
+.upload-step.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.upload-step.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 32px;
+    height: 32px;
+    margin: -16px 0 0 -16px;
+    border: 3px solid rgba(37, 99, 235, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--primary);
+    animation: spin 1s linear infinite;
+}
+
+/* Success States */
+.upload-success {
+    text-align: center;
+    padding: 2rem;
+    color: var(--success);
+}
+
+.upload-success i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+/* File Upload Animation */
+@keyframes uploadPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.file-upload-area.uploading {
+    animation: uploadPulse 1s ease-in-out infinite;
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+}
