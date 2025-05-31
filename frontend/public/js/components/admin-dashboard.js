@@ -1,9 +1,10 @@
-// frontend/public/js/components/admin-dashboard.js
+// frontend/public/js/components/admin-dashboard.js - Complete updated version with announcements
 const AdminDashboard = {
     data: {
         attendees: [],
         rooms: [],
         groups: [],
+        announcements: [],
         stats: {}
     },
     currentTab: 'attendees',
@@ -37,7 +38,7 @@ const AdminDashboard = {
     },
 
     /**
-     * Fallback render if template fails
+     * Fallback render if template fails (updated with announcements tab)
      */
     renderFallback() {
         document.getElementById('app').innerHTML = `
@@ -45,7 +46,7 @@ const AdminDashboard = {
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Admin Dashboard</h1>
-                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, and groups</p>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, groups, and announcements</p>
                     </div>
                     <div class="dashboard-actions">
                         <button class="btn btn-primary" id="add-attendee-btn">
@@ -71,8 +72,8 @@ const AdminDashboard = {
                         <div class="stat-label">Pending Payments</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="room-occupancy">0%</div>
-                        <div class="stat-label">Room Occupancy</div>
+                        <div class="stat-value" id="active-announcements">0</div>
+                        <div class="stat-label">Active Announcements</div>
                     </div>
                 </div>
 
@@ -80,6 +81,9 @@ const AdminDashboard = {
                 <div class="tab-navigation">
                     <button class="tab-btn active" data-tab="attendees">
                         <i class="fas fa-users"></i> Attendees
+                    </button>
+                    <button class="tab-btn" data-tab="announcements">
+                        <i class="fas fa-bullhorn"></i> Announcements
                     </button>
                     <button class="tab-btn" data-tab="rooms">
                         <i class="fas fa-bed"></i> Rooms
@@ -119,6 +123,43 @@ const AdminDashboard = {
                                     <tr>
                                         <td colspan="8" class="loading-placeholder">
                                             <i class="fas fa-spinner fa-spin"></i> Loading attendees...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Announcements Tab -->
+                <div class="tab-content" id="announcements-tab">
+                    <div class="data-table">
+                        <div class="table-header">
+                            <h3 class="table-title">Announcements</h3>
+                            <div style="display: flex; gap: 1rem; align-items: center;">
+                                <input type="search" class="search-box" id="search-announcements" placeholder="Search announcements...">
+                                <button class="btn btn-primary" id="add-announcement-btn">
+                                    <i class="fas fa-plus"></i> Add Announcement
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Type</th>
+                                        <th>Priority</th>
+                                        <th>Target</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="announcements-table-body">
+                                    <tr>
+                                        <td colspan="7" class="loading-placeholder">
+                                            <i class="fas fa-spinner fa-spin"></i> Loading announcements...
                                         </td>
                                     </tr>
                                 </tbody>
@@ -200,14 +241,15 @@ const AdminDashboard = {
     },
 
     /**
-     * Load all data from API
+     * Load all data from API (updated to include announcements)
      */
     async loadAllData() {
         try {
             await Promise.all([
                 this.loadAttendees(),
                 this.loadRooms(),
-                this.loadGroups()
+                this.loadGroups(),
+                this.loadAnnouncements()
             ]);
             
             this.calculateStats();
@@ -258,11 +300,25 @@ const AdminDashboard = {
     },
 
     /**
-     * Calculate dashboard statistics
+     * Load announcements data
+     */
+    async loadAnnouncements() {
+        try {
+            this.data.announcements = await API.get('/admin/announcements');
+            console.log('Loaded announcements:', this.data.announcements.length);
+        } catch (error) {
+            console.error('Failed to load announcements:', error);
+            this.data.announcements = [];
+        }
+    },
+
+    /**
+     * Calculate dashboard statistics (updated with announcements)
      */
     calculateStats() {
         const attendees = this.data.attendees;
         const rooms = this.data.rooms;
+        const announcements = this.data.announcements;
         
         this.data.stats = {
             totalAttendees: attendees.length,
@@ -270,22 +326,25 @@ const AdminDashboard = {
             pendingPayments: attendees.filter(a => (a.payment_due || 0) > 0).length,
             roomsOccupied: attendees.filter(a => a.room).length,
             totalRooms: rooms.length,
-            occupancyRate: rooms.length > 0 ? Math.round((attendees.filter(a => a.room).length / rooms.length) * 100) : 0
+            occupancyRate: rooms.length > 0 ? Math.round((attendees.filter(a => a.room).length / rooms.length) * 100) : 0,
+            activeAnnouncements: announcements.filter(a => a.is_active).length,
+            totalAnnouncements: announcements.length
         };
     },
 
     /**
-     * Update all displays with current data
+     * Update all displays with current data (updated to include announcements)
      */
     updateAllDisplays() {
         this.updateStatsDisplay();
         this.updateAttendeesDisplay();
+        this.updateAnnouncementsDisplay();
         this.updateRoomsDisplay();
         this.updateGroupsDisplay();
     },
 
     /**
-     * Update statistics display
+     * Update statistics display (updated with announcements)
      */
     updateStatsDisplay() {
         const stats = this.data.stats;
@@ -293,12 +352,12 @@ const AdminDashboard = {
         const totalAttendeesEl = document.getElementById('total-attendees');
         const totalRevenueEl = document.getElementById('total-revenue');
         const pendingPaymentsEl = document.getElementById('pending-payments');
-        const roomOccupancyEl = document.getElementById('room-occupancy');
+        const activeAnnouncementsEl = document.getElementById('active-announcements');
         
         if (totalAttendeesEl) totalAttendeesEl.textContent = stats.totalAttendees;
         if (totalRevenueEl) totalRevenueEl.textContent = Utils.formatCurrency(stats.totalRevenue);
         if (pendingPaymentsEl) pendingPaymentsEl.textContent = stats.pendingPayments;
-        if (roomOccupancyEl) roomOccupancyEl.textContent = `${stats.occupancyRate}%`;
+        if (activeAnnouncementsEl) activeAnnouncementsEl.textContent = stats.activeAnnouncements;
     },
 
     /**
@@ -340,6 +399,81 @@ const AdminDashboard = {
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-attendee" data-id="${attendee.id}" title="Delete Attendee">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Update announcements table display
+     */
+    updateAnnouncementsDisplay() {
+        const tbody = document.getElementById('announcements-table-body');
+        if (!tbody) return;
+
+        if (this.data.announcements.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No announcements found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.data.announcements.map(announcement => {
+            const typeBadge = this.getTypeBadge(announcement.type);
+            const priorityBadge = this.getPriorityBadge(announcement.priority);
+            const statusBadge = announcement.is_active 
+                ? `<span class="badge badge-success"><i class="fas fa-eye"></i> Active</span>`
+                : `<span class="badge badge-secondary"><i class="fas fa-eye-slash"></i> Inactive</span>`;
+            const targetBadge = this.getTargetBadge(announcement.target_audience, announcement.target_groups);
+            
+            const createdDate = new Date(announcement.created_at).toLocaleDateString();
+            const isExpired = announcement.expires_at && new Date(announcement.expires_at) < new Date();
+            
+            return `
+                <tr data-announcement-id="${announcement.id}" ${isExpired ? 'style="opacity: 0.6;"' : ''}>
+                    <td>
+                        <div style="max-width: 200px;">
+                            <strong>${Utils.escapeHtml(announcement.title)}</strong>
+                            ${isExpired ? '<br><small style="color: var(--error);">Expired</small>' : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge ${typeBadge.class}">
+                            <i class="${typeBadge.icon}"></i> ${typeBadge.text}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge ${priorityBadge.class}">
+                            ${priorityBadge.text}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge ${targetBadge.class}">
+                            ${targetBadge.text}
+                        </span>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <small>${createdDate}</small><br>
+                        <small style="color: var(--text-secondary);">by ${Utils.escapeHtml(announcement.author_name)}</small>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-primary edit-announcement" data-id="${announcement.id}" title="Edit Announcement">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-secondary toggle-announcement" data-id="${announcement.id}" title="${announcement.is_active ? 'Deactivate' : 'Activate'}">
+                                <i class="fas fa-${announcement.is_active ? 'eye-slash' : 'eye'}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-announcement" data-id="${announcement.id}" title="Delete Announcement">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -496,13 +630,19 @@ const AdminDashboard = {
     },
 
     /**
-     * Bind add buttons
+     * Bind add buttons (updated with announcements)
      */
     bindAddButtons() {
         // Add attendee buttons
         document.querySelectorAll('#add-attendee-btn, #add-attendee-btn-2').forEach(btn => {
             btn.addEventListener('click', () => this.showAddAttendeeModal());
         });
+
+        // Add announcement button
+        const addAnnouncementBtn = document.getElementById('add-announcement-btn');
+        if (addAnnouncementBtn) {
+            addAnnouncementBtn.addEventListener('click', () => this.showAddAnnouncementModal());
+        }
 
         // Add room button
         const addRoomBtn = document.getElementById('add-room-btn');
@@ -518,7 +658,7 @@ const AdminDashboard = {
     },
 
     /**
-     * Bind action buttons (edit/delete)
+     * Bind action buttons (updated with announcements)
      */
     bindActionButtons() {
         // Delegate event listeners for dynamically created buttons
@@ -532,6 +672,12 @@ const AdminDashboard = {
                 await this.editAttendee(id);
             } else if (target.classList.contains('delete-attendee')) {
                 await this.deleteAttendee(id);
+            } else if (target.classList.contains('edit-announcement')) {
+                await this.editAnnouncement(id);
+            } else if (target.classList.contains('toggle-announcement')) {
+                await this.toggleAnnouncement(id);
+            } else if (target.classList.contains('delete-announcement')) {
+                await this.deleteAnnouncement(id);
             } else if (target.classList.contains('edit-room')) {
                 await this.editRoom(id);
             } else if (target.classList.contains('delete-room')) {
@@ -545,16 +691,23 @@ const AdminDashboard = {
     },
 
     /**
-     * Bind search boxes
+     * Bind search boxes (updated with announcements)
      */
     bindSearchBoxes() {
         const searchAttendees = document.getElementById('search-attendees');
+        const searchAnnouncements = document.getElementById('search-announcements');
         const searchRooms = document.getElementById('search-rooms');
         const searchGroups = document.getElementById('search-groups');
 
         if (searchAttendees) {
             searchAttendees.addEventListener('input', Utils.debounce((e) => {
                 this.filterTable('attendees-table-body', e.target.value);
+            }, 300));
+        }
+
+        if (searchAnnouncements) {
+            searchAnnouncements.addEventListener('input', Utils.debounce((e) => {
+                this.filterTable('announcements-table-body', e.target.value);
             }, 300));
         }
 
@@ -578,7 +731,7 @@ const AdminDashboard = {
         const tbody = document.getElementById(tableBodyId);
         if (!tbody) return;
 
-        const rows = tbody.querySelectorAll('tr[data-attendee-id], tr[data-room-id], tr[data-group-id]');
+        const rows = tbody.querySelectorAll('tr[data-attendee-id], tr[data-announcement-id], tr[data-room-id], tr[data-group-id]');
         const searchTerm = query.toLowerCase().trim();
 
         rows.forEach(row => {
@@ -589,13 +742,21 @@ const AdminDashboard = {
     },
 
     /**
-     * Modal management methods
+     * Modal management methods (updated with announcements)
      */
     async showAddAttendeeModal() {
         if (window.AttendeeManagement) {
             await window.AttendeeManagement.showModal(null, this.data.rooms, this.data.groups);
         } else {
             Utils.showAlert('Attendee management component not loaded', 'error');
+        }
+    },
+
+    async showAddAnnouncementModal() {
+        if (window.AnnouncementManagement) {
+            await window.AnnouncementManagement.showModal(null, this.data.groups);
+        } else {
+            Utils.showAlert('Announcement management component not loaded', 'error');
         }
     },
 
@@ -628,6 +789,19 @@ const AdminDashboard = {
             }
         } catch (error) {
             Utils.showAlert('Failed to load attendee details', 'error');
+        }
+    },
+
+    async editAnnouncement(id) {
+        try {
+            const announcement = await API.get(`/admin/announcements/${id}`);
+            if (window.AnnouncementManagement) {
+                await window.AnnouncementManagement.showModal(announcement, this.data.groups);
+            } else {
+                Utils.showAlert('Announcement management component not loaded', 'error');
+            }
+        } catch (error) {
+            Utils.showAlert('Failed to load announcement details', 'error');
         }
     },
 
@@ -677,6 +851,39 @@ const AdminDashboard = {
         }
     },
 
+    async toggleAnnouncement(id) {
+        try {
+            const announcement = this.data.announcements.find(a => a.id == id);
+            if (!announcement) return;
+
+            const newStatus = !announcement.is_active;
+            await API.put(`/admin/announcements/${id}`, { is_active: newStatus });
+            
+            const action = newStatus ? 'activated' : 'deactivated';
+            Utils.showAlert(`Announcement ${action} successfully`, 'success');
+            await this.refresh();
+        } catch (error) {
+            Utils.showAlert('Failed to toggle announcement: ' + error.message, 'error');
+        }
+    },
+
+    async deleteAnnouncement(id) {
+        const announcement = this.data.announcements.find(a => a.id == id);
+        if (!announcement) return;
+
+        if (!confirm(`Are you sure you want to delete "${announcement.title}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            await API.delete(`/admin/announcements/${id}`);
+            Utils.showAlert('Announcement deleted successfully', 'success');
+            await this.refresh();
+        } catch (error) {
+            Utils.showAlert('Failed to delete announcement: ' + error.message, 'error');
+        }
+    },
+
     async deleteRoom(id) {
         const room = this.data.rooms.find(r => r.id == id);
         if (!room) return;
@@ -718,6 +925,43 @@ const AdminDashboard = {
             await this.refresh();
         } catch (error) {
             Utils.showAlert('Failed to delete group: ' + error.message, 'error');
+        }
+    },
+
+    /**
+     * Utility methods for announcement badges
+     */
+    getTypeBadge(type) {
+        const badges = {
+            'general': { text: 'General', class: 'badge-secondary', icon: 'fas fa-info-circle' },
+            'urgent': { text: 'Urgent', class: 'badge-warning', icon: 'fas fa-exclamation-triangle' },
+            'event': { text: 'Event', class: 'badge-primary', icon: 'fas fa-calendar' },
+            'reminder': { text: 'Reminder', class: 'badge-success', icon: 'fas fa-clock' }
+        };
+        return badges[type] || badges['general'];
+    },
+
+    getPriorityBadge(priority) {
+        if (priority >= 4) {
+            return { text: 'High', class: 'badge-warning' };
+        } else if (priority >= 3) {
+            return { text: 'Normal', class: 'badge-secondary' };
+        } else {
+            return { text: 'Low', class: 'badge-secondary' };
+        }
+    },
+
+    getTargetBadge(audience, targetGroups) {
+        switch (audience) {
+            case 'all':
+                return { text: 'All Attendees', class: 'badge-primary' };
+            case 'vip':
+                return { text: 'VIP Only', class: 'badge-warning' };
+            case 'groups':
+                const groupCount = targetGroups ? targetGroups.length : 0;
+                return { text: `${groupCount} Group${groupCount !== 1 ? 's' : ''}`, class: 'badge-secondary' };
+            default:
+                return { text: 'Unknown', class: 'badge-secondary' };
         }
     },
 
