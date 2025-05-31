@@ -1,3 +1,4 @@
+// frontend/public/js/utils.js - Clean version
 const Utils = {
     /**
      * Load HTML template from server
@@ -24,12 +25,64 @@ const Utils = {
         
         const alert = document.createElement('div');
         alert.className = `alert alert-${type}`;
-        alert.textContent = message;
+        alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> ${message}`;
+        alert.style.cssText = `
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            padding: 1rem;
+            border-radius: var(--border-radius, 8px);
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 1001;
+            min-width: 300px;
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        // Add alert styles based on type
+        switch(type) {
+            case 'success':
+                alert.style.cssText += `
+                    background: rgba(16, 185, 129, 0.1);
+                    color: #10b981;
+                    border: 1px solid rgba(16, 185, 129, 0.2);
+                `;
+                break;
+            case 'warning':
+                alert.style.cssText += `
+                    background: rgba(245, 158, 11, 0.1);
+                    color: #f59e0b;
+                    border: 1px solid rgba(245, 158, 11, 0.2);
+                `;
+                break;
+            default: // error
+                alert.style.cssText += `
+                    background: rgba(239, 68, 68, 0.1);
+                    color: #ef4444;
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                `;
+        }
+        
         document.body.appendChild(alert);
         
         setTimeout(() => {
-            alert.remove();
+            if (alert.parentNode) {
+                alert.remove();
+            }
         }, duration);
+    },
+
+    /**
+     * Get icon for alert type
+     */
+    getAlertIcon(type) {
+        const icons = {
+            error: 'exclamation-circle',
+            success: 'check-circle',
+            warning: 'exclamation-triangle',
+            info: 'info-circle'
+        };
+        return icons[type] || 'info-circle';
     },
 
     /**
@@ -89,6 +142,7 @@ const Utils = {
      * Escape HTML to prevent XSS
      */
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -101,3 +155,6 @@ const Utils = {
         return 'id_' + Math.random().toString(36).substr(2, 9);
     }
 };
+
+// Make Utils globally available
+window.Utils = Utils;
