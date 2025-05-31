@@ -1,15 +1,25 @@
 // functions/api/email/test.js
-import { createResponse, checkAdminAuth, handleCORS } from '../../_shared/auth.js';
-
+// Handle CORS preflight
 export async function onRequestOptions() {
-  return handleCORS();
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400'
+    }
+  });
 }
 
 // POST /api/email/test - Test email functionality
 export async function onRequestPost(context) {
   try {
-    const admin = checkAdminAuth(context.request);
-    if (!admin) {
+    // Check admin authorization
+    const auth = context.request.headers.get('Authorization') || '';
+    const token = auth.replace('Bearer ', '');
+    
+    if (!token || !token.startsWith('admin-token-')) {
       return createResponse({ error: 'Unauthorized' }, 401);
     }
 
@@ -20,7 +30,7 @@ export async function onRequestPost(context) {
     }
 
     console.log('Testing email to:', testEmail);
-    console.log('Using API key:', context.env.RESEND_API_KEY ? 'Available' : 'Missing');
+    console.log('API key available:', !!context.env.RESEND_API_KEY);
     console.log('From email:', context.env.FROM_EMAIL || 'Not set');
 
     // Send test email using Resend
@@ -44,6 +54,20 @@ export async function onRequestPost(context) {
     console.error('Error sending test email:', error);
     return createResponse({ error: 'Failed to send test email: ' + error.message }, 500);
   }
+}
+
+// Create standardized JSON response with CORS headers
+function createResponse(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Cache-Control': 'no-cache'
+    }
+  });
 }
 
 async function sendTestEmail(env, toEmail) {
@@ -105,17 +129,12 @@ async function sendTestEmail(env, toEmail) {
               
               <!-- Footer -->
               <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 2rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; color: #6b7280; font-size: 0.875rem;">
-                  <div>
-                    <strong>Sent:</strong> ${new Date().toLocaleString()}<br>
-                    <strong>Service:</strong> Resend API<br>
-                    <strong>From:</strong> ${env.FROM_EMAIL}
-                  </div>
-                  <div style="text-align: right;">
-                    <div style="background: #f3f4f6; padding: 0.5rem 1rem; border-radius: 6px;">
-                      <strong style="color: #374151;">Retreat Portal</strong><br>
-                      <span>Email System</span>
-                    </div>
+                <div style="color: #6b7280; font-size: 0.875rem; text-align: center;">
+                  <p><strong>Sent:</strong> ${new Date().toLocaleString()}</p>
+                  <p><strong>Service:</strong> Resend API</p>
+                  <p><strong>From:</strong> ${env.FROM_EMAIL}</p>
+                  <div style="margin-top: 1rem; padding: 0.5rem; background: #f3f4f6; border-radius: 6px;">
+                    <strong style="color: #374151;">Retreat Portal Email System</strong>
                   </div>
                 </div>
               </div>
