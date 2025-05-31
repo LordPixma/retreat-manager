@@ -2,7 +2,7 @@
     <div class="dashboard-header">
         <div>
             <h1 class="dashboard-title">Admin Dashboard</h1>
-            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, and groups</p>
+            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, groups, and announcements</p>
         </div>
         <div class="dashboard-actions">
             <button class="btn btn-primary" id="add-attendee-btn">
@@ -28,8 +28,8 @@
             <div class="stat-label">Pending Payments</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="room-occupancy">0%</div>
-            <div class="stat-label">Room Occupancy</div>
+            <div class="stat-value" id="active-announcements">0</div>
+            <div class="stat-label">Active Announcements</div>
         </div>
     </div>
 
@@ -37,6 +37,9 @@
     <div class="tab-navigation">
         <button class="tab-btn active" data-tab="attendees">
             <i class="fas fa-users"></i> Attendees
+        </button>
+        <button class="tab-btn" data-tab="announcements">
+            <i class="fas fa-bullhorn"></i> Announcements
         </button>
         <button class="tab-btn" data-tab="rooms">
             <i class="fas fa-bed"></i> Rooms
@@ -69,6 +72,41 @@
                     <tbody id="attendees-table-body">
                         <tr>
                             <td colspan="7" class="loading-placeholder">Loading attendees...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Announcements Tab -->
+    <div class="tab-content" id="announcements-tab">
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title">Announcements</h3>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <input type="search" class="search-box" id="search-announcements" placeholder="Search announcements...">
+                    <button class="btn btn-primary" id="add-announcement-btn">
+                        <i class="fas fa-plus"></i> Add Announcement
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Priority</th>
+                            <th>Target</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="announcements-table-body">
+                        <tr>
+                            <td colspan="7" class="loading-placeholder">Loading announcements...</td>
                         </tr>
                     </tbody>
                 </table>
