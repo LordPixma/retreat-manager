@@ -782,14 +782,42 @@ const AdminDashboard = {
         }
     },
 
-    async showBulkUploadModal() {
-        if (window.BulkUpload) {
-            await window.BulkUpload.showModal(this.data.rooms, this.data.groups);
-        } else {
-            Utils.showAlert('Bulk upload component not loaded', 'error');
+   async showBulkUploadModal() {
+            // Debug: Check what's available
+        console.log('Checking BulkUpload component...');
+        console.log('window.BulkUpload exists:', !!window.BulkUpload);
+        console.log('Available components:', window.ComponentChecker?.getAvailableComponents());
+        
+        // Try to wait for component if not immediately available
+        try {
+            let bulkUpload = window.BulkUpload;
+            
+            if (!bulkUpload) {
+                console.log('BulkUpload not immediately available, waiting...');
+                // Try to wait for it to load
+                for (let i = 0; i < 10; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    if (window.BulkUpload) {
+                        bulkUpload = window.BulkUpload;
+                        break;
+                    }
+                }
+            }
+            
+            if (bulkUpload && typeof bulkUpload.showModal === 'function') {
+                console.log('BulkUpload component found, showing modal...');
+                await bulkUpload.showModal(this.data.rooms, this.data.groups);
+            } else {
+                console.error('BulkUpload component not properly loaded');
+                // Fallback: Show a simple file upload
+                this.showSimpleBulkUpload();
+            }
+        } catch (error) {
+            console.error('Error showing bulk upload modal:', error);
+            Utils.showAlert('Error loading bulk upload: ' + error.message, 'error');
         }
     },
-    
+
     /**
      * Edit methods
      */
