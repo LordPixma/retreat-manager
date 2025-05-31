@@ -12,3 +12,8 @@ database_id = "19c293e9-c7b2-4fb6-bbee-e7960698cd8d"
 [build]
 command = "echo 'No build needed'"
 publish = "frontend/public"
+
+# Environment variables
+[vars]
+PORTAL_URL = "https://retreat.cloverleafchristiancentre.org"
+RETREAT_NAME = "Growth and Wisdom Retreat"
