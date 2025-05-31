@@ -74,14 +74,14 @@ async function sendTestEmail(env, toEmail) {
   if (!env.RESEND_API_KEY) {
     return { 
       success: false, 
-      error: 'RESEND_API_KEY not configured. Run: wrangler secret put RESEND_API_KEY' 
+      error: 'RESEND_API_KEY not configured. Please add it in Cloudflare Pages settings.' 
     };
   }
 
   if (!env.FROM_EMAIL) {
     return { 
       success: false, 
-      error: 'FROM_EMAIL not configured. Run: wrangler secret put FROM_EMAIL' 
+      error: 'FROM_EMAIL not configured. Please add it in Cloudflare Pages settings.' 
     };
   }
 
@@ -134,7 +134,7 @@ async function sendTestEmail(env, toEmail) {
                   <p><strong>Service:</strong> Resend API</p>
                   <p><strong>From:</strong> ${env.FROM_EMAIL}</p>
                   <div style="margin-top: 1rem; padding: 0.5rem; background: #f3f4f6; border-radius: 6px;">
-                    <strong style="color: #374151;">Retreat Portal Email System</strong>
+                    <strong style="color: #374141;">Retreat Portal Email System</strong>
                   </div>
                 </div>
               </div>
