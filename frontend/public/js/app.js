@@ -1,5 +1,4 @@
-// frontend/public/js/app.js - Complete updated main application controller
-setupGlobalErrorHandling() {
+setupGlobalErrorHandling(){
     // Filter out browser extension errors
     const originalConsoleError = console.error;
     console.error = function(...args) {
@@ -58,7 +57,7 @@ setupGlobalErrorHandling() {
         console.error('Unhandled promise rejection:', event.reason);
         Utils.showAlert('A network error occurred. Please check your connection.', 'error');
     });
-},
+};
 
 const ComponentChecker = {
     /**
