@@ -1,4 +1,45 @@
-// frontend/public/js/app.js - Fixed main application controller
+// frontend/public/js/app.js - Complete updated main application controller
+const ComponentChecker = {
+    /**
+     * Check if a component is properly loaded and available
+     */
+    isAvailable(componentName) {
+        return window[componentName] && 
+               typeof window[componentName] === 'object' &&
+               typeof window[componentName].init === 'function';
+    },
+
+    /**
+     * Wait for a component to be available with timeout
+     */
+    async waitForComponent(componentName, timeout = 3000) {
+        const startTime = Date.now();
+        
+        while (!this.isAvailable(componentName)) {
+            if (Date.now() - startTime > timeout) {
+                throw new Error(`Component ${componentName} failed to load within ${timeout}ms`);
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        return window[componentName];
+    },
+
+    /**
+     * Get available components summary
+     */
+    getAvailableComponents() {
+        const components = ['Login', 'AttendeeDashboard', 'AdminDashboard', 'AttendeeManagement', 'RoomManagement', 'GroupManagement', 'AnnouncementManagement'];
+        const available = {};
+        
+        components.forEach(name => {
+            available[name] = this.isAvailable(name);
+        });
+        
+        return available;
+    }
+};
+
 const App = {
     currentView: 'login',
     currentUser: null,
@@ -10,6 +51,10 @@ const App = {
     async init() {
         console.log('Initializing Retreat Portal...');
         
+        // Check component availability
+        const availableComponents = ComponentChecker.getAvailableComponents();
+        console.log('Component availability:', availableComponents);
+        
         if (this.initialized) {
             console.log('App already initialized');
             return;
@@ -18,6 +63,9 @@ const App = {
         try {
             // Set up global error handling
             this.setupGlobalErrorHandling();
+            
+            // Wait a bit for all components to load
+            await new Promise(resolve => setTimeout(resolve, 500));
             
             // Check for existing authentication
             await this.checkAuthentication();
@@ -71,7 +119,8 @@ const App = {
         
         try {
             // Try to use Login component if available
-            if (window.Login && typeof window.Login.init === 'function') {
+            if (ComponentChecker.isAvailable('Login')) {
+                console.log('Using Login component');
                 await window.Login.init('attendee');
             } else {
                 console.warn('Login component not available, using fallback');
@@ -91,7 +140,8 @@ const App = {
         
         try {
             // Try to use Login component if available
-            if (window.Login && typeof window.Login.init === 'function') {
+            if (ComponentChecker.isAvailable('Login')) {
+                console.log('Using Login component for admin');
                 await window.Login.init('admin');
             } else {
                 console.warn('Login component not available, using fallback');
@@ -221,6 +271,16 @@ const App = {
                 const ref = formData.get('ref').trim();
                 const password = formData.get('password');
                 
+                // Validate inputs
+                if (!ref || ref.length < 3) {
+                    this.showAlert('login-alert', 'Reference number must be at least 3 characters', 'error');
+                    return;
+                }
+                if (!password) {
+                    this.showAlert('login-alert', 'Password is required', 'error');
+                    return;
+                }
+                
                 const submitBtn = document.getElementById('login-btn');
                 
                 try {
@@ -277,6 +337,16 @@ const App = {
                 const user = formData.get('user').trim();
                 const pass = formData.get('pass');
                 
+                // Validate inputs
+                if (!user || user.length < 2) {
+                    this.showAlert('admin-login-alert', 'Username must be at least 2 characters', 'error');
+                    return;
+                }
+                if (!pass) {
+                    this.showAlert('admin-login-alert', 'Password is required', 'error');
+                    return;
+                }
+                
                 const submitBtn = document.getElementById('admin-login-btn');
                 
                 try {
@@ -330,10 +400,11 @@ const App = {
             this.currentUser = attendeeData;
 
             // Try to use AttendeeDashboard component if available
-            if (window.AttendeeDashboard && typeof window.AttendeeDashboard.init === 'function') {
+            if (ComponentChecker.isAvailable('AttendeeDashboard')) {
+                console.log('Using AttendeeDashboard component');
                 await window.AttendeeDashboard.init();
             } else {
-                // Fallback to simple dashboard
+                console.warn('AttendeeDashboard component not available, using fallback');
                 this.showFallbackAttendeeDashboard(attendeeData);
             }
 
@@ -357,11 +428,17 @@ const App = {
                         <p style="color: var(--text-secondary); margin-top: 0.5rem;">Your retreat information and details</p>
                     </div>
                     <div class="dashboard-actions">
+                        <button class="btn btn-secondary" id="refresh-dashboard" title="Refresh all information">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
                         <button class="btn btn-secondary" id="attendee-logout">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </button>
                     </div>
                 </div>
+
+                <!-- Announcements Section -->
+                ${this.renderAnnouncementsSection(attendeeData.announcements || [])}
 
                 <div class="info-grid">
                     <div class="info-card">
@@ -370,7 +447,7 @@ const App = {
                         ${attendeeData.room ? `<p>${attendeeData.room.description || ''}</p>` : '<p>No room assigned yet.</p>'}
                     </div>
                     <div class="info-card">
-                        <h3><i class="fas fa-credit-card"></i> Payment Due</h3>
+                        <h3><i class="fas fa-credit-card"></i> Payment Information</h3>
                         <div class="info-value" style="color: ${(attendeeData.payment_due || 0) > 0 ? 'var(--warning)' : 'var(--success)'};">
                             ${Utils.formatCurrency(attendeeData.payment_due)}
                         </div>
@@ -395,12 +472,97 @@ const App = {
             </div>
         `;
 
-        // Bind logout event
+        // Bind events
         document.getElementById('attendee-logout').addEventListener('click', () => {
             if (confirm('Are you sure you want to logout?')) {
                 Auth.logout();
             }
         });
+
+        const refreshBtn = document.getElementById('refresh-dashboard');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                await this.loadAttendeeView();
+            });
+        }
+    },
+
+    /**
+     * Render announcements section for fallback dashboard
+     */
+    renderAnnouncementsSection(announcements) {
+        if (!announcements || announcements.length === 0) {
+            return `
+                <div style="margin-bottom: 2rem;">
+                    <div class="data-table">
+                        <div class="table-header">
+                            <h3 class="table-title">
+                                <i class="fas fa-bullhorn"></i> Latest Updates & Announcements
+                            </h3>
+                        </div>
+                        <div class="table-content">
+                            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                                <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                                <p>No current announcements</p>
+                                <small>Check back later for updates from the retreat organizers</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const sortedAnnouncements = announcements.sort((a, b) => b.priority - a.priority).slice(0, 3);
+
+        return `
+            <div style="margin-bottom: 2rem;">
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            <i class="fas fa-bullhorn"></i> Latest Updates & Announcements
+                        </h3>
+                        <span class="badge badge-primary">${announcements.length} update${announcements.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="table-content">
+                        <div style="display: flex; flex-direction: column; gap: 1rem; padding: 1rem;">
+                            ${sortedAnnouncements.map(announcement => `
+                                <div class="announcement-card" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--border-radius); padding: 1rem; ${announcement.priority >= 4 ? 'border-left: 4px solid var(--warning);' : ''}">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                                        <h4 style="margin: 0; color: var(--text-primary);">${Utils.escapeHtml(announcement.title)}</h4>
+                                        <span class="badge badge-${announcement.type === 'urgent' ? 'warning' : 'secondary'}">${announcement.type}</span>
+                                    </div>
+                                    <p style="margin: 0.5rem 0; color: var(--text-primary); line-height: 1.5;">${Utils.escapeHtml(announcement.content)}</p>
+                                    <small style="color: var(--text-secondary);">
+                                        <i class="fas fa-user"></i> ${Utils.escapeHtml(announcement.author_name)}
+                                        <span style="margin: 0 0.5rem;">•</span>
+                                        <i class="fas fa-clock"></i> ${this.getTimeAgo(announcement.created_at)}
+                                    </small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Calculate time ago string
+     */
+    getTimeAgo(datetime) {
+        const now = new Date();
+        const created = new Date(datetime);
+        const diffMs = now - created;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+        
+        if (diffDays > 0) {
+            return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        } else if (diffHours > 0) {
+            return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        } else {
+            return 'Recently';
+        }
     },
 
     /**
@@ -411,10 +573,11 @@ const App = {
         
         try {
             // Try to use AdminDashboard component if available
-            if (window.AdminDashboard && typeof window.AdminDashboard.init === 'function') {
+            if (ComponentChecker.isAvailable('AdminDashboard')) {
+                console.log('Using AdminDashboard component');
                 await window.AdminDashboard.init();
             } else {
-                // Fallback to simple admin dashboard
+                console.warn('AdminDashboard component not available, using fallback');
                 const attendeesData = await API.get('/admin/attendees');
                 this.showFallbackAdminDashboard(attendeesData);
             }
@@ -445,6 +608,9 @@ const App = {
                         <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, and groups</p>
                     </div>
                     <div class="dashboard-actions">
+                        <button class="btn btn-secondary" id="refresh-admin-dashboard">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
                         <button class="btn btn-secondary" id="admin-logout">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </button>
@@ -473,48 +639,63 @@ const App = {
                 <div class="data-table">
                     <div class="table-header">
                         <h3 class="table-title">Attendees</h3>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                            <i class="fas fa-info-circle"></i> 
+                            Full admin features available when components load properly
+                        </div>
                     </div>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Reference</th>
-                                <th>Name</th>
-                                <th>Room</th>
-                                <th>Payment Due</th>
-                                <th>Group</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${attendeesData.map(attendee => {
-                                const paymentDue = attendee.payment_due || 0;
-                                const statusBadge = paymentDue > 0 
-                                    ? `<span class="badge badge-warning">Payment Due</span>`
-                                    : `<span class="badge badge-success">Paid</span>`;
-                                    
-                                return `
-                                    <tr>
-                                        <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
-                                        <td>${Utils.escapeHtml(attendee.name)}</td>
-                                        <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : 'Unassigned'}</td>
-                                        <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
-                                        <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : 'No Group'}</td>
-                                        <td>${statusBadge}</td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Reference</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Room</th>
+                                    <th>Payment Due</th>
+                                    <th>Group</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${attendeesData.map(attendee => {
+                                    const paymentDue = attendee.payment_due || 0;
+                                    const statusBadge = paymentDue > 0 
+                                        ? `<span class="badge badge-warning">Payment Due</span>`
+                                        : `<span class="badge badge-success">Paid</span>`;
+                                        
+                                    return `
+                                        <tr>
+                                            <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
+                                            <td>${Utils.escapeHtml(attendee.name)}</td>
+                                            <td>${attendee.email ? Utils.escapeHtml(attendee.email) : 'N/A'}</td>
+                                            <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : 'Unassigned'}</td>
+                                            <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
+                                            <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : 'No Group'}</td>
+                                            <td>${statusBadge}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         `;
 
-        // Bind logout event
+        // Bind events
         document.getElementById('admin-logout').addEventListener('click', () => {
             if (confirm('Are you sure you want to logout?')) {
                 Auth.logout();
             }
         });
+
+        const refreshBtn = document.getElementById('refresh-admin-dashboard');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                await this.loadAdminView();
+            });
+        }
     },
 
     /**
@@ -582,6 +763,9 @@ const App = {
 
 // Make App globally available
 window.App = App;
+
+// Make ComponentChecker globally available
+window.ComponentChecker = ComponentChecker;
 
 // Initialize app when DOM is loaded
 if (document.readyState === 'loading') {
