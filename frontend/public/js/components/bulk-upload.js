@@ -1,4 +1,4 @@
-// frontend/public/js/components/bulk-upload.js
+// frontend/public/js/components/bulk-upload.js (FIXED VERSION)
 const BulkUpload = {
     csvData: null,
     parsedData: null,
@@ -33,9 +33,14 @@ const BulkUpload = {
      * Render modal template
      */
     async renderModal() {
-        // For now, we'll create the modal HTML directly
-        // Later you can move this to a template file
-        const modalHtml = await Utils.loadTemplate('templates/modals/bulk-upload-modal.html');
+        // Try to load template, fall back to inline HTML
+        let modalHtml;
+        try {
+            modalHtml = await Utils.loadTemplate('templates/modals/bulk-upload.html');
+        } catch (error) {
+            console.warn('Template loading failed, using inline HTML');
+            modalHtml = this.getInlineModalHTML();
+        }
         
         // Remove existing modal if present
         const existingModal = document.getElementById('bulk-upload-modal');
@@ -48,6 +53,156 @@ const BulkUpload = {
         
         // Show modal
         document.getElementById('bulk-upload-modal').classList.remove('hidden');
+    },
+
+    /**
+     * Get inline modal HTML (fallback)
+     */
+    getInlineModalHTML() {
+        return `
+            <div class="modal-overlay" id="bulk-upload-modal">
+                <div class="modal" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Bulk Upload Attendees</h3>
+                        <button type="button" class="modal-close" id="close-bulk-upload-modal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="bulk-upload-alert" class="alert alert-error hidden"></div>
+                        
+                        <!-- Step 1: File Upload -->
+                        <div id="upload-step" class="upload-step">
+                            <div class="step-header">
+                                <h4><i class="fas fa-upload"></i> Step 1: Upload CSV File</h4>
+                                <p>Upload a CSV file containing attendee information</p>
+                            </div>
+                            
+                            <div class="file-upload-area" id="file-upload-area">
+                                <div class="file-upload-content">
+                                    <i class="fas fa-file-csv fa-3x" style="color: var(--primary); margin-bottom: 1rem;"></i>
+                                    <p><strong>Drag and drop your CSV file here</strong></p>
+                                    <p>or</p>
+                                    <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                                    <button type="button" class="btn btn-primary" id="browse-files-btn">
+                                        <i class="fas fa-folder-open"></i> Browse Files
+                                    </button>
+                                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 1rem;">
+                                        Accepted format: CSV (.csv) • Max size: 5MB
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- CSV Format Help -->
+                            <div class="info-card" style="margin-top: 1.5rem; background: var(--background); padding: 1rem; border-radius: var(--border-radius); border: 1px solid var(--border);">
+                                <h4><i class="fas fa-info-circle"></i> CSV Format Requirements</h4>
+                                <p>Your CSV file should include the following columns (header names must match exactly):</p>
+                                <div class="csv-format-example">
+                                    <strong>Required columns:</strong>
+                                    <ul>
+                                        <li><code>name</code> - Full name of attendee</li>
+                                        <li><code>ref_number</code> - Unique reference number</li>
+                                        <li><code>password</code> - Login password</li>
+                                    </ul>
+                                    <strong>Optional columns:</strong>
+                                    <ul>
+                                        <li><code>email</code> - Email address</li>
+                                        <li><code>room_number</code> - Room assignment (room must exist)</li>
+                                        <li><code>group_name</code> - Group assignment (group must exist)</li>
+                                        <li><code>payment_due</code> - Amount due (default: 0)</li>
+                                    </ul>
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-sm" id="download-template-btn">
+                                    <i class="fas fa-download"></i> Download CSV Template
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2: Preview Data -->
+                        <div id="preview-step" class="upload-step" style="display: none;">
+                            <div class="step-header">
+                                <h4><i class="fas fa-table"></i> Step 2: Preview & Validate Data</h4>
+                                <p>Review the data before importing</p>
+                            </div>
+                            
+                            <div id="data-summary" class="data-summary">
+                                <div class="stats-grid" style="margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                                    <div class="stat-card" style="background: var(--surface); padding: 1rem; border-radius: var(--border-radius); text-align: center; border-left: 4px solid var(--primary);">
+                                        <div class="stat-value" id="total-rows" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">0</div>
+                                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Total Rows</div>
+                                    </div>
+                                    <div class="stat-card" style="background: var(--surface); padding: 1rem; border-radius: var(--border-radius); text-align: center; border-left: 4px solid var(--success);">
+                                        <div class="stat-value" id="valid-rows" style="font-size: 1.5rem; font-weight: 700; color: var(--success);">0</div>
+                                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Valid Rows</div>
+                                    </div>
+                                    <div class="stat-card" style="background: var(--surface); padding: 1rem; border-radius: var(--border-radius); text-align: center; border-left: 4px solid var(--error);">
+                                        <div class="stat-value" id="error-rows" style="font-size: 1.5rem; font-weight: 700; color: var(--error);">0</div>
+                                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Errors</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Data Preview Table -->
+                            <div class="table-container" style="max-height: 300px; overflow-y: auto; margin-top: 1.5rem;">
+                                <table class="table" id="preview-table">
+                                    <thead id="preview-thead"></thead>
+                                    <tbody id="preview-tbody"></tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Validation Errors -->
+                            <div id="validation-errors" style="display: none; margin-top: 1rem;">
+                                <h5 style="color: var(--error);">Validation Errors</h5>
+                                <div id="error-list" class="error-list"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 3: Import Results -->
+                        <div id="results-step" class="upload-step" style="display: none;">
+                            <div class="step-header">
+                                <h4><i class="fas fa-check-circle"></i> Step 3: Import Complete</h4>
+                                <p>Import results summary</p>
+                            </div>
+                            
+                            <div id="import-results" class="import-results">
+                                <div class="stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                                    <div class="stat-card" style="background: var(--surface); padding: 1rem; border-radius: var(--border-radius); text-align: center; border-left: 4px solid var(--success);">
+                                        <div class="stat-value" id="imported-count" style="font-size: 1.5rem; font-weight: 700; color: var(--success);">0</div>
+                                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Successfully Imported</div>
+                                    </div>
+                                    <div class="stat-card" style="background: var(--surface); padding: 1rem; border-radius: var(--border-radius); text-align: center; border-left: 4px solid var(--error);">
+                                        <div class="stat-value" id="failed-count" style="font-size: 1.5rem; font-weight: 700; color: var(--error);">0</div>
+                                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Failed</div>
+                                    </div>
+                                    <div class="stat-card" style="background: var(--surface); padding: 1rem; border-radius: var(--border-radius); text-align: center; border-left: 4px solid var(--warning);">
+                                        <div class="stat-value" id="skipped-count" style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">0</div>
+                                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Skipped</div>
+                                    </div>
+                                </div>
+                                
+                                <div id="import-details" style="margin-top: 1.5rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="cancel-bulk-upload">Cancel</button>
+                        <button type="button" class="btn btn-secondary" id="back-step-btn" style="display: none;">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button type="button" class="btn btn-primary" id="next-step-btn" style="display: none;">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <button type="button" class="btn btn-success" id="import-data-btn" style="display: none;">
+                            <i class="fas fa-upload"></i> Import Data
+                        </button>
+                        <button type="button" class="btn btn-primary" id="close-results-btn" style="display: none;">
+                            <i class="fas fa-check"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     },
 
     /**
@@ -84,6 +239,8 @@ const BulkUpload = {
                 const file = e.dataTransfer.files[0];
                 if (file && file.type === 'text/csv') {
                     this.handleFileSelect(file);
+                } else {
+                    this.showAlert('Please select a CSV file', 'error');
                 }
             });
         }
@@ -107,6 +264,9 @@ const BulkUpload = {
                 this.hideModal();
             }
         });
+
+        // Escape key to close
+        document.addEventListener('keydown', this.handleKeyDown.bind(this));
     },
 
     /**
@@ -115,7 +275,7 @@ const BulkUpload = {
     async handleFileSelect(file) {
         if (!file) return;
 
-        if (file.type !== 'text/csv') {
+        if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
             this.showAlert('Please select a CSV file', 'error');
             return;
         }
@@ -136,6 +296,7 @@ const BulkUpload = {
             
         } catch (error) {
             this.showAlert('Error reading file: ' + error.message, 'error');
+            console.error('File read error:', error);
         }
     },
 
@@ -152,25 +313,33 @@ const BulkUpload = {
     },
 
     /**
-     * Parse CSV data
+     * Parse CSV data (improved)
      */
     async parseCSV(csvText) {
         try {
-            // Simple CSV parser (you could use a library like Papa Parse for more robust parsing)
+            // Simple CSV parser with better handling
             const lines = csvText.trim().split('\n');
-            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            if (lines.length < 2) {
+                throw new Error('CSV must have at least a header row and one data row');
+            }
+
+            // Parse headers
+            const headers = this.parseCSVLine(lines[0]);
             
-            this.csvData = {
-                headers,
-                rows: lines.slice(1).map(line => {
-                    const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+            // Parse data rows
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) { // Skip empty lines
+                    const values = this.parseCSVLine(lines[i]);
                     const row = {};
                     headers.forEach((header, index) => {
                         row[header] = values[index] || '';
                     });
-                    return row;
-                })
-            };
+                    rows.push(row);
+                }
+            }
+
+            this.csvData = { headers, rows };
 
             // Set up default column mapping
             this.setupColumnMapping();
@@ -179,6 +348,7 @@ const BulkUpload = {
             this.validateData();
             
             console.log('Parsed CSV data:', this.csvData);
+            console.log('Validation errors:', this.validationErrors);
             
         } catch (error) {
             throw new Error('Failed to parse CSV: ' + error.message);
@@ -186,24 +356,49 @@ const BulkUpload = {
     },
 
     /**
+     * Parse a single CSV line (handles quotes and commas)
+     */
+    parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        result.push(current.trim());
+        return result;
+    },
+
+    /**
      * Set up column mapping
      */
     setupColumnMapping() {
         const standardColumns = {
-            'name': ['name', 'full_name', 'attendee_name'],
-            'ref_number': ['ref_number', 'reference', 'ref', 'id'],
+            'name': ['name', 'full_name', 'attendee_name', 'full name', 'attendee name'],
+            'ref_number': ['ref_number', 'reference', 'ref', 'id', 'ref number'],
             'password': ['password', 'pwd', 'pass'],
-            'email': ['email', 'email_address'],
-            'room_number': ['room_number', 'room', 'room_no'],
-            'group_name': ['group_name', 'group'],
-            'payment_due': ['payment_due', 'amount_due', 'balance']
+            'email': ['email', 'email_address', 'email address'],
+            'room_number': ['room_number', 'room', 'room_no', 'room number'],
+            'group_name': ['group_name', 'group', 'group name'],
+            'payment_due': ['payment_due', 'amount_due', 'balance', 'payment due', 'amount due']
         };
 
         this.columnMapping = {};
         
         // Auto-map columns based on header names
         this.csvData.headers.forEach(header => {
-            const lowerHeader = header.toLowerCase();
+            const lowerHeader = header.toLowerCase().trim();
             
             for (const [standardCol, variations] of Object.entries(standardColumns)) {
                 if (variations.includes(lowerHeader)) {
@@ -212,6 +407,8 @@ const BulkUpload = {
                 }
             }
         });
+
+        console.log('Column mapping:', this.columnMapping);
     },
 
     /**
@@ -226,15 +423,15 @@ const BulkUpload = {
             const rowNum = index + 2; // Account for header row
 
             // Required field validation
-            if (!row[this.columnMapping.name]) {
+            if (!row[this.columnMapping.name]?.trim()) {
                 rowErrors.push('Name is required');
             }
 
-            if (!row[this.columnMapping.ref_number]) {
+            if (!row[this.columnMapping.ref_number]?.trim()) {
                 rowErrors.push('Reference number is required');
             } else {
                 // Check for duplicate ref numbers
-                const refNum = row[this.columnMapping.ref_number];
+                const refNum = row[this.columnMapping.ref_number].trim();
                 if (refNumbers.has(refNum)) {
                     rowErrors.push('Duplicate reference number');
                 } else {
@@ -242,30 +439,30 @@ const BulkUpload = {
                 }
             }
 
-            if (!row[this.columnMapping.password]) {
+            if (!row[this.columnMapping.password]?.trim()) {
                 rowErrors.push('Password is required');
             }
 
             // Email validation (if provided)
-            const email = row[this.columnMapping.email];
+            const email = row[this.columnMapping.email]?.trim();
             if (email && !this.isValidEmail(email)) {
                 rowErrors.push('Invalid email format');
             }
 
             // Room validation
-            const roomNumber = row[this.columnMapping.room_number];
+            const roomNumber = row[this.columnMapping.room_number]?.trim();
             if (roomNumber && !this.roomsData.find(r => r.number === roomNumber)) {
-                rowErrors.push('Room not found');
+                rowErrors.push(`Room "${roomNumber}" not found`);
             }
 
             // Group validation
-            const groupName = row[this.columnMapping.group_name];
+            const groupName = row[this.columnMapping.group_name]?.trim();
             if (groupName && !this.groupsData.find(g => g.name === groupName)) {
-                rowErrors.push('Group not found');
+                rowErrors.push(`Group "${groupName}" not found`);
             }
 
             // Payment amount validation
-            const paymentDue = row[this.columnMapping.payment_due];
+            const paymentDue = row[this.columnMapping.payment_due]?.trim();
             if (paymentDue && (isNaN(paymentDue) || parseFloat(paymentDue) < 0)) {
                 rowErrors.push('Invalid payment amount');
             }
@@ -278,8 +475,6 @@ const BulkUpload = {
                 });
             }
         });
-
-        console.log('Validation errors:', this.validationErrors);
     },
 
     /**
@@ -332,7 +527,8 @@ const BulkUpload = {
                 if (backBtn) backBtn.style.display = 'inline-flex';
                 if (importBtn) {
                     importBtn.style.display = 'inline-flex';
-                    importBtn.disabled = this.validationErrors.length === this.csvData?.rows.length;
+                    const validRows = this.csvData?.rows.length - this.validationErrors.length;
+                    importBtn.disabled = validRows === 0;
                 }
                 break;
             case 3:
@@ -432,7 +628,7 @@ const BulkUpload = {
         errorsContainer.style.display = 'block';
         
         errorList.innerHTML = this.validationErrors.slice(0, 5).map(error => `
-            <div class="error-item" style="background: rgba(239, 68, 68, 0.1); padding: 0.75rem; border-radius: 4px; margin-bottom: 0.5rem;">
+            <div class="error-item" style="background: rgba(239, 68, 68, 0.1); padding: 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; border: 1px solid rgba(239, 68, 68, 0.2);">
                 <strong>Row ${error.row}:</strong> ${error.errors.join(', ')}
             </div>
         `).join('');
@@ -490,11 +686,14 @@ const BulkUpload = {
             for (const row of validRows) {
                 try {
                     const attendeeData = this.formatAttendeeData(row);
+                    console.log('Importing attendee:', attendeeData);
                     await API.post('/admin/attendees', attendeeData);
                     importedCount++;
                 } catch (error) {
                     failedCount++;
-                    importDetails.push(`Failed to import ${row[this.columnMapping.name]}: ${error.message}`);
+                    const name = row[this.columnMapping.name] || 'Unknown';
+                    importDetails.push(`Failed to import ${name}: ${error.message}`);
+                    console.error('Import failed for:', name, error);
                 }
             }
 
@@ -510,6 +709,7 @@ const BulkUpload = {
 
         } catch (error) {
             this.showAlert('Import failed: ' + error.message, 'error');
+            console.error('Bulk import error:', error);
         } finally {
             if (importBtn) {
                 importBtn.disabled = false;
@@ -523,22 +723,22 @@ const BulkUpload = {
      */
     formatAttendeeData(row) {
         const data = {
-            name: row[this.columnMapping.name],
-            ref_number: row[this.columnMapping.ref_number],
-            password: row[this.columnMapping.password],
-            email: row[this.columnMapping.email] || null,
-            payment_due: parseFloat(row[this.columnMapping.payment_due]) || 0
+            name: row[this.columnMapping.name]?.trim(),
+            ref_number: row[this.columnMapping.ref_number]?.trim(),
+            password: row[this.columnMapping.password]?.trim(),
+            email: row[this.columnMapping.email]?.trim() || null,
+            payment_due: parseFloat(row[this.columnMapping.payment_due]?.trim()) || 0
         };
 
         // Find room ID
-        const roomNumber = row[this.columnMapping.room_number];
+        const roomNumber = row[this.columnMapping.room_number]?.trim();
         if (roomNumber) {
             const room = this.roomsData.find(r => r.number === roomNumber);
             if (room) data.room_id = room.id;
         }
 
         // Find group ID
-        const groupName = row[this.columnMapping.group_name];
+        const groupName = row[this.columnMapping.group_name]?.trim();
         if (groupName) {
             const group = this.groupsData.find(g => g.name === groupName);
             if (group) data.group_id = group.id;
@@ -561,7 +761,7 @@ const BulkUpload = {
                 <h5>Import Details:</h5>
                 <div class="error-list">
                     ${details.map(detail => `
-                        <div style="background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem;">
+                        <div style="background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.5rem; border: 1px solid rgba(239, 68, 68, 0.2);">
                             ${Utils.escapeHtml(detail)}
                         </div>
                     `).join('')}
@@ -579,7 +779,8 @@ const BulkUpload = {
         const template = [
             'name,ref_number,password,email,room_number,group_name,payment_due',
             'John Smith,REF001,password123,john@example.com,101,VIP Group,150.00',
-            'Jane Doe,REF002,password456,jane@example.com,102,Workshop A,200.00'
+            'Jane Doe,REF002,password456,jane@example.com,102,Workshop A,200.00',
+            'Mike Johnson,REF003,mypassword,mike@example.com,,Family Group,0.00'
         ].join('\n');
 
         const blob = new Blob([template], { type: 'text/csv' });
@@ -587,7 +788,9 @@ const BulkUpload = {
         const a = document.createElement('a');
         a.href = url;
         a.download = 'attendees_template.csv';
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
     },
 
@@ -624,11 +827,26 @@ const BulkUpload = {
         return icons[type] || 'info-circle';
     },
 
+    handleKeyDown(e) {
+        if (e.key === 'Escape') {
+            this.hideModal();
+        }
+    },
+
     hideModal() {
         const modal = document.getElementById('bulk-upload-modal');
         if (modal) {
             modal.remove();
         }
+        
+        // Remove event listener
+        document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+        
+        // Reset state
+        this.currentStep = 1;
+        this.csvData = null;
+        this.parsedData = null;
+        this.validationErrors = [];
     }
 };
 
