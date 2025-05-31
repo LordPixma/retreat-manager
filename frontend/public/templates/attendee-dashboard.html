@@ -2,15 +2,41 @@
     <div class="dashboard-header">
         <div>
             <h1 class="dashboard-title">Welcome, <span id="attendee-name-display">Loading...</span></h1>
-            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Your retreat information and details</p>
+            <p style="color: var(--text-secondary); margin-top: 0.5rem;">Your retreat information and latest updates</p>
         </div>
         <div class="dashboard-actions">
+            <button class="btn btn-secondary" id="refresh-dashboard" title="Refresh all information">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
             <button class="btn btn-secondary" id="attendee-logout">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </button>
         </div>
     </div>
 
+    <!-- Announcements Section (Important for attendees) -->
+    <div id="announcements-section" style="margin-bottom: 2rem;">
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title">
+                    <i class="fas fa-bullhorn"></i> Latest Updates & Announcements
+                </h3>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span id="announcements-count" class="badge badge-secondary" style="display: none;">0 updates</span>
+                    <button class="btn btn-sm btn-secondary" id="refresh-announcements" title="Refresh announcements">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="announcements-content" class="table-content">
+                <div class="loading-placeholder">
+                    <i class="fas fa-spinner fa-spin"></i> Loading announcements...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Info Cards -->
     <div class="info-grid">
         <div class="info-card" id="room-info-card">
             <h3><i class="fas fa-bed"></i> Room Allocation</h3>
@@ -34,6 +60,7 @@
         </div>
     </div>
 
+    <!-- Detailed Information -->
     <div class="data-table" id="detailed-info">
         <div class="table-header">
             <h3 class="table-title">Detailed Information</h3>
