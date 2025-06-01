@@ -51,6 +51,14 @@ const App = {
      */
     async init() {
         console.log('Initializing Retreat Portal...');
+
+        // Initialize enhanced session management
+        initializeEnhancedSystems();
+
+        // Initialize real-time connections for admin users
+        if (Auth.getToken('admin')) {
+            EnhancedIntegration.initializeRealTime();
+        }
         
         // Check component availability
         const availableComponents = ComponentChecker.getAvailableComponents();
