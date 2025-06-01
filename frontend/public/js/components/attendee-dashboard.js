@@ -701,7 +701,7 @@ const AttendeeDashboard = {
                 </div>
             `;
         }
-    }
+    },
 
     /**
      * Update detailed information section
