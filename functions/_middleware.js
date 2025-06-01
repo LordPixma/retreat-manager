@@ -1,12 +1,10 @@
 // functions/_middleware.js
-// Enhanced middleware for session management, rate limiting, and security
-
-import { createResponse } from './_shared/enhanced-auth.js';
+// Enhanced middleware for session management, rate limiting, and security - FIXED VERSION
 
 /**
- * Rate Limiter Class for request throttling
+ * Rate Limiter Class for request throttling (local version to avoid conflicts)
  */
-class RateLimiter {
+class MiddlewareRateLimiter {
     constructor(env) {
         this.env = env;
     }
@@ -16,7 +14,6 @@ class RateLimiter {
      */
     async checkRateLimit(identifier, maxRequests = 60, windowMs = 60000, endpoint = '') {
         const windowStart = Date.now() - windowMs;
-        const key = `rate_limit_${identifier}`;
 
         try {
             // Get current request count in the time window
@@ -118,9 +115,9 @@ class RateLimiter {
 }
 
 /**
- * Session Manager for cleanup and validation
+ * Session Manager for cleanup and validation (local version)
  */
-class SessionManager {
+class MiddlewareSessionManager {
     constructor(env) {
         this.env = env;
         this.sessionTimeout = 2 * 60 * 60 * 1000; // 2 hours
@@ -288,8 +285,8 @@ export async function onRequest(context) {
     const requestId = PerformanceMonitor.generateRequestId();
     
     // Initialize managers
-    const rateLimiter = new RateLimiter(env);
-    const sessionManager = new SessionManager(env);
+    const rateLimiter = new MiddlewareRateLimiter(env);
+    const sessionManager = new MiddlewareSessionManager(env);
     const performanceMonitor = new PerformanceMonitor();
     
     performanceMonitor.startTiming(requestId);
@@ -557,48 +554,6 @@ export async function onRequestOptions(context) {
             'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Session-ID',
             'Access-Control-Max-Age': '86400', // 24 hours
             'Cache-Control': 'public, max-age=86400'
-        }
-    });
-}
-
-/**
- * Handle HEAD requests
- */
-export async function onRequestHead(context) {
-    const { request, next } = context;
-    
-    // Convert HEAD to GET and return only headers
-    const getRequest = new Request(request.url, {
-        method: 'GET',
-        headers: request.headers
-    });
-    
-    const response = await next(getRequest);
-    
-    return new Response(null, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers
-    });
-}
-
-/**
- * Error boundary for the middleware
- */
-export async function onRequestError(context) {
-    const { request } = context;
-    const url = new URL(request.url);
-    
-    console.error('Request error in middleware for:', url.pathname);
-    
-    return new Response(JSON.stringify({
-        error: 'Service temporarily unavailable',
-        timestamp: new Date().toISOString()
-    }), {
-        status: 503,
-        headers: {
-            'Content-Type': 'application/json',
-            'Retry-After': '30'
         }
     });
 }
