@@ -36,7 +36,7 @@
         </div>
     </div>
 
-    <!-- Quick Info Cards -->
+    <!-- Quick Info Cards - Enhanced with group financial info -->
     <div class="info-grid">
         <div class="info-card" id="room-info-card">
             <h3><i class="fas fa-bed"></i> Room Allocation</h3>
@@ -52,10 +52,82 @@
             </div>
         </div>
 
-        <div class="info-card" id="group-info-card">
+        <!-- Enhanced Group Card with Financial Information -->
+        <div class="info-card" id="group-info-card" style="grid-column: span 2;">
             <h3><i class="fas fa-users"></i> Group Information</h3>
             <div id="group-info-content">
                 <div class="loading-placeholder">Loading group information...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Financial Summary (shows when user is in a group with outstanding payments) -->
+    <div id="group-financial-alert" style="display: none; margin-bottom: 2rem;">
+        <div class="data-table">
+            <div class="table-header" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%); border-bottom: 1px solid rgba(245, 158, 11, 0.2);">
+                <h3 class="table-title" style="color: var(--warning);">
+                    <i class="fas fa-exclamation-triangle"></i> Group Payment Status
+                </h3>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span id="group-outstanding-badge" class="badge badge-warning">£0 Outstanding</span>
+                    <button class="btn btn-sm btn-secondary" id="toggle-group-details" title="Toggle group payment details">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="group-financial-details" class="table-content" style="display: none;">
+                <div style="padding: 1.5rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="financial-metric">
+                            <div class="financial-metric-value" id="group-total-outstanding">£0</div>
+                            <div class="financial-metric-label">Total Group Outstanding</div>
+                        </div>
+                        <div class="financial-metric">
+                            <div class="financial-metric-value" id="group-members-pending">0</div>
+                            <div class="financial-metric-label">Members with Payments Due</div>
+                        </div>
+                        <div class="financial-metric">
+                            <div class="financial-metric-value" id="group-total-members">0</div>
+                            <div class="financial-metric-label">Total Group Members</div>
+                        </div>
+                        <div class="financial-metric">
+                            <div class="financial-metric-value" id="group-progress-percentage">0%</div>
+                            <div class="financial-metric-label">Payment Progress</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Group Payment Progress Bar -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600; color: var(--text-primary);">Group Payment Progress</span>
+                            <span id="group-progress-text" style="font-size: 0.9rem; color: var(--text-secondary);">0 of 0 paid</span>
+                        </div>
+                        <div style="background: var(--border); border-radius: 10px; height: 8px; overflow: hidden;">
+                            <div id="group-progress-bar" style="background: linear-gradient(90deg, var(--success) 0%, var(--primary) 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions for Group Coordination -->
+                    <div style="background: var(--background); border-radius: var(--border-radius); padding: 1rem; border: 1px solid var(--border);">
+                        <h4 style="margin: 0 0 0.75rem 0; color: var(--text-primary); font-size: 0.95rem;">
+                            <i class="fas fa-hands-helping"></i> Group Coordination
+                        </h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                            <div>
+                                <strong style="color: var(--text-primary); font-size: 0.9rem;">Need Help?</strong>
+                                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                                    Contact the retreat organizers for assistance with group payment coordination or if you have questions about your group's status.
+                                </p>
+                            </div>
+                            <div>
+                                <strong style="color: var(--text-primary); font-size: 0.9rem;">Group Benefits</strong>
+                                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                                    Groups help coordinate activities, meals, and shared experiences. Complete payments ensure everyone can participate fully.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -64,9 +136,106 @@
     <div class="data-table" id="detailed-info">
         <div class="table-header">
             <h3 class="table-title">Detailed Information</h3>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="btn btn-sm btn-secondary" id="print-info" title="Print information">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="btn btn-sm btn-secondary" id="download-info" title="Download information">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
         </div>
         <div class="table-content" id="detailed-info-content">
             <div class="loading-placeholder">Loading detailed information...</div>
+        </div>
+    </div>
+
+    <!-- Emergency Contact Information -->
+    <div class="data-table" style="margin-top: 2rem;">
+        <div class="table-header">
+            <h3 class="table-title">
+                <i class="fas fa-phone"></i> Need Assistance?
+            </h3>
+        </div>
+        <div class="table-content">
+            <div style="padding: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div>
+                        <h4 style="color: var(--primary); margin-bottom: 0.75rem; font-size: 1rem;">
+                            <i class="fas fa-headset"></i> General Support
+                        </h4>
+                        <p style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">
+                            For questions about your booking, payments, or retreat details.
+                        </p>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <div style="margin-bottom: 0.25rem;">
+                                <i class="fas fa-envelope"></i> growthandwisdom@cloverleafworld.org
+                            </div>
+                            <div>
+                                <i class="fas fa-clock"></i> Monday - Friday, 9AM - 5PM
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 style="color: var(--warning); margin-bottom: 0.75rem; font-size: 1rem;">
+                            <i class="fas fa-credit-card"></i> Payment Support
+                        </h4>
+                        <p style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">
+                            For payment issues, group coordination, or billing questions.
+                        </p>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <div style="margin-bottom: 0.25rem;">
+                                <i class="fas fa-envelope"></i> growthandwisdom@cloverleafworld.org
+                            </div>
+                            <div>
+                                <i class="fas fa-clock"></i> Monday - Friday, 8AM - 6PM
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 style="color: var(--error); margin-bottom: 0.75rem; font-size: 1rem;">
+                            <i class="fas fa-exclamation-triangle"></i> Urgent Issues
+                        </h4>
+                        <p style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">
+                            For urgent matters that need immediate attention.
+                        </p>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <div style="margin-bottom: 0.25rem;">
+                                <i class="fas fa-phone"></i> +44 (0) 754 725 7400
+                            </div>
+                            <div>
+                                <i class="fas fa-clock"></i> Available 24/7
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Quick Links -->
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.75rem; font-size: 0.95rem;">
+                        <i class="fas fa-question-circle"></i> Frequently Asked Questions
+                    </h4>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem;">
+                        <a href="#" class="link-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="fas fa-bed"></i> Room Assignments
+                        </a>
+                        <a href="#" class="link-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="fas fa-utensils"></i> Meal Information
+                        </a>
+                        <a href="#" class="link-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="fas fa-map-marked-alt"></i> Directions
+                        </a>
+                        <a href="#" class="link-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="fas fa-suitcase"></i> What to Bring
+                        </a>
+                        <a href="#" class="link-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="fas fa-calendar-check"></i> Schedule
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

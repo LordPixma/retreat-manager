@@ -1398,3 +1398,82 @@
     border-color: var(--primary);
     background: rgba(37, 99, 235, 0.1);
 }
+
+
+
+/* Enhanced Member List with Payment Info */
+.enhanced-member-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background: var(--background);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.enhanced-member-list li:last-child {
+    border-bottom: none !important;
+}
+
+/* Group Financial Summary Cards */
+.group-financial-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.financial-metric {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    text-align: center;
+}
+
+.financial-metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.financial-metric-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Payment status indicators */
+.payment-status-paid {
+    color: var(--success);
+}
+
+.payment-status-pending {
+    color: var(--warning);
+}
+
+.payment-status-overdue {
+    color: var(--error);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .enhanced-member-list li {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.5rem;
+    }
+    
+    .enhanced-member-list li > div:last-child {
+        text-align: left !important;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .group-financial-summary {
+        grid-template-columns: 1fr;
+    }
+}

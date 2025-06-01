@@ -543,7 +543,7 @@ const AdminDashboard = {
         if (this.data.groups.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
                         No groups found
                     </td>
                 </tr>
@@ -553,16 +553,33 @@ const AdminDashboard = {
 
         tbody.innerHTML = this.data.groups.map(group => {
             const memberCount = group.member_count || 0;
+            const totalOutstanding = group.financial?.totalOutstanding || 0;
+            const membersWithPayments = group.financial?.membersWithPayments || 0;
+            
             const membersList = group.members && group.members.length > 0
                 ? group.members.slice(0, 3).map(member => Utils.escapeHtml(member.name)).join(', ') + 
-                  (group.members.length > 3 ? ` +${group.members.length - 3} more` : '')
+                (group.members.length > 3 ? ` +${group.members.length - 3} more` : '')
                 : '<span class="text-secondary">No members</span>';
                 
             return `
                 <tr data-group-id="${group.id}">
                     <td><strong>${Utils.escapeHtml(group.name)}</strong></td>
                     <td><span class="badge badge-secondary">${memberCount} members</span></td>
-                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">${membersList}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${membersList}</td>
+                    <td>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 600; color: ${totalOutstanding > 0 ? 'var(--warning)' : 'var(--success)'};">
+                                ${Utils.formatCurrency(totalOutstanding)}
+                            </div>
+                            ${totalOutstanding > 0 ? `
+                                <small style="color: var(--text-secondary);">
+                                    ${membersWithPayments}/${memberCount} pending
+                                </small>
+                            ` : `
+                                <small style="color: var(--success);">All paid</small>
+                            `}
+                        </div>
+                    </td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-primary edit-group" data-id="${group.id}" title="Edit Group">

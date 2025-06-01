@@ -39,14 +39,38 @@ export async function onRequestGet(context) {
     
     // Get group members if attendee is in a group
     let members = [];
+    let groupFinancial = null;
+    
     if (attendeeData.group_id) {
+      // Get group members with payment information
       const { results: memberResults } = await context.env.DB.prepare(`
-        SELECT name, ref_number 
+        SELECT name, ref_number, payment_due, email
         FROM attendees 
         WHERE group_id = ? AND ref_number != ?
         ORDER BY name
       `).bind(attendeeData.group_id, ref).all();
-      members = memberResults;
+      
+      members = memberResults.map(member => ({
+        name: member.name,
+        ref_number: member.ref_number,
+        payment_due: member.payment_due || 0,
+        email: member.email
+      }));
+      
+      // Calculate group financial summary (including current user)
+      const allMembers = [...members, {
+        name: attendeeData.name,
+        payment_due: attendeeData.payment_due || 0
+      }];
+      
+      const totalOutstanding = allMembers.reduce((sum, member) => sum + (member.payment_due || 0), 0);
+      const membersWithPayments = allMembers.filter(m => (m.payment_due || 0) > 0).length;
+      
+      groupFinancial = {
+        totalOutstanding,
+        membersWithPayments,
+        totalMembers: allMembers.length
+      };
     }
     
     // Get relevant announcements for this attendee
@@ -63,7 +87,8 @@ export async function onRequestGet(context) {
       } : null,
       group: attendeeData.group_name ? {
         name: attendeeData.group_name,
-        members: members
+        members: members,
+        financial: groupFinancial  // Add financial data here
       } : null,
       announcements: announcements
     };
@@ -161,6 +186,45 @@ function isNewAnnouncement(createdAt) {
   const now = new Date();
   const hoursDiff = (now - created) / (1000 * 60 * 60);
   return hoursDiff <= 24;
+}
+
+/**
+ * Get group financial summary for attendee dashboard
+ */
+async function getGroupFinancialSummary(db, groupId) {
+    if (!groupId) return null;
+    
+    try {
+        const { results } = await db.prepare(`
+            SELECT 
+                a.name,
+                a.ref_number,
+                a.payment_due,
+                a.email
+            FROM attendees a
+            WHERE a.group_id = ?
+            ORDER BY a.name
+        `).bind(groupId).all();
+        
+        const totalOutstanding = results.reduce((sum, member) => sum + (member.payment_due || 0), 0);
+        const membersWithPayments = results.filter(m => (m.payment_due || 0) > 0);
+        
+        return {
+            totalOutstanding,
+            membersWithPayments: membersWithPayments.length,
+            totalMembers: results.length,
+            members: results.map(member => ({
+                name: member.name,
+                ref_number: member.ref_number,
+                payment_due: member.payment_due || 0,
+                email: member.email,
+                hasPendingPayment: (member.payment_due || 0) > 0
+            }))
+        };
+    } catch (error) {
+        console.error('Error getting group financial summary:', error);
+        return null;
+    }
 }
 
 /**

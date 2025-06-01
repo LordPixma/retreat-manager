@@ -557,36 +557,139 @@ const AttendeeDashboard = {
         if (!content) return;
         
         if (this.data.group && this.data.group.members && this.data.group.members.length > 0) {
+            // Calculate group financial summary
+            const groupFinancial = this.data.group.financial || {};
+            const totalOutstanding = groupFinancial.totalOutstanding || 0;
+            const membersWithPayments = groupFinancial.membersWithPayments || 0;
+            const totalMembers = this.data.group.members.length + 1; // +1 for current user
+            
             content.innerHTML = `
                 <div class="info-item">
                     <div class="info-label">Group Name</div>
                     <div class="info-value">${Utils.escapeHtml(this.data.group.name)}</div>
                 </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Total Members</div>
+                    <div class="info-value">${totalMembers} members</div>
+                </div>
+                
+                <!-- Enhanced Financial Information -->
+                <div class="info-item" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                    <div class="info-label">
+                        <i class="fas fa-pound-sign"></i> Group Outstanding Balance
+                    </div>
+                    <div class="info-value" style="font-size: 1.3rem; font-weight: 700; color: ${totalOutstanding > 0 ? 'var(--warning)' : 'var(--success)'};">
+                        ${Utils.formatCurrency(totalOutstanding)}
+                    </div>
+                    ${totalOutstanding > 0 ? `
+                        <div style="margin-top: 0.5rem;">
+                            <span class="badge badge-warning">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                ${membersWithPayments} member${membersWithPayments !== 1 ? 's' : ''} with pending payments
+                            </span>
+                        </div>
+                    ` : `
+                        <div style="margin-top: 0.5rem;">
+                            <span class="badge badge-success">
+                                <i class="fas fa-check-circle"></i> 
+                                All payments complete
+                            </span>
+                        </div>
+                    `}
+                </div>
+                
                 <div class="info-item">
                     <div class="info-label">Fellow Members (${this.data.group.members.length})</div>
-                    <ul class="member-list">
-                        ${this.data.group.members.map(member => `
-                            <li>
-                                <span>${Utils.escapeHtml(member.name)}</span>
-                                <small style="color: var(--text-secondary)">${Utils.escapeHtml(member.ref_number)}</small>
-                            </li>
-                        `).join('')}
+                    <ul class="member-list enhanced-member-list">
+                        ${this.data.group.members.map(member => {
+                            const paymentDue = member.payment_due || 0;
+                            const hasPayment = paymentDue > 0;
+                            
+                            return `
+                                <li style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+                                    <div>
+                                        <span style="font-weight: 500;">${Utils.escapeHtml(member.name)}</span>
+                                        <br>
+                                        <small style="color: var(--text-secondary);">${Utils.escapeHtml(member.ref_number)}</small>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-weight: 600; color: ${hasPayment ? 'var(--warning)' : 'var(--success)'};">
+                                            ${Utils.formatCurrency(paymentDue)}
+                                        </div>
+                                        <span class="badge badge-${hasPayment ? 'warning' : 'success'}" style="font-size: 0.7rem;">
+                                            ${hasPayment ? 'Pending' : 'Paid'}
+                                        </span>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('')}
                     </ul>
                 </div>
+                
+                <!-- Group Payment Summary -->
+                ${totalOutstanding > 0 ? `
+                    <div class="info-item" style="margin-top: 1rem; padding: 1rem; background: rgba(245, 158, 11, 0.1); border-radius: var(--border-radius); border: 1px solid rgba(245, 158, 11, 0.2);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <i class="fas fa-info-circle" style="color: var(--warning);"></i>
+                            <strong style="color: var(--warning);">Group Payment Status</strong>
+                        </div>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--text-primary);">
+                            Your group has <strong>${Utils.formatCurrency(totalOutstanding)}</strong> in outstanding payments. 
+                            ${membersWithPayments} out of ${totalMembers} members still need to complete their payments.
+                        </p>
+                        ${membersWithPayments > 0 ? `
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                Contact the retreat organizers if you need assistance with group payment coordination.
+                            </small>
+                        ` : ''}
+                    </div>
+                ` : `
+                    <div class="info-item" style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: var(--border-radius); border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                            <strong style="color: var(--success);">All Payments Complete!</strong>
+                        </div>
+                        <p style="margin: 0; font-size: 0.9rem; color: var(--text-primary);">
+                            Excellent! All members in your group have completed their payments. 
+                            You're all set for the retreat.
+                        </p>
+                    </div>
+                `}
             `;
         } else if (this.data.group) {
+            // User is in a group but is the only member
+            const userPayment = this.data.payment_due || 0;
+            
             content.innerHTML = `
                 <div class="info-item">
                     <div class="info-label">Group Name</div>
                     <div class="info-value">${Utils.escapeHtml(this.data.group.name)}</div>
                 </div>
+                
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-pound-sign"></i> Group Outstanding Balance
+                    </div>
+                    <div class="info-value" style="font-size: 1.3rem; font-weight: 700; color: ${userPayment > 0 ? 'var(--warning)' : 'var(--success)'};">
+                        ${Utils.formatCurrency(userPayment)}
+                    </div>
+                    <span class="badge badge-${userPayment > 0 ? 'warning' : 'success'}">
+                        ${userPayment > 0 ? 'Your payment pending' : 'Payment complete'}
+                    </span>
+                </div>
+                
                 <div class="info-item">
                     <div class="info-value" style="color: var(--text-secondary);">
                         <i class="fas fa-info-circle"></i> You're the only member in this group so far
                     </div>
+                    <small style="color: var(--text-secondary); margin-top: 0.5rem; display: block;">
+                        Other members may be added as they register for the retreat
+                    </small>
                 </div>
             `;
         } else {
+            // No group assignment
             content.innerHTML = `
                 <div class="info-item">
                     <div class="info-value" style="color: var(--text-secondary);">
@@ -598,7 +701,7 @@ const AttendeeDashboard = {
                 </div>
             `;
         }
-    },
+    }
 
     /**
      * Update detailed information section
