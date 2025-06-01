@@ -1,4 +1,4 @@
-// frontend/public/js/app.js - Complete updated main application controller
+// frontend/public/js/app.js - Complete updated main application controller (FIXED)
 
 const ComponentChecker = {
     /**
@@ -52,12 +52,22 @@ const App = {
     async init() {
         console.log('Initializing Retreat Portal...');
 
-        // Initialize enhanced session management
-        initializeEnhancedSystems();
+        // Initialize enhanced session management if available
+        if (window.initializeEnhancedSystems) {
+            try {
+                initializeEnhancedSystems();
+            } catch (error) {
+                console.warn('Enhanced systems initialization failed:', error);
+            }
+        }
 
-        // Initialize real-time connections for admin users
-        if (Auth.getToken('admin')) {
-            EnhancedIntegration.initializeRealTime();
+        // Initialize real-time connections for admin users if available
+        if (Auth.getToken('admin') && window.EnhancedIntegration) {
+            try {
+                EnhancedIntegration.initializeRealTime();
+            } catch (error) {
+                console.warn('Real-time integration initialization failed:', error);
+            }
         }
         
         // Check component availability

@@ -962,3 +962,216 @@
          */
         async delete(endpoint) {
             return this.request(endpoint, { method: 'DELETE' });
+        }
+    };
+
+    // 4. Connection Manager for Offline/Online Detection
+    const ConnectionManager = {
+        isOnline: navigator.onLine,
+        retryQueue: [],
+        maxRetries: 3,
+        retryDelay: 1000,
+        
+        /**
+         * Initialize connection management
+         */
+        init() {
+            this.setupOnlineListeners();
+            this.log('Connection Manager initialized');
+        },
+        
+        log(...args) {
+            console.log('[ConnectionManager]', ...args);
+        },
+        
+        /**
+         * Setup online/offline event listeners
+         */
+        setupOnlineListeners() {
+            window.addEventListener('online', () => {
+                this.log('Connection restored');
+                this.isOnline = true;
+                
+                if (window.Utils) {
+                    Utils.showAlert('Connection restored', 'success');
+                }
+                
+                this.processRetryQueue();
+            });
+            
+            window.addEventListener('offline', () => {
+                this.log('Connection lost');
+                this.isOnline = false;
+                
+                if (window.Utils) {
+                    Utils.showAlert('Connection lost. Some features may be unavailable.', 'warning');
+                }
+            });
+        },
+        
+        /**
+         * Handle connection errors
+         */
+        handleConnectionError() {
+            this.isOnline = false;
+            
+            if (window.Utils) {
+                Utils.showAlert('Network error. Please check your connection.', 'error');
+            }
+        },
+        
+        /**
+         * Process retry queue when connection is restored
+         */
+        processRetryQueue() {
+            this.log(`Processing ${this.retryQueue.length} queued requests`);
+            
+            const queue = [...this.retryQueue];
+            this.retryQueue = [];
+            
+            queue.forEach(request => {
+                this.retryRequest(request);
+            });
+        },
+        
+        /**
+         * Retry a failed request
+         */
+        async retryRequest(request) {
+            try {
+                const result = await request.retry();
+                this.log('Retry successful for:', request.endpoint);
+                
+                if (request.onSuccess) {
+                    request.onSuccess(result);
+                }
+            } catch (error) {
+                this.log('Retry failed for:', request.endpoint, error.message);
+                
+                if (request.retryCount < this.maxRetries) {
+                    request.retryCount++;
+                    setTimeout(() => {
+                        this.retryRequest(request);
+                    }, this.retryDelay * request.retryCount);
+                } else if (request.onFailure) {
+                    request.onFailure(error);
+                }
+            }
+        },
+        
+        /**
+         * Add request to retry queue
+         */
+        queueForRetry(endpoint, retryFn, onSuccess, onFailure) {
+            this.retryQueue.push({
+                endpoint,
+                retry: retryFn,
+                onSuccess,
+                onFailure,
+                retryCount: 0
+            });
+        },
+        
+        /**
+         * Ping server to check connectivity
+         */
+        async pingServer() {
+            try {
+                const response = await fetch('/api/ping', {
+                    method: 'GET',
+                    cache: 'no-cache'
+                });
+                
+                this.isOnline = response.ok;
+                return response.ok;
+            } catch (error) {
+                this.isOnline = false;
+                return false;
+            }
+        }
+    };
+
+    // 5. Enhanced Integration Module
+    const EnhancedIntegration = {
+        /**
+         * Initialize real-time features
+         */
+        initializeRealTime() {
+            console.log('Enhanced real-time features initialized');
+            
+            // Setup periodic data refresh for admin users
+            if (window.Auth && window.Auth.getToken('admin')) {
+                this.setupAdminDataRefresh();
+            }
+        },
+        
+        /**
+         * Setup periodic data refresh for admin dashboard
+         */
+        setupAdminDataRefresh() {
+            // Refresh admin data every 5 minutes
+            setInterval(async () => {
+                if (window.AdminDashboard && typeof window.AdminDashboard.refresh === 'function') {
+                    try {
+                        await window.AdminDashboard.refresh();
+                        console.log('Admin dashboard auto-refreshed');
+                    } catch (error) {
+                        console.warn('Auto-refresh failed:', error);
+                    }
+                }
+            }, 5 * 60 * 1000); // 5 minutes
+        }
+    };
+
+    // 6. Main Initialization Function
+    function initializeEnhancedSystems() {
+        console.log('Initializing Enhanced Systems...');
+        
+        try {
+            // Initialize session management
+            SessionManager.init();
+            
+            // Initialize connection management
+            ConnectionManager.init();
+            
+            // Replace existing Auth and API with enhanced versions
+            if (window.Auth) {
+                // Merge enhanced auth with existing auth
+                Object.assign(window.Auth, EnhancedAuth);
+                console.log('Enhanced Auth integrated');
+            }
+            
+            if (window.API) {
+                // Merge enhanced API with existing API
+                Object.assign(window.API, EnhancedAPI);
+                console.log('Enhanced API integrated');
+            }
+            
+            // Make enhanced components globally available
+            window.SessionManager = SessionManager;
+            window.ConnectionManager = ConnectionManager;
+            window.EnhancedIntegration = EnhancedIntegration;
+            
+            console.log('Enhanced Systems initialized successfully');
+            
+        } catch (error) {
+            console.error('Enhanced Systems initialization failed:', error);
+            
+            // Don't break the app if enhanced features fail
+            if (window.Utils) {
+                Utils.showAlert('Some enhanced features are unavailable', 'warning');
+            }
+        }
+    }
+
+    // Make initialization function globally available
+    window.initializeEnhancedSystems = initializeEnhancedSystems;
+    
+    // Auto-initialize if Auth and API are already available
+    if (window.Auth && window.API) {
+        initializeEnhancedSystems();
+    }
+    
+    console.log('Enhanced Session Management loaded successfully');
+
+})();
