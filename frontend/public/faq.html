@@ -48,6 +48,39 @@
             text-align: center;
             margin-bottom: 2rem;
             color: white;
+            position: relative;
+        }
+
+        .header-nav {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateX(-2px);
+        }
+
+        .back-btn:active {
+            transform: translateX(0);
         }
 
         .header h1 {
@@ -323,6 +356,15 @@
                 gap: 0.25rem;
             }
 
+            .back-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            .back-btn span {
+                display: none;
+            }
+
             .category-nav {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 0.5rem;
@@ -375,6 +417,12 @@
     <div class="page-container">
         <!-- Header -->
         <div class="header">
+            <div class="header-nav">
+                <button class="back-btn" id="backBtn" onclick="goBack()">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back</span>
+                </button>
+            </div>
             <h1>
                 <i class="fas fa-mountain"></i>
                 Growth and Wisdom Retreat
@@ -854,6 +902,39 @@
                 }
             }
         });
+
+        // Back button functionality
+        function goBack() {
+            // Try to go back in browser history first
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                // Fallback: try to detect if we're in the portal system
+                if (window.opener) {
+                    // If opened from portal, close this window
+                    window.close();
+                } else if (window.parent !== window) {
+                    // If in an iframe, try to communicate with parent
+                    window.parent.postMessage('closeFAQ', '*');
+                } else {
+                    // Final fallback: redirect to portal root
+                    window.location.href = '/';
+                }
+            }
+        }
+
+        // Handle browser back button
+        window.addEventListener('popstate', function(event) {
+            // This ensures the back button works properly
+            if (event.state === null) {
+                goBack();
+            }
+        });
+
+        // Add a history entry for better back button behavior
+        if (window.history.state === null) {
+            window.history.replaceState({page: 'faq'}, 'FAQ', window.location.href);
+        }
     </script>
 </body>
 </html>
