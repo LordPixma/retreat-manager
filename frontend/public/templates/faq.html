@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ - Growth and Wisdom Retreat</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --border-radius: 8px;
+            --transition: all 0.2s ease-in-out;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-box {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .faq-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .category-tab {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+        }
+
+        .category-tab:hover {
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .category-tab.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+        }
+
+        .category-tab i {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .faq-section {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .faq-section-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem;
+        }
+
+        .faq-section-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .faq-item {
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+
+        .faq-question {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 1.5rem;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            transition: var(--transition);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .faq-question:hover {
+            background: var(--background);
+        }
+
+        .faq-question.open {
+            background: rgba(37, 99, 235, 0.05);
+            color: var(--primary);
+        }
+
+        .faq-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            color: var(--primary);
+        }
+
+        .faq-question.open .faq-icon {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            color: var(--text-primary);
+            line-height: 1.7;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .faq-answer.show {
+            display: block;
+        }
+
+        .faq-answer p {
+            margin-bottom: 1rem;
+        }
+
+        .faq-answer p:last-child {
+            margin-bottom: 0;
+        }
+
+        .faq-answer strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .faq-answer ul {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .faq-answer li {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight {
+            background: yellow;
+            padding: 0 0.2rem;
+            border-radius: 2px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .contact-section {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .contact-section h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .contact-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .contact-item {
+            padding: 1rem;
+            background: var(--background);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border);
+        }
+
+        .contact-item i {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .faq-categories {
+                grid-template-columns: 1fr;
+            }
+
+            .faq-question {
+                font-size: 1rem;
+                padding: 1rem;
+            }
+
+            .faq-answer {
+                padding: 0 1rem 1rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-mountain"></i> Growth and Wisdom Retreat</h1>
+            <p>Frequently Asked Questions - Everything you need to know for your retreat experience</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search for answers... (e.g., 'parking', 'food', 'what to bring')">
+        </div>
+
+        <div class="faq-categories">
+            <div class="category-tab active" data-category="all">
+                <i class="fas fa-list"></i>
+                <div>All Questions</div>
+            </div>
+            <div class="category-tab" data-category="arrival">
+                <i class="fas fa-map-marker-alt"></i>
+                <div>Arrival & Check-in</div>
+            </div>
+            <div class="category-tab" data-category="accommodation">
+                <i class="fas fa-bed"></i>
+                <div>Accommodation</div>
+            </div>
+            <div class="category-tab" data-category="food">
+                <i class="fas fa-utensils"></i>
+                <div>Food & Drinks</div>
+            </div>
+            <div class="category-tab" data-category="activities">
+                <i class="fas fa-calendar-alt"></i>
+                <div>Activities & Schedule</div>
+            </div>
+            <div class="category-tab" data-category="facilities">
+                <i class="fas fa-wifi"></i>
+                <div>Facilities & Services</div>
+            </div>
+            <div class="category-tab" data-category="practical">
+                <i class="fas fa-suitcase"></i>
+                <div>Practical Info</div>
+            </div>
+        </div>
+
+        <div id="faqContainer">
+            <!-- Arrival & Check-in -->
+            <div class="faq-section" data-category="arrival">
+                <div class="faq-section-header">
+                    <h2><i class="fas fa-map-marker-alt"></i> Arrival & Check-in</h2>
+                </div>
+                
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Can I bring pets?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Unfortunately pets are not allowed but <strong>guide dogs / assistance dogs are permitted</strong>.</p>
+                        <p>If you require an assistance dog, please let us know in advance so we can ensure appropriate arrangements are made.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        How much spending money should I bring?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Since meals and refreshments are included, you'll only need spending money for:</p>
+                        <ul>
+                            <li>Bar drinks (if desired)</li>
+                            <li>Books or resources from the resource table</li>
+                            <li>Personal snacks or treats</li>
+                            <li>Souvenirs or gifts</li>
+                        </ul>
+                        <p>Most attendees find £20-40 sufficient for the weekend. Card payments are accepted for most purchases.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What if I need to cancel my booking?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>We understand that circumstances can change. Our cancellation policy is:</p>
+                        <ul>
+                            <li><strong>More than 4 weeks before:</strong> Full refund minus £10 admin fee</li>
+                            <li><strong>2-4 weeks before:</strong> 50% refund</li>
+                            <li><strong>Less than 2 weeks:</strong> No refund, but we can transfer your booking to a future retreat</li>
+                        </ul>
+                        <p>Please contact us as soon as possible if you need to cancel. In exceptional circumstances, we may be able to make special arrangements.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Is there a dress code?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>There's no strict dress code - we want you to be comfortable! Here are some guidelines:</p>
+                        <ul>
+                            <li><strong>Sessions:</strong> Smart casual (think Sunday church attire)</li>
+                            <li><strong>Meals:</strong> Casual and comfortable</li>
+                            <li><strong>Recreation:</strong> Appropriate sportswear if using facilities</li>
+                            <li><strong>Evening:</strong> Relaxed casual wear</li>
+                        </ul>
+                        <p>The key is modesty and comfort. Dress as you would for a church weekend away with friends!</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Will there be opportunities to connect with other attendees?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Absolutely! Fellowship and connection are key parts of the retreat experience. You'll have opportunities to meet others through:</p>
+                        <ul>
+                            <li><strong>Shared meals:</strong> Informal dining times</li>
+                            <li><strong>Small group discussions:</strong> Part of our workshop sessions</li>
+                            <li><strong>Free time:</strong> Leisure activities and common areas</li>
+                            <li><strong>Coffee breaks:</strong> Natural networking opportunities</li>
+                            <li><strong>Evening fellowship:</strong> Informal gathering times</li>
+                        </ul>
+                        <p>Many attendees form lasting friendships during our retreats!</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What if I have mobility issues or accessibility needs?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>We're committed to making the retreat accessible for everyone. Please let us know about any specific needs when you register so we can:</p>
+                        <ul>
+                            <li>Arrange accessible accommodation</li>
+                            <li>Ensure meeting rooms are accessible</li>
+                            <li>Provide hearing loop assistance</li>
+                            <li>Arrange for any special dietary requirements</li>
+                            <li>Coordinate transport assistance if needed</li>
+                        </ul>
+                        <p>Don't hesitate to contact us - we want to ensure you have a comfortable and meaningful retreat experience.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Can I leave the grounds during the retreat?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes, you're free to leave the grounds during free time periods. However, we encourage you to stay and make the most of the retreat facilities and fellowship opportunities.</p>
+                        <p>If you do leave, please:</p>
+                        <ul>
+                            <li>Sign out at reception</li>
+                            <li>Be back in time for scheduled sessions</li>
+                            <li>Let your roommate know your plans</li>
+                        </ul>
+                        <p>Local shops and cafes are within walking distance if you need anything.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="contact-section">
+            <h3><i class="fas fa-headset"></i> Still Have Questions?</h3>
+            <p>We're here to help! If you can't find the answer you're looking for, please don't hesitate to contact us.</p>
+            
+            <div class="contact-info">
+                <div class="contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <h4>Email Support</h4>
+                    <p>growthandwisdom@cloverleafworld.org</p>
+                    <small>We typically respond within 24 hours</small>
+                </div>
+                
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <h4>Phone Support</h4>
+                    <p>+44 (0) 754 725 7400</p>
+                    <small>Monday - Friday, 9AM - 5PM</small>
+                </div>
+                
+                <div class="contact-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h4>Urgent Issues</h4>
+                    <p>+44 (0) 754 725 7400</p>
+                    <small>Available 24/7 for emergencies</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // FAQ functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const faqQuestions = document.querySelectorAll('.faq-question');
+            const searchInput = document.getElementById('searchInput');
+            const categoryTabs = document.querySelectorAll('.category-tab');
+            const faqSections = document.querySelectorAll('.faq-section');
+            
+            // FAQ toggle functionality
+            faqQuestions.forEach(question => {
+                question.addEventListener('click', function() {
+                    const answer = this.nextElementSibling;
+                    const isOpen = this.classList.contains('open');
+                    
+                    if (isOpen) {
+                        this.classList.remove('open');
+                        answer.classList.remove('show');
+                        answer.style.display = 'none';
+                    } else {
+                        this.classList.add('open');
+                        answer.classList.add('show');
+                        answer.style.display = 'block';
+                    }
+                });
+            });
+            
+            // Search functionality
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                
+                if (searchTerm === '') {
+                    showAllFAQs();
+                    return;
+                }
+                
+                const faqItems = document.querySelectorAll('.faq-item');
+                let hasResults = false;
+                
+                faqItems.forEach(item => {
+                    const question = item.querySelector('.faq-question').textContent.toLowerCase();
+                    const answer = item.querySelector('.faq-answer').textContent.toLowerCase();
+                    
+                    if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+                        item.style.display = 'block';
+                        item.closest('.faq-section').style.display = 'block';
+                        hasResults = true;
+                        
+                        // Highlight search terms
+                        highlightSearchTerm(item, searchTerm);
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                // Hide empty sections
+                faqSections.forEach(section => {
+                    const visibleItems = section.querySelectorAll('.faq-item[style*="block"]');
+                    if (visibleItems.length === 0) {
+                        section.style.display = 'none';
+                    }
+                });
+                
+                // Show no results message
+                showNoResultsMessage(!hasResults);
+            });
+            
+            // Category filtering
+            categoryTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const category = this.dataset.category;
+                    
+                    // Update active tab
+                    categoryTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Clear search
+                    searchInput.value = '';
+                    
+                    // Show/hide sections
+                    if (category === 'all') {
+                        showAllFAQs();
+                    } else {
+                        faqSections.forEach(section => {
+                            if (section.dataset.category === category) {
+                                section.style.display = 'block';
+                            } else {
+                                section.style.display = 'none';
+                            }
+                        });
+                    }
+                    
+                    hideNoResultsMessage();
+                });
+            });
+            
+            function showAllFAQs() {
+                document.querySelectorAll('.faq-item').forEach(item => {
+                    item.style.display = 'block';
+                    removeHighlights(item);
+                });
+                
+                faqSections.forEach(section => {
+                    section.style.display = 'block';
+                });
+                
+                hideNoResultsMessage();
+            }
+            
+            function highlightSearchTerm(item, searchTerm) {
+                const question = item.querySelector('.faq-question');
+                const answer = item.querySelector('.faq-answer');
+                
+                [question, answer].forEach(element => {
+                    const content = element.innerHTML;
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    element.innerHTML = content.replace(regex, '<span class="highlight">$1</span>');
+                });
+            }
+            
+            function removeHighlights(item) {
+                const highlights = item.querySelectorAll('.highlight');
+                highlights.forEach(highlight => {
+                    highlight.outerHTML = highlight.innerHTML;
+                });
+            }
+            
+            function showNoResultsMessage(show) {
+                let noResultsDiv = document.getElementById('noResults');
+                
+                if (show) {
+                    if (!noResultsDiv) {
+                        noResultsDiv = document.createElement('div');
+                        noResultsDiv.id = 'noResults';
+                        noResultsDiv.className = 'no-results';
+                        noResultsDiv.innerHTML = `
+                            <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                            <h3>No results found</h3>
+                            <p>Try different keywords or browse by category above.</p>
+                        `;
+                        document.getElementById('faqContainer').appendChild(noResultsDiv);
+                    }
+                    noResultsDiv.style.display = 'block';
+                } else {
+                    hideNoResultsMessage();
+                }
+            }
+            
+            function hideNoResultsMessage() {
+                const noResultsDiv = document.getElementById('noResults');
+                if (noResultsDiv) {
+                    noResultsDiv.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+                    <button class="faq-question">
+                        What time should I arrive for the retreat?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Registration and check-in begins at <strong>3:00 PM on Friday</strong>. We recommend arriving between 3:00 PM and 5:00 PM to allow time to settle in before our welcome session at 6:00 PM.</p>
+                        <p>If you need to arrive earlier due to travel arrangements, please contact us in advance and we'll do our best to accommodate early check-in where possible.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What time is check-in and check-out?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Please check with your conference organiser for your arrival time.</p>
+                        <p>Bedrooms will be available as soon as possible on the day of arrival and must be vacated by <strong>10 AM on the day of departure</strong>.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Do you have parking?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>All our centres have <strong>ample free parking on site</strong>. If you are staying at The Hayes your event organiser should tell you if you are registering in the Main House or Lakeside. For Lakeside registrations, follow signs for Lakeside Accommodation and Parking on arrival.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        How do I get to the retreat center?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Detailed directions and address information will be sent to you via email one week before the retreat. The venue is easily accessible by both car and public transport.</p>
+                        <p>If you're traveling by train, we can arrange shared transport from the nearest station - please let us know in advance if you'd like to join a group transfer.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Can I charge my electric car?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Electric car charging facilities are available at all of our venues on a <strong>first-come, first-served basis</strong>. Visit reception to pay for a charging session before use. Our chargers typically deliver around 7kW of power and are charged at 50p per kWh (subject to change).</p>
+                        <p>At <strong>The Hayes</strong> we have four chargers which can be found at the back of the car park to the left of reception as you drive in. There are also two next to Lakeside accommodation.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accommodation -->
+            <div class="faq-section" data-category="accommodation">
+                <div class="faq-section-header">
+                    <h2><i class="fas fa-bed"></i> Accommodation</h2>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What is provided in my room?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Your room includes:</p>
+                        <ul>
+                            <li><strong>Bedding:</strong> All bed linen is provided</li>
+                            <li><strong>Towels:</strong> A bath towel and hand towel for each guest</li>
+                            <li><strong>Toiletries:</strong> Soap, shower gel/shampoo in your bathroom</li>
+                            <li><strong>Amenities:</strong> Hairdryer, tea/coffee making facilities</li>
+                            <li><strong>Connectivity:</strong> Fast Wi-Fi access</li>
+                        </ul>
+                        <p><strong>Please note:</strong> Due to the nature of the events we host, we do not have TVs in our bedrooms. However, there are TVs available in common areas of the centres.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Can I choose my roommate?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! When you register, you can request to share a room with a specific person. Both people must make this request for us to honor it.</p>
+                        <p>If you don't specify a preference, we'll match you with someone of the same gender. We do our best to consider age and interests when making room assignments.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Are your venues disability friendly?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>All our main conference halls are <strong>accessible for delegates with disabilities</strong> and feature hearing aid loops. We have a selection of accessible bedrooms available at each centre.</p>
+                        <p><strong>Important:</strong> Please ensure that your conference organiser knows your requirements so that appropriate accommodation may be reserved for you.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Can I request a single room?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Single rooms are available for an additional £40 per night, subject to availability. Please contact us as soon as possible to request a single room as they are limited and allocated on a first-come, first-served basis.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Food & Drinks -->
+            <div class="faq-section" data-category="food">
+                <div class="faq-section-header">
+                    <h2><i class="fas fa-utensils"></i> Food & Drinks</h2>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Is food included?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! Our centres are <strong>all-inclusive</strong>. Throughout your stay, you will enjoy:</p>
+                        <ul>
+                            <li>Cooked and continental breakfasts</li>
+                            <li>Light lunches</li>
+                            <li>Hot evening buffets</li>
+                            <li>Tea, coffee, and light refreshments during breaks</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What type of food is served?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>We serve <strong>delicious, hearty English meals</strong> with a focus on fresh, locally-sourced ingredients where possible. Our menus are designed to provide nutritious and satisfying options for all attendees.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Do you cater for dietary requirements?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Absolutely! We provide dishes for <strong>vegetarians and vegans</strong>, as well as cater for guests with any of the 14 recognised allergens including:</p>
+                        <ul>
+                            <li>Gluten-free options</li>
+                            <li>Dairy-free alternatives</li>
+                            <li>Nut allergies</li>
+                            <li>Other specific dietary requirements</li>
+                        </ul>
+                        <p><strong>Important:</strong> Simply advise your event organiser before arrival so we can ensure appropriate meals are prepared for you.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Are drinks included?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p><strong>Included drinks:</strong></p>
+                        <ul>
+                            <li>Freshly ground coffee (8am-8pm daily)</li>
+                            <li>Quality teas and hot chocolate (8am-8pm daily)</li>
+                            <li>Tea and coffee facilities in bedrooms (replenished daily 9am-3pm)</li>
+                            <li>Water available throughout the day</li>
+                        </ul>
+                        <p><strong>Bar drinks</strong> are not included in your package and payment is by credit or debit card only.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Can we bring our own food or drink?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Due to health and safety regulations, we do not allow external food and drink to be brought on site unless agreed in advance by the front of house team.</p>
+                        <p>However, our centres are all-inclusive with unlimited refreshments and all meals provided, so you shouldn't need to bring anything additional.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activities & Schedule -->
+            <div class="faq-section" data-category="activities">
+                <div class="faq-section-header">
+                    <h2><i class="fas fa-calendar-alt"></i> Activities & Schedule</h2>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What activities are planned for the retreat?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Our Growth and Wisdom Retreat includes a carefully designed program featuring:</p>
+                        <ul>
+                            <li><strong>Teaching Sessions:</strong> Inspirational talks and biblical teachings</li>
+                            <li><strong>Workshop Groups:</strong> Interactive sessions for personal growth</li>
+                            <li><strong>Prayer and Worship:</strong> Times of corporate and personal prayer</li>
+                            <li><strong>Fellowship Meals:</strong> Opportunities to connect with other attendees</li>
+                            <li><strong>Free Time:</strong> Space for reflection, rest, and informal fellowship</li>
+                            <li><strong>Optional Activities:</strong> Recreation time using venue facilities</li>
+                        </ul>
+                        <p>A detailed schedule will be provided upon arrival.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Is attendance at all sessions mandatory?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>While we encourage full participation to get the most from your retreat experience, we understand that everyone's needs are different. The main teaching sessions and group meals are key parts of the program, but you're free to step out if you need personal time or rest.</p>
+                        <p>We want this to be a refreshing and meaningful time for everyone, so please feel free to participate at a level that feels right for you.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Will there be time for personal reflection and prayer?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Absolutely! The retreat schedule includes dedicated times for personal reflection and prayer. We've also designed the program with enough space between sessions for quiet contemplation.</p>
+                        <p>The venue grounds provide beautiful, peaceful areas perfect for personal prayer and meditation. You'll also find quiet indoor spaces available throughout the day.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What should I expect from the worship times?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Our worship times will be a blend of contemporary and traditional Christian worship, designed to be accessible and meaningful for attendees from various church backgrounds.</p>
+                        <p>We'll have live music, congregational singing, and times of quiet reflection. All song lyrics will be provided, and participation is always voluntary.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Facilities & Services -->
+            <div class="faq-section" data-category="facilities">
+                <div class="faq-section-header">
+                    <h2><i class="fas fa-wifi"></i> Facilities & Services</h2>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Do you have free Wi-Fi?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! You'll find <strong>free-of-charge Wi-Fi</strong> at all of our venues. This service is available in all meeting rooms, common areas and bedrooms, at speeds of around 10mbps per user.</p>
+                        <p>Speak to reception in advance of your arrival if you require access to our faster network to live stream your event via the internet.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What time is reception open?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>A duty manager will be available between <strong>7:30am and 11:30pm</strong>.</p>
+                        <p>Outside of these times, emergency contact details will be posted at reception and available via your event organiser should you need to contact a member of staff.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What leisure facilities are available?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Our venue offers excellent leisure facilities including:</p>
+                        <ul>
+                            <li><strong>Indoor Gym:</strong> For guests aged 18 and over (free of charge)</li>
+                            <li><strong>Sports Hall:</strong> Five-a-side football, badminton, basketball</li>
+                            <li><strong>Games Room:</strong> Pool table, board games, table tennis</li>
+                            <li><strong>Club House:</strong> Air hockey, soft play area for families</li>
+                            <li><strong>Outdoor Spaces:</strong> Walking areas and garden spaces</li>
+                        </ul>
+                        <p>All facilities are included in your retreat package at no additional charge.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Will my hearing aid work with your induction loops?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>In order to pick up sound through induction loops, your hearing aid needs to be on the 'Telecoil' or 'T' setting. Some hearing aids can easily turn this on and off with the push of a button or through an app.</p>
+                        <p>However, some may need to be programmed to have this option. If this is the case, you'll need to see your audiologist before the retreat.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Is there a bookstore or resource table?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Yes! We'll have a resource table with books, journals, and other materials related to the retreat themes. Cash and card payments are accepted.</p>
+                        <p>We'll also have retreat notes and additional resources available for free to help you continue your growth journey after the retreat.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Practical Information -->
+            <div class="faq-section" data-category="practical">
+                <div class="faq-section-header">
+                    <h2><i class="fas fa-suitcase"></i> Practical Information</h2>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What should I bring to the retreat?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p><strong>Essential items to bring:</strong></p>
+                        <ul>
+                            <li>Bible and notebook for taking notes</li>
+                            <li>Comfortable clothing for indoor sessions</li>
+                            <li>Weather-appropriate outerwear for outdoor time</li>
+                            <li>Casual clothes for leisure time</li>
+                            <li>Comfortable walking shoes</li>
+                            <li>Any personal medications</li>
+                            <li>Phone charger</li>
+                        </ul>
+                        <p><strong>Optional items:</strong></p>
+                        <ul>
+                            <li>Sports clothes if you plan to use the gym</li>
+                            <li>Camera for capturing memories</li>
+                            <li>Personal devotional materials</li>
+                        </ul>
+                        <p><em>Remember: Towels, toiletries, and bedding are all provided!</em></p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        What is your smoking policy?
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>Smoking is <strong>not permitted inside any CCT building</strong>, including e-cigarettes.</p>
+                        <p>Designated outdoor smoking areas are available for those who need them.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
