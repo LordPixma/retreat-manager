@@ -3,25 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FAQ - Growth and Wisdom Retreat</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>FAQ - Retreat Information</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* Modern Color Scheme */
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --secondary: #64748b;
-            --success: #10b981;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #e0e7ff;
+            --secondary: #06b6d4;
+            --accent: #10b981;
             --warning: #f59e0b;
-            --error: #ef4444;
+            --danger: #ef4444;
+            
             --background: #f8fafc;
             --surface: #ffffff;
+            --surface-hover: #f1f5f9;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            
             --text-primary: #1e293b;
             --text-secondary: #64748b;
-            --border: #e2e8f0;
-            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            --border-radius: 8px;
-            --transition: all 0.2s ease-in-out;
+            --text-light: #94a3b8;
+            
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            --border-radius: 12px;
+            --border-radius-sm: 8px;
+            --border-radius-lg: 16px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * {
@@ -31,160 +44,216 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: var(--text-primary);
             line-height: 1.6;
         }
 
-        .page-container {
-            max-width: 900px;
+        .container {
+            max-width: 1000px;
             margin: 0 auto;
             padding: 2rem 1rem;
         }
 
+        /* Header */
         .header {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-lg);
+            padding: 2.5rem;
             text-align: center;
             margin-bottom: 2rem;
             color: white;
             position: relative;
+            overflow: hidden;
         }
 
-        .header-nav {
-            display: flex;
-            justify-content: flex-start;
-            margin-bottom: 1rem;
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            z-index: -1;
         }
 
         .back-btn {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
             background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 0.75rem 1.5rem;
+            padding: 0.75rem;
             border-radius: var(--border-radius);
             cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
             transition: var(--transition);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 1rem;
             backdrop-filter: blur(10px);
         }
 
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
             transform: translateX(-2px);
         }
 
-        .back-btn:active {
-            transform: translateX(0);
-        }
-
         .header h1 {
-            font-size: 2.2rem;
+            font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
+            gap: 1rem;
         }
 
         .header p {
-            font-size: 1rem;
+            font-size: 1.1rem;
             opacity: 0.9;
             max-width: 600px;
             margin: 0 auto;
         }
 
+        /* Search Container */
         .search-container {
             background: var(--surface);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            margin-bottom: 2rem;
             box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
         }
 
         .search-input {
             width: 100%;
-            padding: 0.75rem 1rem;
+            padding: 1rem 1.5rem;
             border: 2px solid var(--border);
             border-radius: var(--border-radius);
-            font-size: 1rem;
+            font-size: 1.1rem;
             transition: var(--transition);
+            background: var(--background);
+            color: var(--text-primary);
         }
 
         .search-input:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+            background: var(--surface);
         }
 
+        .search-input::placeholder {
+            color: var(--text-light);
+        }
+
+        /* Category Navigation */
         .category-nav {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
         }
 
         .category-btn {
             background: var(--surface);
             border: 2px solid var(--border);
             border-radius: var(--border-radius);
-            padding: 0.75rem;
+            padding: 1.25rem 1rem;
             text-align: center;
             cursor: pointer;
             transition: var(--transition);
             box-shadow: var(--shadow);
-            font-size: 0.9rem;
-            font-weight: 500;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .category-btn:hover::before {
+            left: 100%;
         }
 
         .category-btn:hover {
             border-color: var(--primary);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            color: var(--primary);
         }
 
         .category-btn.active {
             border-color: var(--primary);
-            background: rgba(37, 99, 235, 0.1);
-            color: var(--primary);
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
         }
 
         .category-btn i {
             display: block;
-            font-size: 1.2rem;
-            margin-bottom: 0.25rem;
-            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.8;
         }
 
+        .category-btn.active i {
+            opacity: 1;
+        }
+
+        /* FAQ Sections */
         .faq-section {
             background: var(--surface);
-            border-radius: var(--border-radius);
+            border-radius: var(--border-radius-lg);
             box-shadow: var(--shadow-lg);
             overflow: hidden;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
         }
 
         .section-header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
-            padding: 1rem 1.5rem;
+            padding: 1.5rem 2rem;
+            position: relative;
+        }
+
+        .section-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
         }
 
         .section-header h2 {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
         }
 
+        /* FAQ Items */
         .faq-item {
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--border-light);
         }
 
         .faq-item:last-child {
@@ -195,31 +264,33 @@
             width: 100%;
             background: none;
             border: none;
-            padding: 1rem 1.5rem;
+            padding: 1.5rem 2rem;
             text-align: left;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 600;
             color: var(--text-primary);
             transition: var(--transition);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            line-height: 1.4;
+            line-height: 1.5;
         }
 
         .faq-question:hover {
-            background: var(--background);
-        }
-
-        .faq-question.open {
-            background: rgba(37, 99, 235, 0.05);
+            background: var(--surface-hover);
             color: var(--primary);
         }
 
+        .faq-question.open {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-bottom: 1px solid var(--primary);
+        }
+
         .faq-icon {
-            font-size: 1rem;
-            transition: transform 0.3s ease;
+            font-size: 1.1rem;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             color: var(--primary);
             margin-left: 1rem;
             flex-shrink: 0;
@@ -230,11 +301,12 @@
         }
 
         .faq-answer {
-            padding: 0 1.5rem 1.5rem 1.5rem;
+            padding: 0 2rem 2rem 2rem;
             color: var(--text-primary);
-            line-height: 1.6;
+            line-height: 1.7;
             display: none;
             animation: fadeIn 0.3s ease;
+            background: var(--primary-light);
         }
 
         .faq-answer.show {
@@ -242,7 +314,7 @@
         }
 
         .faq-answer p {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
         .faq-answer p:last-child {
@@ -250,184 +322,201 @@
         }
 
         .faq-answer strong {
-            color: var(--primary);
+            color: var(--primary-dark);
             font-weight: 600;
         }
 
         .faq-answer ul {
-            margin: 0.75rem 0;
+            margin: 1rem 0;
             padding-left: 1.5rem;
         }
 
         .faq-answer li {
             margin-bottom: 0.5rem;
+            position: relative;
         }
 
+        .faq-answer li::marker {
+            color: var(--primary);
+        }
+
+        /* Highlight for search results */
         .highlight {
-            background: rgba(255, 235, 59, 0.7);
-            padding: 0 0.2rem;
-            border-radius: 2px;
+            background: linear-gradient(120deg, rgba(255, 235, 59, 0.8) 0%, rgba(255, 193, 7, 0.3) 100%);
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+            font-weight: 600;
         }
 
+        /* No Results */
         .no-results {
             text-align: center;
-            padding: 3rem 2rem;
+            padding: 4rem 2rem;
             color: var(--text-secondary);
             background: var(--surface);
-            border-radius: var(--border-radius);
+            border-radius: var(--border-radius-lg);
             box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
         }
 
         .no-results i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
             opacity: 0.3;
+            color: var(--primary);
         }
 
+        .no-results h3 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        /* Contact Section */
         .contact-section {
             background: var(--surface);
-            border-radius: var(--border-radius);
-            padding: 2rem;
+            border-radius: var(--border-radius-lg);
+            padding: 2.5rem;
             text-align: center;
             box-shadow: var(--shadow-lg);
             margin-top: 2rem;
+            border: 1px solid var(--border);
         }
 
         .contact-section h3 {
             color: var(--primary);
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
+            font-size: 1.4rem;
         }
 
         .contact-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
         }
 
         .contact-item {
-            padding: 1rem;
+            padding: 1.5rem;
             background: var(--background);
             border-radius: var(--border-radius);
             border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .contact-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary);
         }
 
         .contact-item i {
             color: var(--primary);
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
             display: block;
         }
 
         .contact-item h4 {
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
             color: var(--text-primary);
+            font-weight: 600;
         }
 
         .contact-item p {
-            font-size: 0.9rem;
+            font-size: 1rem;
             font-weight: 600;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
         }
 
         .contact-item small {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: var(--text-secondary);
         }
 
+        /* Animations */
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { 
+                opacity: 0; 
+                transform: translateY(-10px);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0);
+            }
         }
 
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .page-container {
-                padding: 1rem 0.5rem;
+            .container {
+                padding: 1rem;
+            }
+
+            .header {
+                padding: 2rem 1.5rem;
             }
 
             .header h1 {
-                font-size: 1.8rem;
-                flex-direction: column;
-                gap: 0.25rem;
-            }
-
-            .back-btn {
-                padding: 0.5rem 1rem;
-                font-size: 0.8rem;
-            }
-
-            .back-btn span {
-                display: none;
+                font-size: 2rem;
             }
 
             .category-nav {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 0.5rem;
+                gap: 0.75rem;
             }
 
             .category-btn {
-                padding: 0.5rem;
-                font-size: 0.8rem;
+                padding: 1rem 0.75rem;
+                font-size: 0.85rem;
             }
 
             .category-btn i {
-                font-size: 1rem;
+                font-size: 1.25rem;
             }
 
             .faq-question {
-                font-size: 0.9rem;
-                padding: 0.75rem 1rem;
+                padding: 1.25rem 1.5rem;
+                font-size: 1rem;
             }
 
             .faq-answer {
-                padding: 0 1rem 1rem 1rem;
-                font-size: 0.9rem;
+                padding: 0 1.5rem 1.5rem 1.5rem;
+            }
+
+            .search-container {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .category-nav {
+                grid-template-columns: 1fr;
             }
 
             .contact-grid {
                 grid-template-columns: 1fr;
             }
         }
-
-        @media (max-width: 480px) {
-            .page-container {
-                padding: 0.5rem;
-            }
-
-            .header h1 {
-                font-size: 1.5rem;
-            }
-
-            .search-container {
-                padding: 1rem;
-            }
-
-            .category-nav {
-                grid-template-columns: 1fr;
-            }
-        }
     </style>
 </head>
 <body>
-    <div class="page-container">
+    <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="header-nav">
-                <button class="back-btn" id="backBtn" onclick="goBack()">
-                    <i class="fas fa-arrow-left"></i>
-                    <span>Back</span>
-                </button>
-            </div>
+            <button class="back-btn" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
             <h1>
-                <i class="fas fa-mountain"></i>
-                Growth and Wisdom Retreat
+                <i class="fas fa-question-circle"></i>
+                Frequently Asked Questions
             </h1>
-            <p>Frequently Asked Questions - Everything you need to know for your retreat experience</p>
+            <p>Find answers to common questions about your retreat experience</p>
         </div>
 
         <!-- Search -->
@@ -493,27 +582,9 @@
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Bedrooms will be available as soon as possible on the day of arrival and must be vacated by <strong>10 AM on the day of departure</strong>.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Do you have parking?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p>All our centres have <strong>ample free parking on site</strong>. If you are staying at The Hayes, follow signs for the appropriate parking area based on your accommodation location.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Can I charge my electric car?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Electric car charging facilities are available on a <strong>first-come, first-served basis</strong>. Visit reception to pay for charging sessions at 50p per kWh. Chargers deliver around 7kW of power.</p>
+                        <p><strong>Check-in:</strong> 3:00 PM - 6:00 PM on Friday</p>
+                        <p><strong>Check-out:</strong> By 11:00 AM on Sunday</p>
+                        <p>Late check-out may be available upon request, subject to availability.</p>
                     </div>
                 </div>
             </div>
@@ -523,153 +594,109 @@
                 <div class="section-header">
                     <h2><i class="fas fa-bed"></i> Accommodation</h2>
                 </div>
-
+                
                 <div class="faq-item">
                     <button class="faq-question">
-                        What is provided in my room?
+                        What are the room arrangements?
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Your room includes:</p>
+                        <p>We offer various accommodation options:</p>
                         <ul>
-                            <li><strong>Bedding:</strong> All bed linen provided</li>
-                            <li><strong>Towels:</strong> Bath and hand towels</li>
-                            <li><strong>Toiletries:</strong> Soap, shower gel/shampoo</li>
-                            <li><strong>Amenities:</strong> Hairdryer, tea/coffee facilities</li>
-                            <li><strong>Wi-Fi:</strong> Fast internet access</li>
+                            <li><strong>Single rooms:</strong> Private en-suite rooms</li>
+                            <li><strong>Twin rooms:</strong> Shared rooms with two beds</li>
+                            <li><strong>Family rooms:</strong> Larger rooms for families</li>
+                            <li><strong>Dormitory style:</strong> Shared accommodation (budget option)</li>
                         </ul>
-                        <p><strong>Note:</strong> No TVs in bedrooms, but available in common areas.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Can I choose my roommate?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Yes! When registering, you can request to share with a specific person. Both people must make this request. Otherwise, we'll match you with someone of the same gender considering age and interests.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Are your venues disability friendly?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p>All conference halls are <strong>accessible for delegates with disabilities</strong> and feature hearing aid loops. We have accessible bedrooms available.</p>
-                        <p><strong>Important:</strong> Please inform us of your requirements during registration.</p>
+                        <p>All rooms include fresh linens, towels, and basic amenities.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Food & Drinks -->
+            <!-- Food -->
             <div class="faq-section" data-category="food">
                 <div class="section-header">
-                    <h2><i class="fas fa-utensils"></i> Food & Drinks</h2>
+                    <h2><i class="fas fa-utensils"></i> Meals & Dietary Requirements</h2>
                 </div>
-
+                
                 <div class="faq-item">
                     <button class="faq-question">
-                        Is food included?
+                        What meals are included?
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Yes! Our centres are <strong>all-inclusive</strong>. You'll enjoy:</p>
+                        <p>All meals are included in your retreat package:</p>
                         <ul>
-                            <li>Cooked and continental breakfasts</li>
-                            <li>Light lunches</li>
-                            <li>Hot evening buffets</li>
-                            <li>Tea, coffee, and refreshments during breaks</li>
+                            <li><strong>Breakfast:</strong> 7:30 AM - 9:00 AM</li>
+                            <li><strong>Lunch:</strong> 12:30 PM - 1:30 PM</li>
+                            <li><strong>Dinner:</strong> 6:30 PM - 8:00 PM</li>
+                            <li><strong>Snacks & beverages:</strong> Available throughout the day</li>
                         </ul>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question">
-                        Do you cater for dietary requirements?
+                        Can you accommodate dietary restrictions?
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>We provide dishes for <strong>vegetarians, vegans</strong>, and cater for all 14 recognised allergens including gluten-free, dairy-free, and nut allergies.</p>
-                        <p><strong>Important:</strong> Please advise us of requirements before arrival.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Are drinks included?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p><strong>Included:</strong> Coffee, tea, hot chocolate (8am-8pm), plus in-room facilities. <strong>Bar drinks</strong> are additional and paid by card.</p>
+                        <p>Yes! We can accommodate most dietary requirements including:</p>
+                        <ul>
+                            <li>Vegetarian and vegan options</li>
+                            <li>Gluten-free meals</li>
+                            <li>Food allergies and intolerances</li>
+                            <li>Religious dietary requirements</li>
+                        </ul>
+                        <p><strong>Important:</strong> Please inform us of any dietary requirements when booking or at least 1 week before arrival.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Activities & Schedule -->
+            <!-- Activities -->
             <div class="faq-section" data-category="activities">
                 <div class="section-header">
                     <h2><i class="fas fa-calendar-alt"></i> Activities & Schedule</h2>
                 </div>
-
+                
                 <div class="faq-item">
                     <button class="faq-question">
-                        What activities are planned?
+                        What activities are included?
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Our program includes:</p>
+                        <p>Our retreat includes a variety of activities:</p>
                         <ul>
-                            <li><strong>Teaching Sessions:</strong> Inspirational talks and biblical teachings</li>
-                            <li><strong>Workshop Groups:</strong> Interactive personal growth sessions</li>
-                            <li><strong>Prayer and Worship:</strong> Corporate and personal prayer times</li>
-                            <li><strong>Fellowship Meals:</strong> Connect with other attendees</li>
-                            <li><strong>Free Time:</strong> Reflection, rest, and recreation</li>
+                            <li>Daily meditation and mindfulness sessions</li>
+                            <li>Yoga and movement classes</li>
+                            <li>Nature walks and outdoor activities</li>
+                            <li>Workshop sessions and group discussions</li>
+                            <li>Free time for personal reflection</li>
                         </ul>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        Is attendance mandatory?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p>We encourage full participation, but understand everyone's needs are different. Main sessions and meals are key parts of the program, but you're free to step out for personal time if needed.</p>
+                        <p>All activities are optional, and you can participate as much or as little as you'd like.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Facilities & Services -->
+            <!-- Facilities -->
             <div class="faq-section" data-category="facilities">
                 <div class="section-header">
-                    <h2><i class="fas fa-wifi"></i> Facilities & Services</h2>
+                    <h2><i class="fas fa-wifi"></i> Facilities & Amenities</h2>
                 </div>
-
+                
                 <div class="faq-item">
                     <button class="faq-question">
-                        Do you have free Wi-Fi?
+                        What facilities are available?
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Yes! <strong>Free Wi-Fi</strong> is available in all meeting rooms, common areas, and bedrooms at speeds around 10mbps per user.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        What leisure facilities are available?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Facilities include:</p>
+                        <p>Our retreat center offers:</p>
                         <ul>
-                            <li><strong>Indoor Gym:</strong> For guests 18+ (free)</li>
-                            <li><strong>Sports Hall:</strong> Football, badminton, basketball</li>
-                            <li><strong>Games Room:</strong> Pool table, board games, table tennis</li>
-                            <li><strong>Outdoor Spaces:</strong> Walking areas and gardens</li>
+                            <li><strong>Wi-Fi:</strong> Available in common areas (limited in rooms to encourage digital detox)</li>
+                            <li><strong>Library:</strong> Quiet space with books and resources</li>
+                            <li><strong>Gardens:</strong> Beautiful outdoor spaces for reflection</li>
+                            <li><strong>Meditation hall:</strong> Dedicated space for practice</li>
+                            <li><strong>Common areas:</strong> Lounges and social spaces</li>
                         </ul>
                     </div>
                 </div>
@@ -680,43 +707,33 @@
                 <div class="section-header">
                     <h2><i class="fas fa-suitcase"></i> Practical Information</h2>
                 </div>
-
+                
                 <div class="faq-item">
                     <button class="faq-question">
                         What should I bring?
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p><strong>Essential items:</strong></p>
+                        <p>Essential items to pack:</p>
                         <ul>
-                            <li>Bible and notebook</li>
-                            <li>Comfortable clothing for sessions</li>
-                            <li>Weather-appropriate outerwear</li>
+                            <li>Comfortable clothing for activities and relaxation</li>
+                            <li>Layered clothing (weather can change)</li>
                             <li>Comfortable walking shoes</li>
-                            <li>Personal medications</li>
-                            <li>Phone charger</li>
+                            <li>Personal toiletries and any medications</li>
+                            <li>Journal or notebook (optional)</li>
+                            <li>Reusable water bottle</li>
                         </ul>
-                        <p><em>Towels, toiletries, and bedding are provided!</em></p>
+                        <p><strong>Provided:</strong> Linens, towels, yoga mats, and meditation cushions.</p>
                     </div>
                 </div>
 
                 <div class="faq-item">
                     <button class="faq-question">
-                        Can I bring pets?
+                        Is parking available?
                         <i class="fas fa-chevron-down faq-icon"></i>
                     </button>
                     <div class="faq-answer">
-                        <p>Pets are not allowed, but <strong>guide dogs/assistance dogs are permitted</strong>. Please inform us in advance if you require an assistance dog.</p>
-                    </div>
-                </div>
-
-                <div class="faq-item">
-                    <button class="faq-question">
-                        What's your smoking policy?
-                        <i class="fas fa-chevron-down faq-icon"></i>
-                    </button>
-                    <div class="faq-answer">
-                        <p>Smoking is <strong>not permitted inside any buildings</strong>, including e-cigarettes. Designated outdoor areas are available.</p>
+                        <p>Yes! <strong>Free parking</strong> is available on-site for all retreat participants. The parking area is well-lit and secure.</p>
                     </div>
                 </div>
             </div>
@@ -725,28 +742,26 @@
         <!-- Contact Section -->
         <div class="contact-section">
             <h3><i class="fas fa-headset"></i> Still Have Questions?</h3>
-            <p>We're here to help! Contact us if you can't find what you're looking for.</p>
+            <p>We're here to help! Get in touch with our team for any additional information.</p>
             
             <div class="contact-grid">
                 <div class="contact-item">
-                    <i class="fas fa-envelope"></i>
-                    <h4>Email Support</h4>
-                    <p>growthandwisdom@cloverleafworld.org</p>
-                    <small>Response within 24 hours</small>
-                </div>
-                
-                <div class="contact-item">
                     <i class="fas fa-phone"></i>
                     <h4>Phone Support</h4>
-                    <p>+44 (0) 754 725 7400</p>
-                    <small>Monday - Friday, 9AM - 5PM</small>
+                    <p>+44 1234 567890</p>
+                    <small>Mon-Fri, 9 AM - 6 PM</small>
                 </div>
-                
                 <div class="contact-item">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <h4>Urgent Issues</h4>
-                    <p>+44 (0) 754 725 7400</p>
-                    <small>Available 24/7</small>
+                    <i class="fas fa-envelope"></i>
+                    <h4>Email Support</h4>
+                    <p>help@retreat.com</p>
+                    <small>Response within 24 hours</small>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-comments"></i>
+                    <h4>Live Chat</h4>
+                    <p>Available Now</p>
+                    <small>Instant support online</small>
                 </div>
             </div>
         </div>
@@ -754,145 +769,169 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const faqQuestions = document.querySelectorAll('.faq-question');
-            const searchInput = document.getElementById('searchInput');
-            const categoryBtns = document.querySelectorAll('.category-btn');
+            // Category filtering
+            const categoryButtons = document.querySelectorAll('.category-btn');
             const faqSections = document.querySelectorAll('.faq-section');
             
-            // FAQ toggle functionality
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const category = this.getAttribute('data-category');
+                    
+                    // Update active button
+                    categoryButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Filter sections
+                    faqSections.forEach(section => {
+                        if (category === 'all' || section.getAttribute('data-category') === category) {
+                            section.style.display = 'block';
+                        } else {
+                            section.style.display = 'none';
+                        }
+                    });
+                    
+                    hideNoResultsMessage();
+                });
+            });
+
+            // FAQ accordion functionality
+            const faqQuestions = document.querySelectorAll('.faq-question');
             faqQuestions.forEach(question => {
                 question.addEventListener('click', function() {
                     const answer = this.nextElementSibling;
                     const isOpen = this.classList.contains('open');
                     
-                    if (isOpen) {
-                        this.classList.remove('open');
-                        answer.classList.remove('show');
-                        answer.style.display = 'none';
-                    } else {
+                    // Close all other open questions
+                    faqQuestions.forEach(q => {
+                        q.classList.remove('open');
+                        q.nextElementSibling.classList.remove('show');
+                    });
+                    
+                    // Toggle current question
+                    if (!isOpen) {
                         this.classList.add('open');
                         answer.classList.add('show');
-                        answer.style.display = 'block';
                     }
                 });
             });
-            
+
             // Search functionality
+            const searchInput = document.getElementById('searchInput');
             searchInput.addEventListener('input', function() {
                 const searchTerm = this.value.toLowerCase().trim();
                 
                 if (searchTerm === '') {
-                    showAllFAQs();
+                    // Show all sections and remove highlights
+                    faqSections.forEach(section => {
+                        section.style.display = 'block';
+                        clearHighlights(section);
+                    });
+                    // Reset category filter to "all"
+                    categoryButtons.forEach(btn => btn.classList.remove('active'));
+                    categoryButtons[0].classList.add('active');
+                    hideNoResultsMessage();
                     return;
                 }
                 
-                const faqItems = document.querySelectorAll('.faq-item');
                 let hasResults = false;
                 
-                faqItems.forEach(item => {
-                    const question = item.querySelector('.faq-question').textContent.toLowerCase();
-                    const answer = item.querySelector('.faq-answer').textContent.toLowerCase();
-                    
-                    if (question.includes(searchTerm) || answer.includes(searchTerm)) {
-                        item.style.display = 'block';
-                        item.closest('.faq-section').style.display = 'block';
-                        hasResults = true;
-                        highlightSearchTerm(item, searchTerm);
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-                
-                // Hide empty sections
                 faqSections.forEach(section => {
-                    const visibleItems = section.querySelectorAll('.faq-item[style*="block"]');
-                    if (visibleItems.length === 0) {
-                        section.style.display = 'none';
-                    }
-                });
-                
-                showNoResultsMessage(!hasResults);
-            });
-            
-            // Category filtering
-            categoryBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const category = this.dataset.category;
+                    const questions = section.querySelectorAll('.faq-question');
+                    const answers = section.querySelectorAll('.faq-answer');
+                    let sectionHasMatch = false;
                     
-                    // Update active button
-                    categoryBtns.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
+                    // Clear previous highlights
+                    clearHighlights(section);
                     
-                    // Clear search
-                    searchInput.value = '';
+                    // Search in questions and answers
+                    questions.forEach((question, index) => {
+                        const questionText = question.textContent.toLowerCase();
+                        const answerText = answers[index].textContent.toLowerCase();
+                        
+                        if (questionText.includes(searchTerm) || answerText.includes(searchTerm)) {
+                            sectionHasMatch = true;
+                            hasResults = true;
+                            
+                            // Highlight matches
+                            highlightText(question, searchTerm);
+                            highlightText(answers[index], searchTerm);
+                        }
+                    });
                     
-                    // Show/hide sections
-                    if (category === 'all') {
-                        showAllFAQs();
-                    } else {
-                        faqSections.forEach(section => {
-                            if (section.dataset.category === category) {
-                                section.style.display = 'block';
-                            } else {
-                                section.style.display = 'none';
-                            }
-                        });
-                    }
-                    
-                    hideNoResultsMessage();
-                });
-            });
-            
-            function showAllFAQs() {
-                document.querySelectorAll('.faq-item').forEach(item => {
-                    item.style.display = 'block';
-                    removeHighlights(item);
+                    section.style.display = sectionHasMatch ? 'block' : 'none';
                 });
                 
-                faqSections.forEach(section => {
-                    section.style.display = 'block';
-                });
+                // Reset category filter when searching
+                categoryButtons.forEach(btn => btn.classList.remove('active'));
                 
-                hideNoResultsMessage();
-            }
-            
-            function highlightSearchTerm(item, searchTerm) {
-                const question = item.querySelector('.faq-question');
-                const answer = item.querySelector('.faq-answer');
-                
-                [question, answer].forEach(element => {
-                    const content = element.innerHTML;
-                    const regex = new RegExp(`(${searchTerm})`, 'gi');
-                    element.innerHTML = content.replace(regex, '<span class="highlight">$1</span>');
-                });
-            }
-            
-            function removeHighlights(item) {
-                const highlights = item.querySelectorAll('.highlight');
-                highlights.forEach(highlight => {
-                    highlight.outerHTML = highlight.innerHTML;
-                });
-            }
-            
-            function showNoResultsMessage(show) {
-                let noResultsDiv = document.getElementById('noResults');
-                
-                if (show) {
-                    if (!noResultsDiv) {
-                        noResultsDiv = document.createElement('div');
-                        noResultsDiv.id = 'noResults';
-                        noResultsDiv.className = 'no-results';
-                        noResultsDiv.innerHTML = `
-                            <i class="fas fa-search"></i>
-                            <h3>No results found</h3>
-                            <p>Try different keywords or browse by category above.</p>
-                        `;
-                        document.getElementById('faqContainer').appendChild(noResultsDiv);
-                    }
-                    noResultsDiv.style.display = 'block';
+                if (!hasResults) {
+                    showNoResultsMessage();
                 } else {
                     hideNoResultsMessage();
                 }
+            });
+            
+            function highlightText(element, searchTerm) {
+                const walker = document.createTreeWalker(
+                    element,
+                    NodeFilter.SHOW_TEXT,
+                    null,
+                    false
+                );
+                
+                const textNodes = [];
+                let node;
+                while (node = walker.nextNode()) {
+                    textNodes.push(node);
+                }
+                
+                textNodes.forEach(textNode => {
+                    const parent = textNode.parentNode;
+                    if (parent.classList && parent.classList.contains('faq-icon')) return;
+                    
+                    const text = textNode.textContent;
+                    const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+                    
+                    if (regex.test(text)) {
+                        const highlightedHTML = text.replace(regex, '<span class="highlight">$1</span>');
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = highlightedHTML;
+                        
+                        while (tempDiv.firstChild) {
+                            parent.insertBefore(tempDiv.firstChild, textNode);
+                        }
+                        parent.removeChild(textNode);
+                    }
+                });
+            }
+            
+            function clearHighlights(element) {
+                const highlights = element.querySelectorAll('.highlight');
+                highlights.forEach(highlight => {
+                    const parent = highlight.parentNode;
+                    parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+                    parent.normalize();
+                });
+            }
+            
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            
+            function showNoResultsMessage() {
+                let noResultsDiv = document.getElementById('noResults');
+                if (!noResultsDiv) {
+                    noResultsDiv = document.createElement('div');
+                    noResultsDiv.id = 'noResults';
+                    noResultsDiv.className = 'no-results';
+                    noResultsDiv.innerHTML = `
+                        <i class="fas fa-search"></i>
+                        <h3>No results found</h3>
+                        <p>Try different keywords or browse by category above.</p>
+                    `;
+                    document.getElementById('faqContainer').appendChild(noResultsDiv);
+                }
+                noResultsDiv.style.display = 'block';
             }
             
             function hideNoResultsMessage() {
@@ -905,19 +944,14 @@
 
         // Back button functionality
         function goBack() {
-            // Try to go back in browser history first
             if (window.history.length > 1) {
                 window.history.back();
             } else {
-                // Fallback: try to detect if we're in the portal system
                 if (window.opener) {
-                    // If opened from portal, close this window
                     window.close();
                 } else if (window.parent !== window) {
-                    // If in an iframe, try to communicate with parent
                     window.parent.postMessage('closeFAQ', '*');
                 } else {
-                    // Final fallback: redirect to portal root
                     window.location.href = '/';
                 }
             }
@@ -925,7 +959,6 @@
 
         // Handle browser back button
         window.addEventListener('popstate', function(event) {
-            // This ensures the back button works properly
             if (event.state === null) {
                 goBack();
             }
