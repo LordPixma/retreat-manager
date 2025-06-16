@@ -168,6 +168,81 @@
         </div>
     </div>
 
+    <!-- Email Management Tab -->
+    <div class="tab-content" id="emails-tab">
+        <div class="email-management-container">
+            <!-- Email Overview Cards -->
+            <div class="stats-grid" style="margin-bottom: 2rem;">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-envelope" style="color: var(--primary);"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="total-emails-sent">-</div>
+                        <div class="stat-label">Emails Sent Today</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users" style="color: var(--success);"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="attendees-with-email">-</div>
+                        <div class="stat-label">Attendees with Email</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-flask" style="color: var(--warning);"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="email-system-status">Ready</div>
+                        <div class="stat-label">System Status</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Email Actions -->
+            <div class="email-actions-grid">
+                <div class="action-card">
+                    <div class="action-header">
+                        <h4><i class="fas fa-envelope-bulk"></i> Bulk Email</h4>
+                        <p>Send emails to multiple attendees at once</p>
+                    </div>
+                    <div class="action-body">
+                        <ul>
+                            <li>Target specific groups or all attendees</li>
+                            <li>Custom subject and message</li>
+                            <li>Professional email templates</li>
+                        </ul>
+                        <button class="btn btn-primary" id="bulk-email-action-btn">
+                            <i class="fas fa-paper-plane"></i> Send Bulk Email
+                        </button>
+                    </div>
+                </div>
+
+                <div class="action-card">
+                    <div class="action-header">
+                        <h4><i class="fas fa-flask"></i> Email Testing</h4>
+                        <p>Test your email system configuration</p>
+                    </div>
+                    <div class="action-body">
+                        <ul>
+                            <li>Verify email delivery</li>
+                            <li>Test template formatting</li>
+                            <li>Check system configuration</li>
+                        </ul>
+                        <button class="btn btn-secondary" id="test-email-action-btn">
+                            <i class="fas fa-vial"></i> Test Email System
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Groups Tab - UPDATED with Outstanding column -->
     <div class="tab-content" id="groups-tab">
         <div class="data-table">
