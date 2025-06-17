@@ -18,6 +18,11 @@ const AdminDashboard = {
             await this.loadAllData();
             this.bindEvents();
             this.setupTabNavigation();
+            
+            // Initialize email management
+            if (window.EmailManagement) {
+                await EmailManagement.init();
+            }
         } catch (error) {
             console.error('Failed to initialize admin dashboard:', error);
             Utils.showAlert('Failed to load admin dashboard', 'error');
