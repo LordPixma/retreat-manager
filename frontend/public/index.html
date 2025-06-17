@@ -67,5 +67,37 @@
     
     <!-- Main App (must be last) -->
     <script src="js/app.js"></script>
+    <script>
+    // Emergency fix for AdminDashboard loading
+    (function() {
+        console.log('Checking AdminDashboard availability...');
+        
+        // Wait a moment for scripts to load
+        setTimeout(() => {
+            if (typeof AdminDashboard !== 'undefined' && !window.AdminDashboard) {
+                window.AdminDashboard = AdminDashboard;
+                console.log('✅ AdminDashboard fixed and registered');
+                
+                // If we're on admin view, reload it
+                if (window.App && window.App.currentView === 'admin') {
+                    window.App.loadAdminView();
+                }
+            } else if (!window.AdminDashboard) {
+                console.error('❌ AdminDashboard component not found');
+                
+                // Try reloading the script
+                const script = document.createElement('script');
+                script.src = 'js/components/admin-dashboard.js';
+                script.onload = () => {
+                    console.log('Admin dashboard script reloaded');
+                    if (window.App && window.App.currentView === 'admin') {
+                        window.App.loadAdminView();
+                    }
+                };
+                document.body.appendChild(script);
+            }
+        }, 500);
+    })();
+    </script>
 </body>
 </html>
