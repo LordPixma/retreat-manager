@@ -157,6 +157,7 @@ async function getAttendeAnnouncements(db, ref, groupId, groupName) {
     });
     
     // Format announcements for frontend
+    const nowTs = Date.now();
     return relevantAnnouncements.map(announcement => ({
       id: announcement.id,
       title: announcement.title,
@@ -167,7 +168,7 @@ async function getAttendeAnnouncements(db, ref, groupId, groupName) {
       created_at: announcement.created_at,
       starts_at: announcement.starts_at,
       expires_at: announcement.expires_at,
-      is_new: isNewAnnouncement(announcement.created_at),
+      is_new: isNewAnnouncement(announcement.created_at, nowTs),
       type_badge: getTypeBadge(announcement.type),
       priority_badge: getPriorityBadge(announcement.priority)
     }));
@@ -181,10 +182,9 @@ async function getAttendeAnnouncements(db, ref, groupId, groupName) {
 /**
  * Check if announcement is new (within last 24 hours)
  */
-function isNewAnnouncement(createdAt) {
-  const created = new Date(createdAt);
-  const now = new Date();
-  const hoursDiff = (now - created) / (1000 * 60 * 60);
+function isNewAnnouncement(createdAt, nowTs) {
+  const created = new Date(createdAt).getTime();
+  const hoursDiff = (nowTs - created) / (1000 * 60 * 60);
   return hoursDiff <= 24;
 }
 
