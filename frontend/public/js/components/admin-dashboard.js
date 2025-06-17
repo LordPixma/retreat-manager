@@ -12,7 +12,7 @@ const AdminDashboard = {
     /**
      * Initialize admin dashboard
      */
-   async init() {
+    async init() {
         try {
             await this.render();
             await this.loadAllData();
@@ -36,7 +36,7 @@ const AdminDashboard = {
             console.error('Failed to initialize admin dashboard:', error);
             Utils.showAlert('Failed to load admin dashboard', 'error');
         }
-    }
+    },
 
     /**
      * Render dashboard template
