@@ -249,7 +249,7 @@ function generateEmailTemplate({ attendee, subject, message, email_type, sender,
             </div>
             
             <div style="padding: 1rem; background: #f3f4f6; border-radius: 6px; text-align: center;">
-              <div><strong>Sent by:</strong> ${sender}</div>
+              <div><strong>Sent by:</strong>The Growth and Wisdom Retreat Team</div>
               <div><strong>Date:</strong> ${currentDate}</div>
               <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #9ca3af;">
                 Growth and Wisdom Retreat Portal
