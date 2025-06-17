@@ -1,5 +1,6 @@
 // functions/api/admin/email/send.js
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
+import { headerStyles, typeIcons } from '../../../_shared/email-helpers.js';
 
 // Handle CORS preflight
 export async function onRequestOptions() {
@@ -112,6 +113,11 @@ async function sendBulkEmails(env, emailData) {
 
   const { attendees, subject, message, email_type, sender } = emailData;
   const results = { successful: 0, failed: 0, errors: [] };
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
   // Process emails in batches to avoid rate limits
   const batchSize = 10;
@@ -126,7 +132,8 @@ async function sendBulkEmails(env, emailData) {
           message,
           email_type,
           sender,
-          fromEmail: env.FROM_EMAIL
+          fromEmail: env.FROM_EMAIL,
+          currentDate
         });
 
         const response = await fetch('https://api.resend.com/emails', {
@@ -166,42 +173,15 @@ async function sendBulkEmails(env, emailData) {
 }
 
 // Generate email template based on type and content
-function generateEmailTemplate({ attendee, subject, message, email_type, sender, fromEmail }) {
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
-  // Get appropriate header style based on email type
-  const getHeaderStyle = (type) => {
-    switch (type) {
-      case 'urgent':
-        return 'background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);';
-      case 'welcome':
-        return 'background: linear-gradient(135deg, #059669 0%, #047857 100%);';
-      case 'reminder':
-        return 'background: linear-gradient(135deg, #d97706 0%, #b45309 100%);';
-      default:
-        return 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
-    }
-  };
-
-  const getIcon = (type) => {
-    switch (type) {
-      case 'urgent': return '🚨';
-      case 'welcome': return '🎉';
-      case 'reminder': return '⏰';
-      case 'payment': return '💳';
-      default: return '📢';
-    }
-  };
+function generateEmailTemplate({ attendee, subject, message, email_type, sender, fromEmail, currentDate }) {
+  const headerStyle = headerStyles[email_type] || headerStyles.default;
+  const icon = typeIcons[email_type] || typeIcons.announcement;
 
   return `
     <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 2rem;">
       <!-- Header -->
-      <div style="${getHeaderStyle(email_type)} color: white; padding: 2rem; text-align: center; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 1.8rem;">${getIcon(email_type)} ${subject}</h1>
+      <div style="${headerStyle} color: white; padding: 2rem; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="margin: 0; font-size: 1.8rem;">${icon} ${subject}</h1>
         <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Growth and Wisdom Retreat Portal</p>
       </div>
       
@@ -248,13 +228,13 @@ function generateEmailTemplate({ attendee, subject, message, email_type, sender,
               🕒 Support Hours: Monday - Friday, 9AM - 5PM
             </div>
             
-            <div style="padding: 1rem; background: #f3f4f6; border-radius: 6px; text-align: center;">
-              <div><strong>Sent by:</strong>The Growth and Wisdom Retreat Team</div>
-              <div><strong>Date:</strong> ${currentDate}</div>
-              <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #9ca3af;">
-                Growth and Wisdom Retreat Portal
-              </div>
-            </div>
+        <div style="padding: 1rem; background: #f3f4f6; border-radius: 6px; text-align: center;">
+          <div><strong>Sent by:</strong>${sender || 'The Growth and Wisdom Retreat Team'}</div>
+          <div><strong>Date:</strong> ${currentDate}</div>
+          <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #9ca3af;">
+            Growth and Wisdom Retreat Portal
+          </div>
+        </div>
           </div>
         </div>
       </div>

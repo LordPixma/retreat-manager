@@ -75,6 +75,7 @@ export async function onRequestGet(context) {
     });
     
     // Format announcements for frontend
+    const nowTs = Date.now();
     const formattedAnnouncements = relevantAnnouncements.map(announcement => ({
       id: announcement.id,
       title: announcement.title,
@@ -85,7 +86,7 @@ export async function onRequestGet(context) {
       created_at: announcement.created_at,
       starts_at: announcement.starts_at,
       expires_at: announcement.expires_at,
-      is_new: isNewAnnouncement(announcement.created_at) // Helper function
+      is_new: isNewAnnouncement(announcement.created_at, nowTs) // Helper function
     }));
     
     return createResponse({
@@ -101,9 +102,8 @@ export async function onRequestGet(context) {
 }
 
 // Helper function to determine if announcement is "new" (within last 24 hours)
-function isNewAnnouncement(createdAt) {
-  const created = new Date(createdAt);
-  const now = new Date();
-  const hoursDiff = (now - created) / (1000 * 60 * 60);
+function isNewAnnouncement(createdAt, nowTs) {
+  const created = new Date(createdAt).getTime();
+  const hoursDiff = (nowTs - created) / (1000 * 60 * 60);
   return hoursDiff <= 24;
 }
