@@ -1,5 +1,6 @@
 // functions/api/admin/email/notifications.js
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
+import { headerStyles, typeIcons } from '../../../_shared/email-helpers.js';
 
 // Handle CORS preflight
 export async function onRequestOptions() {
@@ -270,33 +271,13 @@ function generateGenericTemplate(templateData, attendee, fromEmail) {
     month: 'long',
     day: 'numeric'
   });
-
-  const getHeaderStyle = (type) => {
-    switch (type) {
-      case 'urgent':
-        return 'background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);';
-      case 'welcome':
-        return 'background: linear-gradient(135deg, #059669 0%, #047857 100%);';
-      case 'payment':
-        return 'background: linear-gradient(135deg, #d97706 0%, #b45309 100%);';
-      default:
-        return 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
-    }
-  };
-
-  const getIcon = (type) => {
-    switch (type) {
-      case 'urgent': return '🚨';
-      case 'welcome': return '🎉';
-      case 'payment': return '💳';
-      default: return '📢';
-    }
-  };
+  const headerStyle = headerStyles[templateData.email_type] || headerStyles.default;
+  const icon = typeIcons[templateData.email_type] || typeIcons.announcement;
 
   return `
     <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 2rem;">
-      <div style="${getHeaderStyle(templateData.email_type)} color: white; padding: 2rem; text-align: center; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 1.8rem;">${getIcon(templateData.email_type)} ${templateData.subject.replace(/^[🎉🚨💳📢⏰]\s*/, '')}</h1>
+      <div style="${headerStyle} color: white; padding: 2rem; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="margin: 0; font-size: 1.8rem;">${icon} ${templateData.subject.replace(/^[🎉🚨💳📢⏰]\s*/, '')}</h1>
         <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Growth and Wisdom Retreat Portal</p>
       </div>
       

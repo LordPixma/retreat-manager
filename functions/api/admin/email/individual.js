@@ -103,7 +103,7 @@ export async function onRequestPost(context) {
           <!-- Footer -->
           <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 2rem;">
             <p style="color: #6b7280; font-size: 0.875rem; margin: 0;">
-              This message was sent from the Growth and Wisdom Retreat administration.
+              This message was sent by ${admin.user || 'Retreat Administration'}.
               If you have any questions, please contact the retreat coordinators.
             </p>
           </div>

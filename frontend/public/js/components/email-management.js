@@ -1,6 +1,7 @@
 // frontend/public/js/components/email-management.js
 window.EmailManagement = {
     isInitialized: false,
+    eventListenersAttached: false,
     availableGroups: [],
     availableAttendees: [],
 
@@ -142,6 +143,10 @@ window.EmailManagement = {
      * Attach event listeners
      */
     attachEventListeners() {
+        if (this.eventListenersAttached) {
+            return;
+        }
+
         // Header buttons
         this.attachButtonListener('test-email-btn', () => this.showEmailTestModal());
         this.attachButtonListener('bulk-email-btn', () => this.showBulkEmailModal());
@@ -176,11 +181,13 @@ window.EmailManagement = {
 
         // Modal close handlers
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal-overlay') || 
+            if (e.target.classList.contains('modal-overlay') ||
                 e.target.classList.contains('modal-close')) {
                 this.closeAllModals();
             }
         });
+
+        this.eventListenersAttached = true;
     },
 
     /**
