@@ -12,7 +12,7 @@ const AdminDashboard = {
     /**
      * Initialize admin dashboard
      */
-    async init() {
+   async init() {
         try {
             await this.render();
             await this.loadAllData();
@@ -22,6 +22,7 @@ const AdminDashboard = {
             // Initialize email management
             if (window.EmailManagement) {
                 await EmailManagement.init();
+                console.log('EmailManagement initialized successfully');
             }
         } catch (error) {
             console.error('Failed to initialize admin dashboard:', error);
