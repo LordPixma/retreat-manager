@@ -19,6 +19,7 @@ window.EmailManagement = {
         ]);
         
         this.attachEventListeners();
+        this.updateEmailStats();
         this.isInitialized = true;
         
         console.log('Email Management initialized');
@@ -51,20 +52,44 @@ window.EmailManagement = {
     },
 
     /**
+     * Update email statistics in the dashboard
+     */
+    async updateEmailStats() {
+        try {
+            // Update attendees with email count
+            const attendeesWithEmailEl = document.getElementById('attendees-with-email');
+            if (attendeesWithEmailEl) {
+                attendeesWithEmailEl.textContent = this.availableAttendees.length;
+            }
+
+            // Set other stats (placeholder values for now)
+            const totalEmailsSentEl = document.getElementById('total-emails-sent');
+            if (totalEmailsSentEl) {
+                totalEmailsSentEl.textContent = '0';
+            }
+
+            const pendingNotificationsEl = document.getElementById('pending-notifications');
+            if (pendingNotificationsEl) {
+                pendingNotificationsEl.textContent = '0';
+            }
+        } catch (error) {
+            console.error('Failed to update email stats:', error);
+        }
+    },
+
+    /**
      * Attach event listeners
      */
     attachEventListeners() {
-        // Bulk email button
-        const bulkEmailBtn = document.getElementById('bulk-email-btn');
-        if (bulkEmailBtn) {
-            bulkEmailBtn.addEventListener('click', () => this.showBulkEmailModal());
-        }
-
-        // Email test functionality
-        const testEmailBtn = document.getElementById('test-email-btn');
-        if (testEmailBtn) {
-            testEmailBtn.addEventListener('click', () => this.showEmailTestModal());
-        }
+        // Header buttons
+        this.attachButtonListener('test-email-btn', () => this.showEmailTestModal());
+        this.attachButtonListener('bulk-email-btn', () => this.showBulkEmailModal());
+        
+        // Action card buttons
+        this.attachButtonListener('bulk-email-action-btn', () => this.showBulkEmailModal());
+        this.attachButtonListener('test-email-action-btn', () => this.showEmailTestModal());
+        this.attachButtonListener('payment-reminders-btn', () => this.sendPaymentReminders());
+        this.attachButtonListener('welcome-emails-btn', () => this.showWelcomeEmailInfo());
 
         // Target audience change handler
         document.addEventListener('change', (e) => {
@@ -91,6 +116,16 @@ window.EmailManagement = {
                 this.closeAllModals();
             }
         });
+    },
+
+    /**
+     * Attach button listener safely
+     */
+    attachButtonListener(buttonId, handler) {
+        const button = document.getElementById(buttonId);
+        if (button) {
+            button.addEventListener('click', handler);
+        }
     },
 
     /**
@@ -126,16 +161,16 @@ window.EmailManagement = {
 
         const modalHtml = `
             <div class="modal-overlay hidden" id="bulk-email-modal">
-                <div class="modal" style="max-width: 700px;">
+                <div class="modal" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
                     <div class="modal-header">
                         <h3 class="modal-title">
                             <i class="fas fa-envelope-bulk"></i> Send Bulk Email
                         </h3>
-                        <button type="button" class="modal-close">
+                        <button type="button" class="modal-close" onclick="EmailManagement.closeAllModals()">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="padding: 2rem; padding-bottom: 1rem;">
                         <div id="bulk-email-alert" class="alert hidden"></div>
                         
                         <form id="bulk-email-form">
@@ -156,7 +191,6 @@ window.EmailManagement = {
                                         <option value="all">All Attendees with Email</option>
                                         <option value="vip">VIP Group Only</option>
                                         <option value="groups">Specific Groups</option>
-                                        <option value="individuals">Individual Attendees</option>
                                     </select>
                                 </div>
                                 
@@ -168,7 +202,6 @@ window.EmailManagement = {
                                         <option value="announcement">General Announcement</option>
                                         <option value="urgent">Urgent Notice</option>
                                         <option value="reminder">Reminder</option>
-                                        <option value="welcome">Welcome Message</option>
                                     </select>
                                 </div>
                             </div>
@@ -188,29 +221,6 @@ window.EmailManagement = {
                                 </div>
                             </div>
 
-                            <!-- Individual Attendees Section -->
-                            <div class="form-group hidden" id="target-individuals-section">
-                                <label class="form-label">
-                                    <i class="fas fa-user-check"></i> Select Attendees
-                                </label>
-                                <div class="attendee-selector">
-                                    <input type="text" id="attendee-search" class="form-input" 
-                                           placeholder="Search attendees by name or email...">
-                                    <div id="email-attendees-list" class="attendee-list">
-                                        ${this.availableAttendees.map(attendee => `
-                                            <label class="checkbox-item attendee-item">
-                                                <input type="checkbox" name="target_attendees" value="${attendee.id}">
-                                                <div class="attendee-info">
-                                                    <span class="attendee-name">${attendee.name}</span>
-                                                    <span class="attendee-email">${attendee.email}</span>
-                                                    <span class="attendee-ref">${attendee.ref_number}</span>
-                                                </div>
-                                            </label>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="form-group">
                                 <label for="email-message" class="form-label">
                                     <i class="fas fa-edit"></i> Message
@@ -226,15 +236,12 @@ This message will be formatted nicely and include attendee-specific details like
 
                             <div class="form-group">
                                 <div class="email-preview-container">
-                                    <button type="button" class="btn btn-secondary btn-sm" id="preview-email-btn">
-                                        <i class="fas fa-eye"></i> Preview Email
-                                    </button>
                                     <span class="recipient-count" id="recipient-count">Recipients: All attendees with email addresses</span>
                                 </div>
                             </div>
 
-                            <div class="form-actions">
-                                <button type="button" class="btn btn-secondary modal-close">
+                            <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                                <button type="button" class="btn btn-secondary" onclick="EmailManagement.closeAllModals()">
                                     <i class="fas fa-times"></i> Cancel
                                 </button>
                                 <button type="submit" class="btn btn-primary">
@@ -248,7 +255,6 @@ This message will be formatted nicely and include attendee-specific details like
         `;
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        this.attachSearchHandler();
     },
 
     /**
@@ -265,11 +271,11 @@ This message will be formatted nicely and include attendee-specific details like
                         <h3 class="modal-title">
                             <i class="fas fa-flask"></i> Test Email System
                         </h3>
-                        <button type="button" class="modal-close">
+                        <button type="button" class="modal-close" onclick="EmailManagement.closeAllModals()">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="padding: 2rem;">
                         <div id="test-email-alert" class="alert hidden"></div>
                         
                         <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
@@ -288,8 +294,8 @@ This message will be formatted nicely and include attendee-specific details like
                                 </small>
                             </div>
 
-                            <div class="form-actions">
-                                <button type="button" class="btn btn-secondary modal-close">
+                            <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                                <button type="button" class="btn btn-secondary" onclick="EmailManagement.closeAllModals()">
                                     <i class="fas fa-times"></i> Cancel
                                 </button>
                                 <button type="submit" class="btn btn-primary">
@@ -310,12 +316,10 @@ This message will be formatted nicely and include attendee-specific details like
      */
     handleAudienceChange(audience) {
         const groupsSection = document.getElementById('target-groups-section');
-        const individualsSection = document.getElementById('target-individuals-section');
         const recipientCount = document.getElementById('recipient-count');
 
         // Hide all sections first
         if (groupsSection) groupsSection.classList.add('hidden');
-        if (individualsSection) individualsSection.classList.add('hidden');
 
         // Show relevant section and update count
         switch (audience) {
@@ -323,40 +327,11 @@ This message will be formatted nicely and include attendee-specific details like
                 if (groupsSection) groupsSection.classList.remove('hidden');
                 if (recipientCount) recipientCount.textContent = 'Recipients: Select groups above';
                 break;
-            case 'individuals':
-                if (individualsSection) individualsSection.classList.remove('hidden');
-                if (recipientCount) recipientCount.textContent = 'Recipients: Select attendees above';
-                break;
             case 'vip':
                 if (recipientCount) recipientCount.textContent = 'Recipients: VIP Group members only';
                 break;
             default:
                 if (recipientCount) recipientCount.textContent = 'Recipients: All attendees with email addresses';
-        }
-    },
-
-    /**
-     * Attach search handler for attendee search
-     */
-    attachSearchHandler() {
-        const searchInput = document.getElementById('attendee-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase();
-                const attendeeItems = document.querySelectorAll('.attendee-item');
-                
-                attendeeItems.forEach(item => {
-                    const name = item.querySelector('.attendee-name').textContent.toLowerCase();
-                    const email = item.querySelector('.attendee-email').textContent.toLowerCase();
-                    const ref = item.querySelector('.attendee-ref').textContent.toLowerCase();
-                    
-                    if (name.includes(query) || email.includes(query) || ref.includes(query)) {
-                        item.classList.remove('hidden');
-                    } else {
-                        item.classList.add('hidden');
-                    }
-                });
-            });
         }
     },
 
@@ -379,11 +354,11 @@ This message will be formatted nicely and include attendee-specific details like
                 return;
             }
 
-            // Send email
+            // Send email via API
             const response = await API.post('/admin/email/send', formData);
-
+            
             this.showAlert('bulk-email-alert', 
-                `Emails sent successfully! ${response.results.successful} sent, ${response.results.failed} failed.`, 
+                `Emails sent successfully to ${response.results.successful} attendees!`, 
                 'success'
             );
 
@@ -416,9 +391,9 @@ This message will be formatted nicely and include attendee-specific details like
 
             const testEmail = document.getElementById('test-email-address').value;
 
-            // Send test email
+            // Send test email via API
             const response = await API.post('/email/test', { testEmail });
-
+            
             this.showAlert('test-email-alert', 
                 `Test email sent successfully to ${testEmail}!`, 
                 'success'
@@ -431,6 +406,37 @@ This message will be formatted nicely and include attendee-specific details like
             // Restore button
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
+        }
+    },
+
+    /**
+     * Send payment reminders
+     */
+    async sendPaymentReminders() {
+        if (confirm('Send payment reminders to all attendees with outstanding balances?')) {
+            try {
+                const response = await API.post('/admin/email/notifications', {
+                    notification_type: 'payment_reminder'
+                });
+                
+                if (response.success) {
+                    Utils.showAlert(`Payment reminders sent to ${response.results.successful} attendees!`, 'success');
+                } else {
+                    Utils.showAlert('Failed to send payment reminders: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to send payment reminders:', error);
+                Utils.showAlert('Failed to send payment reminders: ' + error.message, 'error');
+            }
+        }
+    },
+
+    /**
+     * Show welcome email info
+     */
+    showWelcomeEmailInfo() {
+        if (confirm('Send welcome emails to attendees who haven\'t received them yet?')) {
+            Utils.showAlert('Welcome email feature will be enhanced to send to specific attendees. For now, welcome emails are sent automatically when creating new attendees.', 'info');
         }
     },
 
@@ -449,10 +455,6 @@ This message will be formatted nicely and include attendee-specific details like
             const selectedGroups = Array.from(document.querySelectorAll('input[name="target_groups"]:checked'))
                 .map(cb => cb.value);
             targetData.target_groups = selectedGroups;
-        } else if (audience === 'individuals') {
-            const selectedAttendees = Array.from(document.querySelectorAll('input[name="target_attendees"]:checked'))
-                .map(cb => parseInt(cb.value));
-            targetData.attendee_ids = selectedAttendees;
         }
 
         return {
@@ -482,36 +484,7 @@ This message will be formatted nicely and include attendee-specific details like
             return false;
         }
 
-        if (data.target_audience === 'individuals' && (!data.attendee_ids || data.attendee_ids.length === 0)) {
-            this.showAlert('bulk-email-alert', 'Please select at least one attendee', 'error');
-            return false;
-        }
-
         return true;
-    },
-
-    /**
-     * Send automatic notification
-     */
-    async sendNotification(type, attendeeId = null, customData = {}) {
-        try {
-            const response = await API.post('/admin/email/notifications', {
-                notification_type: type,
-                attendee_id: attendeeId,
-                custom_data: customData
-            });
-
-            if (response.success) {
-                console.log('Notification sent:', response.message);
-                return true;
-            } else {
-                console.error('Notification failed:', response.message);
-                return false;
-            }
-        } catch (error) {
-            console.error('Failed to send notification:', error);
-            return false;
-        }
     },
 
     /**
