@@ -1483,6 +1483,52 @@
     padding: 1rem;
 }
 
+.email-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.email-address {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.no-email {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.email-status {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+    min-width: 32px;
+}
+
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 .stat-card {
     background: var(--surface);
     border-radius: var(--border-radius);

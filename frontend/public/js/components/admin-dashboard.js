@@ -376,7 +376,8 @@ const AdminDashboard = {
         if (this.data.attendees.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                         No attendees found
                     </td>
                 </tr>
@@ -390,20 +391,43 @@ const AdminDashboard = {
                 ? `<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Payment Due</span>`
                 : `<span class="badge badge-success"><i class="fas fa-check"></i> Paid</span>`;
                 
+            // Enhanced email display with status indicator
+            const emailDisplay = attendee.email 
+                ? `<div class="email-info">
+                    <div class="email-address" style="font-size: 0.9rem; margin-bottom: 0.25rem;">${Utils.escapeHtml(attendee.email)}</div>
+                    <span class="email-status" title="Email address provided">
+                    <i class="fas fa-check-circle" style="color: var(--success); font-size: 0.8rem;"></i>
+                    <span style="font-size: 0.8rem; color: var(--success);">Verified</span>
+                    </span>
+                </div>`
+                : `<span class="no-email" style="color: var(--text-secondary); font-style: italic;">No email</span>`;
+                
             return `
                 <tr data-attendee-id="${attendee.id}">
+                    <td style="text-align: center;">
+                        <input type="checkbox" name="attendee-select" value="${attendee.id}">
+                    </td>
                     <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
                     <td>${Utils.escapeHtml(attendee.name)}</td>
-                    <td>${attendee.email ? Utils.escapeHtml(attendee.email) : '<span class="text-secondary">—</span>'}</td>
+                    <td>${emailDisplay}</td>
                     <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
                     <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
                     <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : '<span class="badge badge-secondary">No Group</span>'}</td>
                     <td>${statusBadge}</td>
                     <td>
-                        <div class="action-buttons">
+                        <div class="action-buttons" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
                             <button class="btn btn-sm btn-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            ${attendee.email ? `
+                            <button class="btn btn-sm btn-info email-attendee" 
+                                    data-id="${attendee.id}" 
+                                    data-email="${Utils.escapeHtml(attendee.email)}" 
+                                    data-name="${Utils.escapeHtml(attendee.name)}" 
+                                    title="Send Email to ${Utils.escapeHtml(attendee.name)}">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                            ` : ''}
                             <button class="btn btn-sm btn-danger delete-attendee" data-id="${attendee.id}" title="Delete Attendee">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -645,11 +669,72 @@ const AdminDashboard = {
         // Add buttons
         this.bindAddButtons();
         
-        // Action buttons (edit/delete)
+        // Action buttons (edit/delete/email)
         this.bindActionButtons();
         
         // Search boxes
         this.bindSearchBoxes();
+
+        // Email selection functionality
+        this.bindEmailSelection();
+    },
+
+    bindEmailSelection() {
+        let selectedAttendees = new Set();
+
+        // Handle select all checkbox
+        document.addEventListener('change', (e) => {
+            if (e.target.id === 'select-all-attendees') {
+                const checkboxes = document.querySelectorAll('input[name="attendee-select"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = e.target.checked;
+                    if (e.target.checked) {
+                        selectedAttendees.add(cb.value);
+                    } else {
+                        selectedAttendees.delete(cb.value);
+                    }
+                });
+                this.updateEmailSelectedButton(selectedAttendees);
+            } else if (e.target.name === 'attendee-select') {
+                if (e.target.checked) {
+                    selectedAttendees.add(e.target.value);
+                } else {
+                    selectedAttendees.delete(e.target.value);
+                }
+                this.updateEmailSelectedButton(selectedAttendees);
+            }
+        });
+
+        // Handle email selected button click
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#email-selected-btn')) {
+                if (selectedAttendees.size > 0 && window.EmailManagement) {
+                    EmailManagement.showBulkEmailModal();
+                    // Pre-select individual attendees in the modal
+                    setTimeout(() => {
+                        const audienceSelect = document.getElementById('email-audience');
+                        if (audienceSelect) {
+                            audienceSelect.value = 'individuals';
+                            audienceSelect.dispatchEvent(new Event('change'));
+                            
+                            // Check the selected attendees
+                            selectedAttendees.forEach(id => {
+                                const checkbox = document.querySelector(`input[name="target_attendees"][value="${id}"]`);
+                                if (checkbox) checkbox.checked = true;
+                            });
+                        }
+                    }, 100);
+                }
+            }
+        });
+    },
+
+    updateEmailSelectedButton(selectedAttendees) {
+        const btn = document.getElementById('email-selected-btn');
+        if (btn) {
+            btn.disabled = selectedAttendees.size === 0;
+            btn.innerHTML = `<i class="fas fa-envelope"></i> Email Selected (${selectedAttendees.size})`;
+        }
     },
 
     /**
@@ -701,6 +786,17 @@ const AdminDashboard = {
                 await this.editAttendee(id);
             } else if (target.classList.contains('delete-attendee')) {
                 await this.deleteAttendee(id);
+            } else if (target.classList.contains('email-attendee')) {
+                // Handle individual email button clicks
+                const attendeeId = target.dataset.id;
+                const attendeeEmail = target.dataset.email;
+                const attendeeName = target.dataset.name;
+                
+                if (window.EmailManagement) {
+                    EmailManagement.showIndividualEmailModal(attendeeId, attendeeEmail, attendeeName);
+                } else {
+                    Utils.showAlert('Email management not available', 'error');
+                }
             } else if (target.classList.contains('edit-announcement')) {
                 await this.editAnnouncement(id);
             } else if (target.classList.contains('toggle-announcement')) {

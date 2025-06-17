@@ -512,4 +512,269 @@ This message will be formatted nicely and include attendee-specific details like
         });
         document.body.style.overflow = '';
     }
+
+    // Add individual email modal method
+    showIndividualEmailModal(attendeeId, email, name) {
+        this.renderIndividualEmailModal(attendeeId, email, name);
+        const modal = document.getElementById('individual-email-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    },
+
+    // Add individual email modal rendering
+    renderIndividualEmailModal(attendeeId, email, name) {
+        const existingModal = document.getElementById('individual-email-modal');
+        if (existingModal) existingModal.remove();
+
+        const modalHtml = `
+            <div class="modal-overlay hidden" id="individual-email-modal">
+                <div class="modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">
+                            <i class="fas fa-envelope"></i> Send Email to ${this.escapeHtml(name)}
+                        </h3>
+                        <button type="button" class="modal-close" onclick="EmailManagement.closeAllModals()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding: 2rem; padding-bottom: 1rem;">
+                        <div id="individual-email-alert" class="alert hidden"></div>
+                        
+                        <!-- Recipient Info -->
+                        <div class="recipient-info" style="background: var(--background); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">${this.escapeHtml(name)}</div>
+                                    <div style="color: var(--text-secondary); font-size: 0.9rem;">${this.escapeHtml(email)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form id="individual-email-form" data-attendee-id="${attendeeId}">
+                            <div class="form-group">
+                                <label for="individual-email-subject" class="form-label">
+                                    <i class="fas fa-tag"></i> Subject
+                                </label>
+                                <input type="text" id="individual-email-subject" class="form-input" required 
+                                       placeholder="Enter email subject...">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="individual-email-type" class="form-label">
+                                    <i class="fas fa-flag"></i> Email Type
+                                </label>
+                                <select id="individual-email-type" class="form-input">
+                                    <option value="announcement">General Message</option>
+                                    <option value="reminder">Reminder</option>
+                                    <option value="urgent">Urgent Notice</option>
+                                    <option value="payment">Payment Related</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="individual-email-message" class="form-label">
+                                    <i class="fas fa-edit"></i> Message
+                                </label>
+                                <textarea id="individual-email-message" class="form-input" rows="8" required
+                                          placeholder="Enter your personal message to ${name}..."></textarea>
+                                <small class="form-help">
+                                    The email will include the attendee's name, reference number, and any room/group assignments.
+                                </small>
+                            </div>
+
+                            <!-- Quick Message Templates -->
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-lightning-bolt"></i> Quick Templates
+                                </label>
+                                <div class="template-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('welcome')">
+                                        Welcome Message
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('payment')">
+                                        Payment Reminder
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('checkin')">
+                                        Check-in Info
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('update')">
+                                        General Update
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                                <button type="button" class="btn btn-secondary" onclick="EmailManagement.closeAllModals()">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Send Email
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Bind form submission
+        document.getElementById('individual-email-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleIndividualEmailSubmit();
+        });
+    },
+
+    // Add template insertion method
+    insertTemplate(templateType) {
+        const messageTextarea = document.getElementById('individual-email-message');
+        const subjectInput = document.getElementById('individual-email-subject');
+        const typeSelect = document.getElementById('individual-email-type');
+        
+        const templates = {
+            welcome: {
+                subject: 'Welcome to Growth and Wisdom Retreat!',
+                message: `Welcome to the Growth and Wisdom Retreat!
+
+We're excited to have you join us for this transformative experience. Here are some important details for your upcoming retreat:
+
+- Check-in begins at 3:00 PM on the first day
+- Please bring comfortable clothing and any personal items you need
+- All meals will be provided during your stay
+- Feel free to reach out if you have any questions
+
+Looking forward to seeing you soon!
+
+Best regards,
+The Retreat Team`,
+                type: 'announcement'
+            },
+            payment: {
+                subject: 'Payment Reminder - Growth and Wisdom Retreat',
+                message: `I hope this message finds you well.
+
+This is a friendly reminder regarding your outstanding payment for the Growth and Wisdom Retreat. 
+
+Please let us know if you have any questions about your payment or if you need assistance with payment arrangements.
+
+Thank you for your attention to this matter.
+
+Best regards,
+The Retreat Team`,
+                type: 'payment'
+            },
+            checkin: {
+                subject: 'Check-in Information - Growth and Wisdom Retreat',
+                message: `Your retreat check-in information:
+
+📅 Check-in Date: [Please update with specific date]
+🕒 Check-in Time: 3:00 PM onwards
+📍 Location: [Please update with specific location]
+
+What to bring:
+- Valid ID for check-in
+- Comfortable clothing for activities
+- Personal toiletries
+- Any medications you need
+
+We're looking forward to welcoming you!
+
+Best regards,
+The Retreat Team`,
+                type: 'reminder'
+            },
+            update: {
+                subject: 'Important Update - Growth and Wisdom Retreat',
+                message: `I wanted to reach out with an important update regarding your upcoming retreat.
+
+[Please add your specific update information here]
+
+If you have any questions or concerns, please don't hesitate to contact us.
+
+Best regards,
+The Retreat Team`,
+                type: 'announcement'
+            }
+        };
+        
+        const template = templates[templateType];
+        if (template) {
+            subjectInput.value = template.subject;
+            messageTextarea.value = template.message;
+            typeSelect.value = template.type;
+        }
+    },
+
+    // Add individual email submission handler
+    async handleIndividualEmailSubmit() {
+        const form = document.getElementById('individual-email-form');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        try {
+            // Show loading state
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            submitBtn.disabled = true;
+
+            // Collect form data
+            const attendeeId = form.dataset.attendeeId;
+            const subject = document.getElementById('individual-email-subject').value.trim();
+            const message = document.getElementById('individual-email-message').value.trim();
+            const emailType = document.getElementById('individual-email-type').value;
+
+            // Validate
+            if (!subject) {
+                this.showAlert('individual-email-alert', 'Subject is required', 'error');
+                return;
+            }
+            if (!message) {
+                this.showAlert('individual-email-alert', 'Message is required', 'error');
+                return;
+            }
+
+            // Send email via API
+            const response = await API.post('/admin/email/send', {
+                subject: subject,
+                message: message,
+                email_type: emailType,
+                target_audience: 'individuals',
+                attendee_ids: [parseInt(attendeeId)]
+            });
+            
+            this.showAlert('individual-email-alert', 
+                `Email sent successfully!`, 
+                'success'
+            );
+
+            // Auto-close modal after success
+            setTimeout(() => {
+                this.closeAllModals();
+            }, 2000);
+
+        } catch (error) {
+            console.error('Failed to send individual email:', error);
+            this.showAlert('individual-email-alert', error.message || 'Failed to send email', 'error');
+        } finally {
+            // Restore button
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    },
+
+    // Add escape HTML method
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
+
+
 };
