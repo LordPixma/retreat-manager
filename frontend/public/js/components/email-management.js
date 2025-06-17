@@ -8,21 +8,58 @@ window.EmailManagement = {
      * Initialize the email management component
      */
     async init() {
-        if (this.isInitialized) return;
+        if (this.isInitialized) {
+            console.log('EmailManagement already initialized');
+            return;
+        }
         
         console.log('Initializing Email Management...');
         
-        // Load required data
-        await Promise.all([
-            this.loadGroups(),
-            this.loadAttendees()
-        ]);
-        
-        this.attachEventListeners();
-        this.updateEmailStats();
-        this.isInitialized = true;
-        
-        console.log('Email Management initialized');
+        try {
+            // Load required data with timeout
+            const loadPromises = [
+                this.loadGroups(),
+                this.loadAttendees()
+            ];
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Initialization timeout')), 10000)
+            );
+            
+            await Promise.race([
+                Promise.all(loadPromises),
+                timeoutPromise
+            ]);
+            
+            this.attachEventListeners();
+            this.updateEmailStats();
+            this.isInitialized = true;
+            
+            console.log('Email Management initialized successfully');
+        } catch (error) {
+            console.error('Email Management initialization failed:', error);
+            this.isInitialized = false;
+            
+            // Set some defaults so the component can still work partially
+            this.availableGroups = [];
+            this.availableAttendees = [];
+            
+            // Still attach event listeners
+            this.attachEventListeners();
+            
+            throw error; // Re-throw to let caller handle
+        }
+    },
+
+    /**
+     * Ensure initialization before operations
+     */
+    async ensureInitialized() {
+        if (!this.isInitialized) {
+            console.log('EmailManagement not initialized, initializing now...');
+            await this.init();
+        }
     },
 
     /**
@@ -30,11 +67,23 @@ window.EmailManagement = {
      */
     async loadGroups() {
         try {
-            const groups = await API.get('/admin/groups');
-            this.availableGroups = groups || [];
+            const response = await fetch('/api/admin/groups', {
+                headers: {
+                    'Authorization': `Bearer ${Auth.getToken('admin')}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load groups: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.availableGroups = data || [];
+            console.log(`Loaded ${this.availableGroups.length} groups`);
         } catch (error) {
             console.error('Failed to load groups:', error);
             this.availableGroups = [];
+            // Don't throw - allow component to work without groups
         }
     },
 
@@ -43,11 +92,23 @@ window.EmailManagement = {
      */
     async loadAttendees() {
         try {
-            const attendees = await API.get('/admin/attendees');
-            this.availableAttendees = (attendees || []).filter(a => a.email);
+            const response = await fetch('/api/admin/attendees', {
+                headers: {
+                    'Authorization': `Bearer ${Auth.getToken('admin')}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load attendees: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.availableAttendees = (data || []).filter(a => a.email);
+            console.log(`Loaded ${this.availableAttendees.length} attendees with email`);
         } catch (error) {
             console.error('Failed to load attendees:', error);
             this.availableAttendees = [];
+            // Don't throw - allow component to work without attendees
         }
     },
 
@@ -106,6 +167,10 @@ window.EmailManagement = {
             } else if (e.target.id === 'test-email-form') {
                 e.preventDefault();
                 this.handleTestEmailSubmit();
+            } else if (e.target.id === 'individual-email-form') {
+                e.preventDefault();
+                const attendeeId = e.target.dataset.attendeeId;
+                this.handleIndividualEmailSubmit(e.target, attendeeId);
             }
         });
 
@@ -125,6 +190,26 @@ window.EmailManagement = {
         const button = document.getElementById(buttonId);
         if (button) {
             button.addEventListener('click', handler);
+        }
+    },
+
+    /**
+     * Show individual email modal
+     */
+    async showIndividualEmailModal(attendeeId, email, name) {
+        try {
+            // Ensure we're initialized first
+            await this.ensureInitialized();
+            
+            this.renderIndividualEmailModal(attendeeId, email, name);
+            const modal = document.getElementById('individual-email-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        } catch (error) {
+            console.error('Failed to show email modal:', error);
+            Utils.showAlert('Failed to open email form. Please try again.', 'error');
         }
     },
 
@@ -150,6 +235,110 @@ window.EmailManagement = {
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
+    },
+
+    /**
+     * Render individual email modal
+     */
+    renderIndividualEmailModal(attendeeId, email, name) {
+        const existingModal = document.getElementById('individual-email-modal');
+        if (existingModal) existingModal.remove();
+
+        const modalHtml = `
+            <div class="modal-overlay hidden" id="individual-email-modal">
+                <div class="modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">
+                            <i class="fas fa-envelope"></i> Send Email to ${this.escapeHtml(name)}
+                        </h3>
+                        <button type="button" class="modal-close" onclick="EmailManagement.closeAllModals()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding: 2rem; padding-bottom: 1rem;">
+                        <div id="individual-email-alert" class="alert hidden"></div>
+                        
+                        <!-- Recipient Info -->
+                        <div class="recipient-info" style="background: var(--background); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">${this.escapeHtml(name)}</div>
+                                    <div style="color: var(--text-secondary); font-size: 0.9rem;">${this.escapeHtml(email)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form id="individual-email-form" data-attendee-id="${attendeeId}">
+                            <div class="form-group">
+                                <label for="individual-email-subject" class="form-label">
+                                    <i class="fas fa-tag"></i> Subject
+                                </label>
+                                <input type="text" id="individual-email-subject" class="form-input" required 
+                                       placeholder="Enter email subject...">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="individual-email-type" class="form-label">
+                                    <i class="fas fa-flag"></i> Email Type
+                                </label>
+                                <select id="individual-email-type" class="form-input">
+                                    <option value="announcement">General Message</option>
+                                    <option value="reminder">Reminder</option>
+                                    <option value="urgent">Urgent Notice</option>
+                                    <option value="payment">Payment Related</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="individual-email-message" class="form-label">
+                                    <i class="fas fa-edit"></i> Message
+                                </label>
+                                <textarea id="individual-email-message" class="form-input" rows="8" required
+                                          placeholder="Enter your personal message to ${this.escapeHtml(name)}..."></textarea>
+                                <small class="form-help">
+                                    The email will include the attendee's name, reference number, and any room/group assignments.
+                                </small>
+                            </div>
+
+                            <!-- Quick Message Templates -->
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-bolt"></i> Quick Templates
+                                </label>
+                                <div class="template-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('welcome')">
+                                        Welcome Message
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('payment')">
+                                        Payment Reminder
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('checkin')">
+                                        Check-in Info
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('update')">
+                                        General Update
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                                <button type="button" class="btn btn-secondary" onclick="EmailManagement.closeAllModals()">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Send Email
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
     /**
@@ -336,6 +525,71 @@ This message will be formatted nicely and include attendee-specific details like
     },
 
     /**
+     * Handle individual email form submission
+     */
+    async handleIndividualEmailSubmit(form, attendeeId) {
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+        
+        try {
+            // Disable form
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            
+            const formData = {
+                attendee_id: attendeeId,
+                subject: document.getElementById('individual-email-subject').value.trim(),
+                message: document.getElementById('individual-email-message').value.trim(),
+                email_type: document.getElementById('individual-email-type').value
+            };
+            
+            // Validate
+            if (!formData.subject) {
+                throw new Error('Subject is required');
+            }
+            if (!formData.message) {
+                throw new Error('Message is required');
+            }
+            
+            const response = await fetch('/api/admin/email/individual', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Auth.getToken('admin')}`
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                this.showModalAlert('individual-email-alert', 'Email sent successfully!', 'success');
+                
+                // Close modal after 2 seconds
+                setTimeout(() => {
+                    this.closeAllModals();
+                    Utils.showAlert('Email sent successfully!', 'success');
+                }, 2000);
+                
+                // Update stats
+                this.updateEmailStats();
+            } else {
+                throw new Error(result.error || 'Failed to send email');
+            }
+        } catch (error) {
+            console.error('Email sending error:', error);
+            this.showModalAlert('individual-email-alert', 
+                error.message || 'Failed to send email. Please try again.', 
+                'error'
+            );
+        } finally {
+            // Re-enable form
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        }
+    },
+
+    /**
      * Handle bulk email form submission
      */
     async handleBulkEmailSubmit() {
@@ -357,7 +611,7 @@ This message will be formatted nicely and include attendee-specific details like
             // Send email via API
             const response = await API.post('/admin/email/send', formData);
             
-            this.showAlert('bulk-email-alert', 
+            this.showModalAlert('bulk-email-alert', 
                 `Emails sent successfully to ${response.results.successful} attendees!`, 
                 'success'
             );
@@ -365,11 +619,12 @@ This message will be formatted nicely and include attendee-specific details like
             // Auto-close modal after success
             setTimeout(() => {
                 this.closeAllModals();
+                Utils.showAlert(`Bulk email sent to ${response.results.successful} attendees!`, 'success');
             }, 2000);
 
         } catch (error) {
             console.error('Failed to send bulk email:', error);
-            this.showAlert('bulk-email-alert', error.message || 'Failed to send emails', 'error');
+            this.showModalAlert('bulk-email-alert', error.message || 'Failed to send emails', 'error');
         } finally {
             // Restore button
             submitBtn.innerHTML = originalText;
@@ -394,14 +649,19 @@ This message will be formatted nicely and include attendee-specific details like
             // Send test email via API
             const response = await API.post('/email/test', { testEmail });
             
-            this.showAlert('test-email-alert', 
+            this.showModalAlert('test-email-alert', 
                 `Test email sent successfully to ${testEmail}!`, 
                 'success'
             );
 
+            // Close modal after 3 seconds
+            setTimeout(() => {
+                this.closeAllModals();
+            }, 3000);
+
         } catch (error) {
             console.error('Failed to send test email:', error);
-            this.showAlert('test-email-alert', error.message || 'Failed to send test email', 'error');
+            this.showModalAlert('test-email-alert', error.message || 'Failed to send test email', 'error');
         } finally {
             // Restore button
             submitBtn.innerHTML = originalText;
@@ -441,197 +701,8 @@ This message will be formatted nicely and include attendee-specific details like
     },
 
     /**
-     * Collect bulk email form data
+     * Insert email template
      */
-    collectBulkEmailData() {
-        const audience = document.getElementById('email-audience').value;
-        const subject = document.getElementById('email-subject').value;
-        const message = document.getElementById('email-message').value;
-        const emailType = document.getElementById('email-type').value;
-
-        let targetData = { target_audience: audience };
-
-        if (audience === 'groups') {
-            const selectedGroups = Array.from(document.querySelectorAll('input[name="target_groups"]:checked'))
-                .map(cb => cb.value);
-            targetData.target_groups = selectedGroups;
-        }
-
-        return {
-            subject: subject.trim(),
-            message: message.trim(),
-            email_type: emailType,
-            ...targetData
-        };
-    },
-
-    /**
-     * Validate bulk email data
-     */
-    validateBulkEmailData(data) {
-        if (!data.subject) {
-            this.showAlert('bulk-email-alert', 'Subject is required', 'error');
-            return false;
-        }
-
-        if (!data.message) {
-            this.showAlert('bulk-email-alert', 'Message is required', 'error');
-            return false;
-        }
-
-        if (data.target_audience === 'groups' && (!data.target_groups || data.target_groups.length === 0)) {
-            this.showAlert('bulk-email-alert', 'Please select at least one group', 'error');
-            return false;
-        }
-
-        return true;
-    },
-
-    /**
-     * Show alert message
-     */
-    showAlert(containerId, message, type) {
-        const container = document.getElementById(containerId);
-        if (container) {
-            container.className = `alert alert-${type}`;
-            container.textContent = message;
-            container.classList.remove('hidden');
-        }
-    },
-
-    /**
-     * Close all email modals
-     */
-    closeAllModals() {
-        const modals = ['bulk-email-modal', 'email-test-modal'];
-        modals.forEach(modalId => {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        });
-        document.body.style.overflow = '';
-    }
-
-    // Add individual email modal method
-    showIndividualEmailModal(attendeeId, email, name) {
-        this.renderIndividualEmailModal(attendeeId, email, name);
-        const modal = document.getElementById('individual-email-modal');
-        if (modal) {
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-    },
-
-    // Add individual email modal rendering
-    renderIndividualEmailModal(attendeeId, email, name) {
-        const existingModal = document.getElementById('individual-email-modal');
-        if (existingModal) existingModal.remove();
-
-        const modalHtml = `
-            <div class="modal-overlay hidden" id="individual-email-modal">
-                <div class="modal" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">
-                            <i class="fas fa-envelope"></i> Send Email to ${this.escapeHtml(name)}
-                        </h3>
-                        <button type="button" class="modal-close" onclick="EmailManagement.closeAllModals()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body" style="padding: 2rem; padding-bottom: 1rem;">
-                        <div id="individual-email-alert" class="alert hidden"></div>
-                        
-                        <!-- Recipient Info -->
-                        <div class="recipient-info" style="background: var(--background); padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1.5rem;">
-                            <div style="display: flex; align-items: center; gap: 1rem;">
-                                <div style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div>
-                                    <div style="font-weight: 600; color: var(--text-primary);">${this.escapeHtml(name)}</div>
-                                    <div style="color: var(--text-secondary); font-size: 0.9rem;">${this.escapeHtml(email)}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <form id="individual-email-form" data-attendee-id="${attendeeId}">
-                            <div class="form-group">
-                                <label for="individual-email-subject" class="form-label">
-                                    <i class="fas fa-tag"></i> Subject
-                                </label>
-                                <input type="text" id="individual-email-subject" class="form-input" required 
-                                       placeholder="Enter email subject...">
-                            </div>
-
-                            <div class="form-group">
-                                <label for="individual-email-type" class="form-label">
-                                    <i class="fas fa-flag"></i> Email Type
-                                </label>
-                                <select id="individual-email-type" class="form-input">
-                                    <option value="announcement">General Message</option>
-                                    <option value="reminder">Reminder</option>
-                                    <option value="urgent">Urgent Notice</option>
-                                    <option value="payment">Payment Related</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="individual-email-message" class="form-label">
-                                    <i class="fas fa-edit"></i> Message
-                                </label>
-                                <textarea id="individual-email-message" class="form-input" rows="8" required
-                                          placeholder="Enter your personal message to ${name}..."></textarea>
-                                <small class="form-help">
-                                    The email will include the attendee's name, reference number, and any room/group assignments.
-                                </small>
-                            </div>
-
-                            <!-- Quick Message Templates -->
-                            <div class="form-group">
-                                <label class="form-label">
-                                    <i class="fas fa-lightning-bolt"></i> Quick Templates
-                                </label>
-                                <div class="template-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('welcome')">
-                                        Welcome Message
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('payment')">
-                                        Payment Reminder
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('checkin')">
-                                        Check-in Info
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="EmailManagement.insertTemplate('update')">
-                                        General Update
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="form-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                                <button type="button" class="btn btn-secondary" onclick="EmailManagement.closeAllModals()">
-                                    <i class="fas fa-times"></i> Cancel
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-paper-plane"></i> Send Email
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-        // Bind form submission
-        document.getElementById('individual-email-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleIndividualEmailSubmit();
-        });
-    },
-
-    // Add template insertion method
     insertTemplate(templateType) {
         const messageTextarea = document.getElementById('individual-email-message');
         const subjectInput = document.getElementById('individual-email-subject');
@@ -704,70 +775,114 @@ The Retreat Team`,
         };
         
         const template = templates[templateType];
-        if (template) {
+        if (template && messageTextarea && subjectInput && typeSelect) {
             subjectInput.value = template.subject;
             messageTextarea.value = template.message;
             typeSelect.value = template.type;
         }
     },
 
-    // Add individual email submission handler
-    async handleIndividualEmailSubmit() {
-        const form = document.getElementById('individual-email-form');
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        
-        try {
-            // Show loading state
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-            submitBtn.disabled = true;
+    /**
+     * Collect bulk email form data
+     */
+    collectBulkEmailData() {
+        const audience = document.getElementById('email-audience').value;
+        const subject = document.getElementById('email-subject').value;
+        const message = document.getElementById('email-message').value;
+        const emailType = document.getElementById('email-type').value;
 
-            // Collect form data
-            const attendeeId = form.dataset.attendeeId;
-            const subject = document.getElementById('individual-email-subject').value.trim();
-            const message = document.getElementById('individual-email-message').value.trim();
-            const emailType = document.getElementById('individual-email-type').value;
+        let targetData = { target_audience: audience };
 
-            // Validate
-            if (!subject) {
-                this.showAlert('individual-email-alert', 'Subject is required', 'error');
-                return;
-            }
-            if (!message) {
-                this.showAlert('individual-email-alert', 'Message is required', 'error');
-                return;
-            }
+        if (audience === 'groups') {
+            const selectedGroups = Array.from(document.querySelectorAll('input[name="target_groups"]:checked'))
+                .map(cb => cb.value);
+            targetData.target_groups = selectedGroups;
+        }
 
-            // Send email via API
-            const response = await API.post('/admin/email/send', {
-                subject: subject,
-                message: message,
-                email_type: emailType,
-                target_audience: 'individuals',
-                attendee_ids: [parseInt(attendeeId)]
-            });
+        return {
+            subject: subject.trim(),
+            message: message.trim(),
+            email_type: emailType,
+            ...targetData
+        };
+    },
+
+    /**
+     * Validate bulk email data
+     */
+    validateBulkEmailData(data) {
+        if (!data.subject) {
+            this.showModalAlert('bulk-email-alert', 'Subject is required', 'error');
+            return false;
+        }
+
+        if (!data.message) {
+            this.showModalAlert('bulk-email-alert', 'Message is required', 'error');
+            return false;
+        }
+
+        if (data.target_audience === 'groups' && (!data.target_groups || data.target_groups.length === 0)) {
+            this.showModalAlert('bulk-email-alert', 'Please select at least one group', 'error');
+            return false;
+        }
+
+        return true;
+    },
+
+    /**
+     * Show modal alert message
+     */
+    showModalAlert(containerId, message, type) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.className = `alert alert-${type}`;
+            container.textContent = message;
+            container.classList.remove('hidden');
             
-            this.showAlert('individual-email-alert', 
-                `Email sent successfully!`, 
-                'success'
-            );
-
-            // Auto-close modal after success
-            setTimeout(() => {
-                this.closeAllModals();
-            }, 2000);
-
-        } catch (error) {
-            console.error('Failed to send individual email:', error);
-            this.showAlert('individual-email-alert', error.message || 'Failed to send email', 'error');
-        } finally {
-            // Restore button
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
+            // Auto-hide error messages after 5 seconds
+            if (type === 'error') {
+                setTimeout(() => {
+                    container.classList.add('hidden');
+                }, 5000);
+            }
         }
     },
 
-    // Add escape HTML method
+    /**
+     * Show general alert (delegates to Utils.showAlert)
+     */
+    showAlert(message, type) {
+        if (window.Utils && window.Utils.showAlert) {
+            Utils.showAlert(message, type);
+        } else {
+            // Fallback to console if Utils not available
+            console[type === 'error' ? 'error' : 'log'](message);
+        }
+    },
+
+    /**
+     * Close all email modals
+     */
+    closeAllModals() {
+        const modals = ['bulk-email-modal', 'email-test-modal', 'individual-email-modal'];
+        modals.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+                // Also remove the modal to clean up DOM
+                setTimeout(() => {
+                    if (modal && modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
+                }, 300);
+            }
+        });
+        document.body.style.overflow = '';
+    },
+
+    /**
+     * Escape HTML to prevent XSS
+     */
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -775,6 +890,26 @@ The Retreat Team`,
         return div.innerHTML;
     },
 
+    /**
+     * Format date for display
+     */
+    formatDate(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        return d.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    },
 
-
+    /**
+     * Reload component data (for refreshing after actions)
+     */
+    async reload() {
+        this.isInitialized = false;
+        await this.init();
+    }
 };

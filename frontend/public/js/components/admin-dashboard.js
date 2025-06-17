@@ -19,16 +19,24 @@ const AdminDashboard = {
             this.bindEvents();
             this.setupTabNavigation();
             
-            // Initialize email management
+            // Initialize email management with better error handling
             if (window.EmailManagement) {
-                await EmailManagement.init();
-                console.log('EmailManagement initialized successfully');
+                try {
+                    await window.EmailManagement.init();
+                    console.log('EmailManagement initialized successfully');
+                } catch (error) {
+                    console.error('EmailManagement initialization failed:', error);
+                    // Don't fail the entire dashboard init, just log the error
+                }
+            } else {
+                console.warn('EmailManagement component not available at dashboard init');
+                // Try to initialize it later when needed
             }
         } catch (error) {
             console.error('Failed to initialize admin dashboard:', error);
             Utils.showAlert('Failed to load admin dashboard', 'error');
         }
-    },
+    }
 
     /**
      * Render dashboard template
@@ -775,7 +783,7 @@ const AdminDashboard = {
      * Bind action buttons (updated with announcements)
      */
     bindActionButtons() {
-        // Delegate event listeners for dynamically created buttons
+    // Delegate event listeners for dynamically created buttons
         document.addEventListener('click', async (e) => {
             const target = e.target.closest('button');
             if (!target) return;
@@ -792,10 +800,55 @@ const AdminDashboard = {
                 const attendeeEmail = target.dataset.email;
                 const attendeeName = target.dataset.name;
                 
+                // Check if EmailManagement is available and initialize if needed
                 if (window.EmailManagement) {
-                    EmailManagement.showIndividualEmailModal(attendeeId, attendeeEmail, attendeeName);
+                    // Ensure EmailManagement is initialized
+                    if (!window.EmailManagement.isInitialized) {
+                        console.log('Initializing EmailManagement for email action...');
+                        try {
+                            await window.EmailManagement.init();
+                        } catch (error) {
+                            console.error('Failed to initialize EmailManagement:', error);
+                            Utils.showAlert('Failed to initialize email system. Please refresh the page and try again.', 'error');
+                            return;
+                        }
+                    }
+                    
+                    // Now show the email modal
+                    window.EmailManagement.showIndividualEmailModal(attendeeId, attendeeEmail, attendeeName);
                 } else {
-                    Utils.showAlert('Email management not available', 'error');
+                    // EmailManagement component not loaded at all
+                    console.error('EmailManagement component not found');
+                    
+                    // Try to load it dynamically
+                    try {
+                        // Check if the script exists
+                        const script = document.querySelector('script[src*="email-management.js"]');
+                        if (!script) {
+                            // Add the script dynamically
+                            const newScript = document.createElement('script');
+                            newScript.src = 'js/components/email-management.js';
+                            document.body.appendChild(newScript);
+                            
+                            // Wait for it to load
+                            await new Promise((resolve, reject) => {
+                                newScript.onload = resolve;
+                                newScript.onerror = reject;
+                                setTimeout(reject, 5000); // 5 second timeout
+                            });
+                        }
+                        
+                        // Try again after loading
+                        if (window.EmailManagement) {
+                            await window.EmailManagement.init();
+                            window.EmailManagement.showIndividualEmailModal(attendeeId, attendeeEmail, attendeeName);
+                        } else {
+                            throw new Error('EmailManagement still not available after loading');
+                        }
+                    } catch (loadError) {
+                        console.error('Failed to load EmailManagement:', loadError);
+                        Utils.showAlert('Email system is not available. Please refresh the page and try again.', 'error');
+                    }
                 }
             } else if (target.classList.contains('edit-announcement')) {
                 await this.editAnnouncement(id);
