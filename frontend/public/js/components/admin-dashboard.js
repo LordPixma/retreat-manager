@@ -7,7 +7,7 @@ const AdminDashboard = {
         announcements: [],
         stats: {}
     },
-    currentTab: 'attendees',
+    currentTab: 'dashboard',
     
     /**
      * Initialize admin dashboard
@@ -18,6 +18,10 @@ const AdminDashboard = {
             await this.loadAllData();
             this.bindEvents();
             this.setupTabNavigation();
+
+            // Update top header information
+            this.updateHeaderInfo();
+
             
             // Initialize email management with better error handling
             if (window.EmailManagement) {
@@ -45,6 +49,7 @@ const AdminDashboard = {
         try {
             const content = await Utils.loadTemplate('templates/admin-dashboard.html');
             document.getElementById('app').innerHTML = content;
+            this.applySidebarLayout();
         } catch (error) {
             console.warn('Template loading failed, using fallback');
             this.renderFallback();
@@ -74,38 +79,49 @@ const AdminDashboard = {
 
                 <div class="stats-grid" id="admin-stats">
                     <div class="stat-card">
-                        <div class="stat-value" id="total-attendees">0</div>
-                        <div class="stat-label">Total Attendees</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-attendees">0</div>
+                            <div class="stat-label">Total Attendees</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="total-revenue">£0</div>
-                        <div class="stat-label">Total Revenue</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-pound-sign"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-revenue">£0</div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="pending-payments">0</div>
-                        <div class="stat-label">Pending Payments</div>
+                        <div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="pending-payments">0</div>
+                            <div class="stat-label">Pending Payments</div>
+                            <div class="stat-trend" id="pending-payments-trend"></div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="active-announcements">0</div>
-                        <div class="stat-label">Active Announcements</div>
+                        <div class="stat-icon icon-green"><i class="fas fa-bullhorn"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="active-announcements">0</div>
+                            <div class="stat-label">Active Announcements</div>
+                            <div class="stat-trend" id="active-announcements-trend"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Tab Navigation -->
-                <div class="tab-navigation">
-                    <button class="tab-btn active" data-tab="attendees">
-                        <i class="fas fa-users"></i> Attendees
-                    </button>
-                    <button class="tab-btn" data-tab="announcements">
-                        <i class="fas fa-bullhorn"></i> Announcements
-                    </button>
-                    <button class="tab-btn" data-tab="rooms">
-                        <i class="fas fa-bed"></i> Rooms
-                    </button>
-                    <button class="tab-btn" data-tab="groups">
-                        <i class="fas fa-layer-group"></i> Groups
-                    </button>
-                </div>
+                <!-- Sidebar Navigation -->
+                <nav class="sidebar">
+                    <ul class="sidebar-menu">
+                        <li class="sidebar-item active" data-tab="dashboard"><i class="fas fa-home"></i> Dashboard</li>
+                        <li class="sidebar-item" data-tab="attendees"><i class="fas fa-users"></i> Attendees</li>
+                        <li class="sidebar-item" data-tab="rooms"><i class="fas fa-door-open"></i> Room Management</li>
+                        <li class="sidebar-item" data-tab="groups"><i class="fas fa-user-friends"></i> Group Management</li>
+                        <li class="sidebar-item" data-tab="announcements"><i class="fas fa-bullhorn"></i> Announcements</li>
+                        <li class="sidebar-item" data-tab="emails"><i class="fas fa-envelope"></i> Email Management</li>
+                        <li class="sidebar-item" data-tab="analytics"><i class="fas fa-chart-line"></i> Analytics</li>
+                    </ul>
+                </nav>
 
                 <!-- Attendees Tab -->
                 <div class="tab-content active" id="attendees-tab">
@@ -252,6 +268,36 @@ const AdminDashboard = {
                 </div>
             </div>
         `;
+        this.applySidebarLayout();
+    },
+
+    applySidebarLayout() {
+        const appEl = document.getElementById('app');
+        const nav = appEl.querySelector('.tab-navigation');
+        if (!nav) return;
+
+        const layout = document.createElement('div');
+        layout.className = 'dashboard-layout';
+
+        const sidebar = document.createElement('aside');
+        sidebar.className = 'dashboard-sidebar';
+        sidebar.appendChild(nav);
+
+        const main = document.createElement('div');
+        main.className = 'dashboard-content';
+
+        while (appEl.firstChild) {
+            const child = appEl.firstChild;
+            if (child !== nav) {
+                main.appendChild(child);
+            } else {
+                appEl.removeChild(child);
+            }
+        }
+
+        layout.appendChild(sidebar);
+        layout.appendChild(main);
+        appEl.appendChild(layout);
     },
 
     /**
@@ -355,6 +401,7 @@ const AdminDashboard = {
         this.updateAnnouncementsDisplay();
         this.updateRoomsDisplay();
         this.updateGroupsDisplay();
+        this.updateHeaderInfo();
     },
 
     /**
@@ -367,11 +414,19 @@ const AdminDashboard = {
         const totalRevenueEl = document.getElementById('total-revenue');
         const pendingPaymentsEl = document.getElementById('pending-payments');
         const activeAnnouncementsEl = document.getElementById('active-announcements');
-        
+        const pendingTrendEl = document.getElementById('pending-payments-trend');
+        const activeTrendEl = document.getElementById('active-announcements-trend');
+
         if (totalAttendeesEl) totalAttendeesEl.textContent = stats.totalAttendees;
         if (totalRevenueEl) totalRevenueEl.textContent = Utils.formatCurrency(stats.totalRevenue);
         if (pendingPaymentsEl) pendingPaymentsEl.textContent = stats.pendingPayments;
         if (activeAnnouncementsEl) activeAnnouncementsEl.textContent = stats.activeAnnouncements;
+
+        const pendingPct = stats.totalAttendees > 0 ? Math.round((stats.pendingPayments / stats.totalAttendees) * 100) : 0;
+        const activePct = stats.totalAnnouncements > 0 ? Math.round((stats.activeAnnouncements / stats.totalAnnouncements) * 100) : 0;
+
+        if (pendingTrendEl) pendingTrendEl.innerHTML = `<i class="fas fa-arrow-up"></i> ${pendingPct}%`;
+        if (activeTrendEl) activeTrendEl.innerHTML = `<i class="fas fa-arrow-up"></i> ${activePct}%`;
     },
 
     /**
@@ -395,9 +450,9 @@ const AdminDashboard = {
 
         tbody.innerHTML = this.data.attendees.map(attendee => {
             const paymentDue = attendee.payment_due || 0;
-            const statusBadge = paymentDue > 0 
-                ? `<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Payment Due</span>`
-                : `<span class="badge badge-success"><i class="fas fa-check"></i> Paid</span>`;
+            const statusBadge = paymentDue > 0
+                ? `<span class="badge badge-due"><i class="fas fa-exclamation-triangle"></i> Due</span>`
+                : `<span class="badge badge-paid"><i class="fas fa-check"></i> Paid</span>`;
                 
             // Enhanced email display with status indicator
             const emailDisplay = attendee.email 
@@ -416,7 +471,7 @@ const AdminDashboard = {
                         <input type="checkbox" name="attendee-select" value="${attendee.id}">
                     </td>
                     <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
-                    <td>${Utils.escapeHtml(attendee.name)}</td>
+                    <td><div class="avatar">${Utils.getInitials(attendee.name)}</div>${Utils.escapeHtml(attendee.name)}</td>
                     <td>${emailDisplay}</td>
                     <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
                     <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
@@ -424,7 +479,7 @@ const AdminDashboard = {
                     <td>${statusBadge}</td>
                     <td>
                         <div class="action-buttons" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-                            <button class="btn btn-sm btn-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
+                            <button class="btn btn-sm btn-outline-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
                                 <i class="fas fa-edit"></i>
                             </button>
                             ${attendee.email ? `
@@ -505,7 +560,7 @@ const AdminDashboard = {
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-announcement" data-id="${announcement.id}" title="Edit Announcement">
+                            <button class="btn btn-sm btn-outline-primary edit-announcement" data-id="${announcement.id}" title="Edit Announcement">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-secondary toggle-announcement" data-id="${announcement.id}" title="${announcement.is_active ? 'Deactivate' : 'Activate'}">
@@ -558,7 +613,7 @@ const AdminDashboard = {
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${occupantsList}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-room" data-id="${room.id}" title="Edit Room">
+                            <button class="btn btn-sm btn-outline-primary edit-room" data-id="${room.id}" title="Edit Room">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-room" data-id="${room.id}" title="Delete Room" ${occupancy > 0 ? 'disabled' : ''}>
@@ -620,7 +675,7 @@ const AdminDashboard = {
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-group" data-id="${group.id}" title="Edit Group">
+                            <button class="btn btn-sm btn-outline-primary edit-group" data-id="${group.id}" title="Edit Group">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-group" data-id="${group.id}" title="Delete Group" ${memberCount > 0 ? 'disabled' : ''}>
@@ -634,27 +689,25 @@ const AdminDashboard = {
     },
 
     /**
-     * Set up tab navigation
+     * Set up sidebar navigation
      */
-    setupTabNavigation() {
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
+    setupSidebarNavigation() {
+        const menuItems = document.querySelectorAll('.sidebar-item');
+        const sections = document.querySelectorAll('.tab-content');
 
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const tabName = button.dataset.tab;
-                
-                // Update active tab button
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Update active tab content
-                tabContents.forEach(content => content.classList.remove('active'));
-                const targetContent = document.getElementById(`${tabName}-tab`);
-                if (targetContent) {
-                    targetContent.classList.add('active');
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tabName = item.dataset.tab;
+
+                menuItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+
+                sections.forEach(sec => sec.classList.remove('active'));
+                const target = document.getElementById(`${tabName}-tab`);
+                if (target) {
+                    target.classList.add('active');
                 }
-                
+
                 this.currentTab = tabName;
             });
         });
@@ -1177,6 +1230,29 @@ const AdminDashboard = {
             default:
                 return { text: 'Unknown', class: 'badge-secondary' };
         }
+    },
+
+    /**
+     * Update header information such as date and user name
+     */
+    updateHeaderInfo() {
+        this.updateDate();
+        this.updateUserName();
+    },
+
+    updateDate() {
+        const el = document.getElementById('current-date');
+        if (el) {
+            const now = new Date();
+            el.textContent = now.toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+        }
+    },
+
+    updateUserName() {
+        const el = document.getElementById('user-name');
+        if (el) el.textContent = 'Admin';
     },
 
     /**

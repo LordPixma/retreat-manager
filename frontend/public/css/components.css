@@ -36,8 +36,8 @@ i[class*="fa-"]:hover {
 
 .form-input:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .form-input.error {
@@ -73,8 +73,8 @@ i[class*="fa-"]:hover {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -102,6 +102,27 @@ i[class*="fa-"]:hover {
     padding: 0.5rem 1rem;
     font-size: 0.85rem;
     min-height: auto;
+}
+
+/* Outline Buttons */
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.btn-outline-primary {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-outline-secondary {
+    border-color: var(--secondary);
+    color: var(--secondary);
+}
+
+.btn-outline:hover {
+    background: rgba(0, 0, 0, 0.03);
 }
 
 /* Card Components */
@@ -220,6 +241,32 @@ i[class*="fa-"]:hover {
 .badge-secondary {
     background: rgba(100, 116, 139, 0.1);
     color: var(--secondary);
+}
+
+.badge-paid {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.badge-due {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
+}
+
+/* Avatar circles for names */
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--background);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-right: 0.5rem;
+    color: var(--primary);
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }
 
 /* Password Input Container */
@@ -360,16 +407,17 @@ i[class*="fa-"]:hover {
 }
 
 /* Focus Improvements */
+
 .form-input:focus,
 .btn:focus {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
 /* Keyboard Navigation */
 .btn:focus-visible,
 .form-input:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -427,12 +475,14 @@ i[class*="fa-"]:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: #fff;
 }
 
 .modal-title {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #fff;
 }
 
 .modal-close {
@@ -440,7 +490,7 @@ i[class*="fa-"]:hover {
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    color: var(--text-secondary);
+    color: #fff;
     padding: 0.25rem;
     border-radius: 4px;
     transition: var(--transition);
@@ -452,8 +502,8 @@ i[class*="fa-"]:hover {
 }
 
 .modal-close:hover {
-    background: var(--background);
-    color: var(--text-primary);
+    background: rgba(0,0,0,0.1);
+    color: #fff;
 }
 
 .modal-body {
@@ -1550,7 +1600,6 @@ i[class*="fa-"]:hover {
     display: flex;
     align-items: center;
     gap: 1rem;
-    border-left: 4px solid var(--primary);
 }
 
 .stat-icon {
@@ -1575,8 +1624,8 @@ i[class*="fa-"]:hover {
 }
 
 .stat-value {
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 2rem;
+    font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
@@ -1584,6 +1633,29 @@ i[class*="fa-"]:hover {
 .stat-label {
     font-size: 0.875rem;
     color: var(--text-secondary);
+}
+
+.stat-trend {
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.icon-purple {
+    color: var(--purple);
+    background: rgba(124, 58, 237, 0.1);
+}
+
+.icon-green {
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.icon-orange {
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
 }
 
 .email-actions-grid {
@@ -1637,5 +1709,20 @@ i[class*="fa-"]:hover {
     
     .stat-icon {
         margin-bottom: 0.5rem;
+    }
+}
+
+body.login-page .card {
+    animation: fadeInUp 0.6s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
