@@ -49,6 +49,7 @@ const AdminDashboard = {
         try {
             const content = await Utils.loadTemplate('templates/admin-dashboard.html');
             document.getElementById('app').innerHTML = content;
+            this.applySidebarLayout();
         } catch (error) {
             console.warn('Template loading failed, using fallback');
             this.renderFallback();
@@ -60,20 +61,8 @@ const AdminDashboard = {
      */
     renderFallback() {
         document.getElementById('app').innerHTML = `
-
             <div class="dashboard">
-                <div class="top-header">
-                    <div class="top-header-left">
-                        <input type="search" class="search-box top-search" placeholder="Search...">
-                    </div>
-                    <div class="top-header-right">
-                        <div id="current-date" class="current-date"></div>
-                        <i class="fas fa-bell notification-icon"></i>
-                        <div class="profile-dropdown"><span id="user-name">Admin</span> <i class="fas fa-caret-down"></i></div>
-                    </div>
-                </div>
                 <div class="dashboard-header">
-
                     <div>
                         <h1 class="dashboard-title">Admin Dashboard</h1>
                         <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, groups, and announcements</p>
@@ -279,6 +268,36 @@ const AdminDashboard = {
                 </div>
             </div>
         `;
+        this.applySidebarLayout();
+    },
+
+    applySidebarLayout() {
+        const appEl = document.getElementById('app');
+        const nav = appEl.querySelector('.tab-navigation');
+        if (!nav) return;
+
+        const layout = document.createElement('div');
+        layout.className = 'dashboard-layout';
+
+        const sidebar = document.createElement('aside');
+        sidebar.className = 'dashboard-sidebar';
+        sidebar.appendChild(nav);
+
+        const main = document.createElement('div');
+        main.className = 'dashboard-content';
+
+        while (appEl.firstChild) {
+            const child = appEl.firstChild;
+            if (child !== nav) {
+                main.appendChild(child);
+            } else {
+                appEl.removeChild(child);
+            }
+        }
+
+        layout.appendChild(sidebar);
+        layout.appendChild(main);
+        appEl.appendChild(layout);
     },
 
     /**
