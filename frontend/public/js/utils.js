@@ -64,10 +64,13 @@ const Utils = {
         }
         
         document.body.appendChild(alert);
-        
+
         setTimeout(() => {
             if (alert.parentNode) {
-                alert.remove();
+                alert.classList.add('hide');
+                alert.addEventListener('animationend', () => {
+                    alert.remove();
+                });
             }
         }, duration);
     },
@@ -117,6 +120,41 @@ const Utils = {
     },
 
     /**
+     * Show skeleton loading state
+     */
+    showSkeleton(element) {
+        if (element) {
+            element.classList.add('skeleton');
+        }
+    },
+
+    /**
+     * Hide skeleton loading state
+     */
+    hideSkeleton(element) {
+        if (element) {
+            element.classList.remove('skeleton');
+        }
+    },
+
+    /**
+     * Apply page transition animation while switching views
+     */
+    async pageTransition(callback) {
+        const app = document.getElementById('app');
+        if (app) {
+            app.classList.add('fade-out');
+            await new Promise(r => setTimeout(r, 200));
+        }
+        await callback();
+        if (app) {
+            app.classList.remove('fade-out');
+            app.classList.add('fade-in');
+            setTimeout(() => app.classList.remove('fade-in'), 200);
+        }
+    },
+
+    /**
      * Format currency
      */
     formatCurrency(amount) {
@@ -146,6 +184,14 @@ const Utils = {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+
+    /**
+     * Get initials from a name
+     */
+    getInitials(name) {
+        if (!name) return '';
+        return name.split(' ').map(part => part[0]).slice(0,2).join('').toUpperCase();
     },
 
     /**
