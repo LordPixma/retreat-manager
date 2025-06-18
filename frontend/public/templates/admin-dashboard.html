@@ -1,5 +1,8 @@
+
 <div class="dashboard">
+    <button class="sidebar-toggle" id="nav-toggle"><i class="fas fa-bars"></i></button>
     <div class="dashboard-header">
+
         <div>
             <h1 class="dashboard-title">Admin Dashboard</h1>
             <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, groups, announcements, and email communications</p>
@@ -63,6 +66,7 @@
         <ul id="activity-feed" class="timeline"></ul>
     </div>
 
+
     <!-- Tab Navigation -->
     <div class="tab-navigation">
         <button class="tab-btn active" data-tab="attendees">
@@ -101,7 +105,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th style="width: 40px;"><input type="checkbox" id="select-all-attendees" title="Select All"></th>
@@ -140,7 +144,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th>Title</th>
@@ -170,8 +174,8 @@
             <!-- Email Overview Cards -->
             <div class="stats-grid" style="margin-bottom: 2rem;">
                 <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-envelope" style="color: var(--primary);"></i>
+                    <div class="stat-icon" style="--icon-color: var(--primary); --icon-bg: rgba(37,99,235,0.1);">
+                        <i class="fas fa-envelope"></i>
                     </div>
                     <div class="stat-content">
                         <div class="stat-value" id="total-emails-sent">-</div>
@@ -180,8 +184,8 @@
                 </div>
                 
                 <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-users" style="color: var(--success);"></i>
+                    <div class="stat-icon" style="--icon-color: var(--success); --icon-bg: rgba(16,185,129,0.1);">
+                        <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-content">
                         <div class="stat-value" id="attendees-with-email">-</div>
@@ -190,8 +194,8 @@
                 </div>
                 
                 <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                    <div class="stat-icon" style="--icon-color: var(--success); --icon-bg: rgba(16,185,129,0.1);">
+                        <i class="fas fa-check-circle"></i>
                     </div>
                     <div class="stat-content">
                         <div class="stat-value" id="email-system-status">Ready</div>
@@ -200,8 +204,8 @@
                 </div>
                 
                 <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock" style="color: var(--warning);"></i>
+                    <div class="stat-icon" style="--icon-color: var(--warning); --icon-bg: rgba(245,158,11,0.1);">
+                        <i class="fas fa-clock"></i>
                     </div>
                     <div class="stat-content">
                         <div class="stat-value" id="pending-notifications">-</div>
@@ -327,7 +331,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th>Number</th>
@@ -363,7 +367,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th>Name</th>
@@ -385,4 +389,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Analytics Tab -->
+    <div class="tab-content" id="analytics-tab">
+        <div class="data-table" style="text-align:center; padding:2rem;">
+            <p style="color: var(--text-secondary);">Analytics coming soon...</p>
+        </div>
+    </div>
+</div>
 </div>

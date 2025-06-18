@@ -7,6 +7,7 @@ const Login = {
     async init(view = 'attendee') {
         this.currentView = view;
         await this.render();
+        document.body.classList.add('login-page');
         this.bindEvents();
         this.setupValidation();
         this.setupAccessibility();
@@ -82,6 +83,7 @@ const Login = {
             
             // Small delay to show success message
             setTimeout(async () => {
+                document.body.classList.remove('login-page');
                 await App.loadAttendeeView();
             }, 1000);
             
@@ -123,6 +125,7 @@ const Login = {
             
             // Small delay to show success message
             setTimeout(async () => {
+                document.body.classList.remove('login-page');
                 await App.loadAdminView();
             }, 1000);
             
@@ -239,11 +242,11 @@ const Login = {
                     
                     if (passwordInput.type === 'password') {
                         passwordInput.type = 'text';
-                        icon.className = 'fas fa-eye-slash';
+                        icon.className = 'fas fa-eye';
                         button.setAttribute('aria-label', 'Hide password');
                     } else {
                         passwordInput.type = 'password';
-                        icon.className = 'fas fa-eye';
+                        icon.className = 'far fa-eye';
                         button.setAttribute('aria-label', 'Show password');
                     }
                 });
