@@ -35,6 +35,10 @@
     .table {
         font-size: 0.9rem;
     }
+
+    .avatar {
+        margin-right: 0.25rem;
+    }
     
     .table th,
     .table td {
@@ -95,5 +99,9 @@
     
     .search-box {
         font-size: 0.9rem;
+    }
+
+    .table {
+        font-size: 0.85rem;
     }
 }

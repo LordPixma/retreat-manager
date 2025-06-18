@@ -193,17 +193,19 @@
     text-align: left;
     font-weight: 600;
     color: var(--text-primary);
-    border-bottom: 1px solid var(--border);
 }
 
 .table td {
     padding: 1rem;
-    border-bottom: 1px solid var(--border);
     vertical-align: middle;
 }
 
-.table tr:hover {
-    background: var(--background);
+.table tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.05);
 }
 
 /* Action Buttons */
@@ -310,7 +312,9 @@
 /* Enhanced Table Layouts */
 .table-container {
     overflow-x: auto;
+    overflow-y: hidden;
     border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
 }
 
 .table-content {
