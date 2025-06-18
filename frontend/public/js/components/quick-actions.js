@@ -4,7 +4,35 @@ const QuickActions = {
         this.loadActivity();
     },
 
-    bindEvents() {
+// Refactor bindEvents to eliminate repetition by using small mapping arrays:
+bindEvents() {
+  // Direct handlers
+  const handlers = [
+    { id: 'export-data-btn',         fn: () => Utils.showAlert('Data export started', 'success') },
+    { id: 'send-announcement-btn',   fn: () => window.AnnouncementManagement?.showModal() },
+  ];
+
+  // QA proxies that simply forward click to another button
+  const proxies = [
+    { qaId: 'qa-add-attendee',       targetId: 'add-attendee-btn' },
+    { qaId: 'qa-bulk-upload',        targetId: 'bulk-upload-btn' },
+    { qaId: 'qa-send-announcement',  targetId: 'send-announcement-btn' },
+    { qaId: 'qa-export-data',        targetId: 'export-data-btn' },
+  ];
+
+  handlers.forEach(({ id, fn }) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', fn);
+  });
+
+  proxies.forEach(({ qaId, targetId }) => {
+    const qaEl = document.getElementById(qaId);
+    const targetEl = document.getElementById(targetId);
+    if (qaEl && targetEl) {
+      qaEl.addEventListener('click', () => targetEl.click());
+    }
+  });
+}
         document.getElementById('export-data-btn')?.addEventListener('click', () => {
             Utils.showAlert('Data export started', 'success');
         });
