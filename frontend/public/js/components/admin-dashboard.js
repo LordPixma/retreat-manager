@@ -45,6 +45,7 @@ const AdminDashboard = {
         try {
             const content = await Utils.loadTemplate('templates/admin-dashboard.html');
             document.getElementById('app').innerHTML = content;
+            this.applySidebarLayout();
         } catch (error) {
             console.warn('Template loading failed, using fallback');
             this.renderFallback();
@@ -252,6 +253,36 @@ const AdminDashboard = {
                 </div>
             </div>
         `;
+        this.applySidebarLayout();
+    },
+
+    applySidebarLayout() {
+        const appEl = document.getElementById('app');
+        const nav = appEl.querySelector('.tab-navigation');
+        if (!nav) return;
+
+        const layout = document.createElement('div');
+        layout.className = 'dashboard-layout';
+
+        const sidebar = document.createElement('aside');
+        sidebar.className = 'dashboard-sidebar';
+        sidebar.appendChild(nav);
+
+        const main = document.createElement('div');
+        main.className = 'dashboard-content';
+
+        while (appEl.firstChild) {
+            const child = appEl.firstChild;
+            if (child !== nav) {
+                main.appendChild(child);
+            } else {
+                appEl.removeChild(child);
+            }
+        }
+
+        layout.appendChild(sidebar);
+        layout.appendChild(main);
+        appEl.appendChild(layout);
     },
 
     /**

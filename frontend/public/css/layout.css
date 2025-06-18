@@ -177,10 +177,15 @@
 
 .tab-content {
     display: none;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .tab-content.active {
     display: block;
+    opacity: 1;
+    transform: translateX(0);
 }
 
 /* Enhanced Dashboard Layouts */
@@ -190,6 +195,29 @@
     padding: 2rem;
     min-height: 100vh;
     background: var(--background);
+}
+
+.dashboard-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.dashboard-sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1rem;
+}
+
+.dashboard-content {
+    flex: 1;
+    padding: 0 2rem 2rem;
+}
+
+.dashboard-sidebar .tab-btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    text-align: left;
 }
 
 /* Info Grid for Attendee Dashboard */
