@@ -10,6 +10,7 @@ const AttendeeDashboard = {
             await this.render();
             await this.loadData();
             this.bindEvents();
+            this.updateHeaderInfo();
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -35,6 +36,16 @@ const AttendeeDashboard = {
     renderFallback() {
         document.getElementById('app').innerHTML = `
             <div class="dashboard">
+                <div class="top-header">
+                    <div class="top-header-left">
+                        <input type="search" class="search-box top-search" placeholder="Search...">
+                    </div>
+                    <div class="top-header-right">
+                        <div id="current-date" class="current-date"></div>
+                        <i class="fas fa-bell notification-icon"></i>
+                        <div class="profile-dropdown"><span id="user-name">User</span> <i class="fas fa-caret-down"></i></div>
+                    </div>
+                </div>
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Welcome, <span id="attendee-name-display">Loading...</span></h1>
@@ -143,9 +154,12 @@ const AttendeeDashboard = {
         
         // Update group information
         this.updateGroupInfo();
-        
+
         // Update detailed information
         this.updateDetailedInfo();
+
+        // Update header info
+        this.updateHeaderInfo();
     },
 
     /**
@@ -803,6 +817,30 @@ const AttendeeDashboard = {
                 </div>
             </div>
         `;
+    }
+    ,
+
+    /**
+     * Update header information such as date and user name
+     */
+    updateHeaderInfo() {
+        this.updateDate();
+        this.updateUserName();
+    },
+
+    updateDate() {
+        const el = document.getElementById('current-date');
+        if (el) {
+            const now = new Date();
+            el.textContent = now.toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+        }
+    },
+
+    updateUserName() {
+        const el = document.getElementById('user-name');
+        if (el && this.data) el.textContent = this.data.name;
     }
 };
 

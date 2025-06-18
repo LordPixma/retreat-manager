@@ -18,6 +18,9 @@ const AdminDashboard = {
             await this.loadAllData();
             this.bindEvents();
             this.setupTabNavigation();
+
+            // Update top header information
+            this.updateHeaderInfo();
             
             // Initialize email management with better error handling
             if (window.EmailManagement) {
@@ -57,6 +60,16 @@ const AdminDashboard = {
     renderFallback() {
         document.getElementById('app').innerHTML = `
             <div class="dashboard">
+                <div class="top-header">
+                    <div class="top-header-left">
+                        <input type="search" class="search-box top-search" placeholder="Search...">
+                    </div>
+                    <div class="top-header-right">
+                        <div id="current-date" class="current-date"></div>
+                        <i class="fas fa-bell notification-icon"></i>
+                        <div class="profile-dropdown"><span id="user-name">Admin</span> <i class="fas fa-caret-down"></i></div>
+                    </div>
+                </div>
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Admin Dashboard</h1>
@@ -355,6 +368,7 @@ const AdminDashboard = {
         this.updateAnnouncementsDisplay();
         this.updateRoomsDisplay();
         this.updateGroupsDisplay();
+        this.updateHeaderInfo();
     },
 
     /**
@@ -1177,6 +1191,29 @@ const AdminDashboard = {
             default:
                 return { text: 'Unknown', class: 'badge-secondary' };
         }
+    },
+
+    /**
+     * Update header information such as date and user name
+     */
+    updateHeaderInfo() {
+        this.updateDate();
+        this.updateUserName();
+    },
+
+    updateDate() {
+        const el = document.getElementById('current-date');
+        if (el) {
+            const now = new Date();
+            el.textContent = now.toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+        }
+    },
+
+    updateUserName() {
+        const el = document.getElementById('user-name');
+        if (el) el.textContent = 'Admin';
     },
 
     /**
