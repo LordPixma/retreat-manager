@@ -39,6 +39,10 @@
     .table {
         font-size: 0.9rem;
     }
+
+    .avatar {
+        margin-right: 0.25rem;
+    }
     
     .table th,
     .table td {
@@ -107,5 +111,6 @@
 
     .top-search {
         font-size: 0.9rem;
+
     }
 }
