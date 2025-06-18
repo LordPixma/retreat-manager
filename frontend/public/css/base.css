@@ -4,12 +4,30 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     color: var(--text-primary);
     line-height: 1.6;
+}
+
+
+#app {
+    min-height: 100vh;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#app.fade-out {
+    opacity: 0;
+}
+
+#app.fade-in {
+    opacity: 1;
 }
 
 /* Typography ------------------------------------------------------------ */
@@ -32,9 +50,7 @@ p {
 
 }
 
-#app {
-    min-height: 100vh;
-}
+
 
 .hidden {
     display: none !important;
