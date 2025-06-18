@@ -215,7 +215,7 @@ window.CacheManager = {
                 justify-content: center;
                 z-index: 10000;
                 color: white;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             ">
                 <div style="text-align: center;">
                     <div style="
@@ -281,7 +281,7 @@ if (window.Auth) {
                     justify-content: center;
                     z-index: 10000;
                     color: white;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 ">
                     <div style="text-align: center;">
                         <div style="
