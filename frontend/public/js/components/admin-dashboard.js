@@ -32,6 +32,14 @@ const AdminDashboard = {
                 console.warn('EmailManagement component not available at dashboard init');
                 // Try to initialize it later when needed
             }
+
+            if (window.QuickActions) {
+                try {
+                    await window.QuickActions.init();
+                } catch (qaError) {
+                    console.error('QuickActions initialization failed:', qaError);
+                }
+            }
         } catch (error) {
             console.error('Failed to initialize admin dashboard:', error);
             Utils.showAlert('Failed to load admin dashboard', 'error');
@@ -758,6 +766,18 @@ const AdminDashboard = {
         const bulkUploadBtn = document.getElementById('bulk-upload-btn');
         if (bulkUploadBtn) {
             bulkUploadBtn.addEventListener('click', () => this.showBulkUploadModal());
+        }
+
+        const sendAnnouncementBtn = document.getElementById('send-announcement-btn');
+        if (sendAnnouncementBtn) {
+            sendAnnouncementBtn.addEventListener('click', () => this.showAddAnnouncementModal());
+        }
+
+        const exportDataBtn = document.getElementById('export-data-btn');
+        if (exportDataBtn) {
+            exportDataBtn.addEventListener('click', () => {
+                Utils.showAlert('Data export started', 'success');
+            });
         }
 
         // Add announcement button
