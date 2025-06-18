@@ -74,20 +74,34 @@ const AdminDashboard = {
 
                 <div class="stats-grid" id="admin-stats">
                     <div class="stat-card">
-                        <div class="stat-value" id="total-attendees">0</div>
-                        <div class="stat-label">Total Attendees</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-attendees">0</div>
+                            <div class="stat-label">Total Attendees</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="total-revenue">£0</div>
-                        <div class="stat-label">Total Revenue</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-pound-sign"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-revenue">£0</div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="pending-payments">0</div>
-                        <div class="stat-label">Pending Payments</div>
+                        <div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="pending-payments">0</div>
+                            <div class="stat-label">Pending Payments</div>
+                            <div class="stat-trend" id="pending-payments-trend"></div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="active-announcements">0</div>
-                        <div class="stat-label">Active Announcements</div>
+                        <div class="stat-icon icon-green"><i class="fas fa-bullhorn"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="active-announcements">0</div>
+                            <div class="stat-label">Active Announcements</div>
+                            <div class="stat-trend" id="active-announcements-trend"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -367,11 +381,19 @@ const AdminDashboard = {
         const totalRevenueEl = document.getElementById('total-revenue');
         const pendingPaymentsEl = document.getElementById('pending-payments');
         const activeAnnouncementsEl = document.getElementById('active-announcements');
-        
+        const pendingTrendEl = document.getElementById('pending-payments-trend');
+        const activeTrendEl = document.getElementById('active-announcements-trend');
+
         if (totalAttendeesEl) totalAttendeesEl.textContent = stats.totalAttendees;
         if (totalRevenueEl) totalRevenueEl.textContent = Utils.formatCurrency(stats.totalRevenue);
         if (pendingPaymentsEl) pendingPaymentsEl.textContent = stats.pendingPayments;
         if (activeAnnouncementsEl) activeAnnouncementsEl.textContent = stats.activeAnnouncements;
+
+        const pendingPct = stats.totalAttendees > 0 ? Math.round((stats.pendingPayments / stats.totalAttendees) * 100) : 0;
+        const activePct = stats.totalAnnouncements > 0 ? Math.round((stats.activeAnnouncements / stats.totalAnnouncements) * 100) : 0;
+
+        if (pendingTrendEl) pendingTrendEl.innerHTML = `<i class="fas fa-arrow-up"></i> ${pendingPct}%`;
+        if (activeTrendEl) activeTrendEl.innerHTML = `<i class="fas fa-arrow-up"></i> ${activePct}%`;
     },
 
     /**

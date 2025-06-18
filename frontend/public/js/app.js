@@ -687,20 +687,32 @@ const App = {
 
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-value">${totalAttendees}</div>
-                        <div class="stat-label">Total Attendees</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${totalAttendees}</div>
+                            <div class="stat-label">Total Attendees</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">${Utils.formatCurrency(totalRevenue)}</div>
-                        <div class="stat-label">Total Revenue</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-pound-sign"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${Utils.formatCurrency(totalRevenue)}</div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">${pendingPayments}</div>
-                        <div class="stat-label">Pending Payments</div>
+                        <div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${pendingPayments}</div>
+                            <div class="stat-label">Pending Payments</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">${roomsOccupied}</div>
-                        <div class="stat-label">Rooms Occupied</div>
+                        <div class="stat-icon icon-green"><i class="fas fa-bed"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${roomsOccupied}</div>
+                            <div class="stat-label">Rooms Occupied</div>
+                        </div>
                     </div>
                 </div>
 
