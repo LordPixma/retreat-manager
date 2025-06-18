@@ -187,6 +187,14 @@ const Utils = {
     },
 
     /**
+     * Get initials from a name
+     */
+    getInitials(name) {
+        if (!name) return '';
+        return name.split(' ').map(part => part[0]).slice(0,2).join('').toUpperCase();
+    },
+
+    /**
      * Generate unique ID
      */
     generateId() {

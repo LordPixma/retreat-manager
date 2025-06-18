@@ -385,10 +385,10 @@ const App = {
                 
                 if (passwordInput.type === 'password') {
                     passwordInput.type = 'text';
-                    icon.className = 'fas fa-eye-slash';
+                    icon.className = 'fas fa-eye';
                 } else {
                     passwordInput.type = 'password';
-                    icon.className = 'fas fa-eye';
+                    icon.className = 'far fa-eye';
                 }
             });
         }
@@ -451,10 +451,10 @@ const App = {
                 
                 if (passwordInput.type === 'password') {
                     passwordInput.type = 'text';
-                    icon.className = 'fas fa-eye-slash';
+                    icon.className = 'fas fa-eye';
                 } else {
                     passwordInput.type = 'password';
-                    icon.className = 'fas fa-eye';
+                    icon.className = 'far fa-eye';
                 }
             });
         }
@@ -529,7 +529,7 @@ const App = {
                         <div class="info-value" style="color: ${(attendeeData.payment_due || 0) > 0 ? 'var(--warning)' : 'var(--success)'};">
                             ${Utils.formatCurrency(attendeeData.payment_due)}
                         </div>
-                        <span class="badge ${(attendeeData.payment_due || 0) > 0 ? 'badge-warning' : 'badge-success'}">
+                        <span class="badge ${(attendeeData.payment_due || 0) > 0 ? 'badge-due' : 'badge-paid'}">
                             ${(attendeeData.payment_due || 0) > 0 ? 'Payment Pending' : 'Paid in Full'}
                         </span>
                     </div>
@@ -703,20 +703,32 @@ const App = {
 
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-value">${totalAttendees}</div>
-                        <div class="stat-label">Total Attendees</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${totalAttendees}</div>
+                            <div class="stat-label">Total Attendees</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">${Utils.formatCurrency(totalRevenue)}</div>
-                        <div class="stat-label">Total Revenue</div>
+                        <div class="stat-icon icon-purple"><i class="fas fa-pound-sign"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${Utils.formatCurrency(totalRevenue)}</div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">${pendingPayments}</div>
-                        <div class="stat-label">Pending Payments</div>
+                        <div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${pendingPayments}</div>
+                            <div class="stat-label">Pending Payments</div>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">${roomsOccupied}</div>
-                        <div class="stat-label">Rooms Occupied</div>
+                        <div class="stat-icon icon-green"><i class="fas fa-bed"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value">${roomsOccupied}</div>
+                            <div class="stat-label">Rooms Occupied</div>
+                        </div>
                     </div>
                 </div>
 
@@ -744,14 +756,14 @@ const App = {
                             <tbody>
                                 ${attendeesData.map(attendee => {
                                     const paymentDue = attendee.payment_due || 0;
-                                    const statusBadge = paymentDue > 0 
-                                        ? `<span class="badge badge-warning">Payment Due</span>`
-                                        : `<span class="badge badge-success">Paid</span>`;
+                                    const statusBadge = paymentDue > 0
+                                        ? `<span class="badge badge-due">Payment Due</span>`
+                                        : `<span class="badge badge-paid">Paid</span>`;
                                         
                                     return `
                                         <tr>
                                             <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
-                                            <td>${Utils.escapeHtml(attendee.name)}</td>
+                                            <td><div class="avatar">${Utils.getInitials(attendee.name)}</div>${Utils.escapeHtml(attendee.name)}</td>
                                             <td>${attendee.email ? Utils.escapeHtml(attendee.email) : 'N/A'}</td>
                                             <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : 'Unassigned'}</td>
                                             <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
