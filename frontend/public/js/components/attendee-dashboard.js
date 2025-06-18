@@ -10,6 +10,7 @@ const AttendeeDashboard = {
             await this.render();
             await this.loadData();
             this.bindEvents();
+            this.updateHeaderInfo();
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -35,7 +36,9 @@ const AttendeeDashboard = {
     renderFallback() {
         document.getElementById('app').innerHTML = `
             <div class="dashboard">
+
                 <button class="sidebar-toggle" id="nav-toggle"><i class="fas fa-bars"></i></button>
+
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Welcome, <span id="attendee-name-display">Loading...</span></h1>
@@ -144,9 +147,12 @@ const AttendeeDashboard = {
         
         // Update group information
         this.updateGroupInfo();
-        
+
         // Update detailed information
         this.updateDetailedInfo();
+
+        // Update header info
+        this.updateHeaderInfo();
     },
 
     /**
@@ -545,8 +551,8 @@ const AttendeeDashboard = {
                 </div>
             </div>
             <div class="info-item" style="margin-top: 1rem;">
-                <span class="badge ${paymentDue > 0 ? 'badge-warning' : 'badge-success'}">
-                    <i class="fas fa-${paymentDue > 0 ? 'exclamation-triangle' : 'check'}"></i> 
+                <span class="badge ${paymentDue > 0 ? 'badge-due' : 'badge-paid'}">
+                    <i class="fas fa-${paymentDue > 0 ? 'exclamation-triangle' : 'check'}"></i>
                     ${paymentDue > 0 ? 'Payment Due' : 'Paid in Full'}
                 </span>
                 ${paymentDue > 0 ? `
@@ -812,6 +818,30 @@ const AttendeeDashboard = {
                 </div>
             </div>
         `;
+    }
+    ,
+
+    /**
+     * Update header information such as date and user name
+     */
+    updateHeaderInfo() {
+        this.updateDate();
+        this.updateUserName();
+    },
+
+    updateDate() {
+        const el = document.getElementById('current-date');
+        if (el) {
+            const now = new Date();
+            el.textContent = now.toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+        }
+    },
+
+    updateUserName() {
+        const el = document.getElementById('user-name');
+        if (el && this.data) el.textContent = this.data.name;
     }
 };
 
