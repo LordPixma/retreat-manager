@@ -202,7 +202,7 @@ const App = {
         document.querySelectorAll('.sidebar-item').forEach(item => {
             item.addEventListener('click', async (e) => {
                 e.preventDefault();
-                const view = item.dataset.view;
+                const {view} = item.dataset;
                 if (view) {
                     await this.navigate(view);
                 }
