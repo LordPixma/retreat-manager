@@ -239,11 +239,11 @@ const Login = {
                     
                     if (passwordInput.type === 'password') {
                         passwordInput.type = 'text';
-                        icon.className = 'fas fa-eye-slash';
+                        icon.className = 'fas fa-eye';
                         button.setAttribute('aria-label', 'Hide password');
                     } else {
                         passwordInput.type = 'password';
-                        icon.className = 'fas fa-eye';
+                        icon.className = 'far fa-eye';
                         button.setAttribute('aria-label', 'Show password');
                     }
                 });
