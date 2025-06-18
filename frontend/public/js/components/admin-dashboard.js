@@ -522,9 +522,9 @@ const AdminDashboard = {
         tbody.innerHTML = this.data.announcements.map(announcement => {
             const typeBadge = this.getTypeBadge(announcement.type);
             const priorityBadge = this.getPriorityBadge(announcement.priority);
-            const statusBadge = announcement.is_active 
+            const statusBadge = announcement.is_active
                 ? `<span class="badge badge-success"><i class="fas fa-eye"></i> Active</span>`
-                : `<span class="badge badge-secondary"><i class="fas fa-eye-slash"></i> Inactive</span>`;
+                : `<span class="badge badge-secondary"><i class="far fa-eye"></i> Inactive</span>`;
             const targetBadge = this.getTargetBadge(announcement.target_audience, announcement.target_groups);
             
             const createdDate = new Date(announcement.created_at).toLocaleDateString();
@@ -564,7 +564,7 @@ const AdminDashboard = {
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-secondary toggle-announcement" data-id="${announcement.id}" title="${announcement.is_active ? 'Deactivate' : 'Activate'}">
-                                <i class="fas fa-${announcement.is_active ? 'eye-slash' : 'eye'}"></i>
+                                <i class="${announcement.is_active ? 'fas fa-eye' : 'far fa-eye'}"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-announcement" data-id="${announcement.id}" title="Delete Announcement">
                                 <i class="fas fa-trash"></i>

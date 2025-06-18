@@ -381,10 +381,10 @@ const App = {
                 
                 if (passwordInput.type === 'password') {
                     passwordInput.type = 'text';
-                    icon.className = 'fas fa-eye-slash';
+                    icon.className = 'fas fa-eye';
                 } else {
                     passwordInput.type = 'password';
-                    icon.className = 'fas fa-eye';
+                    icon.className = 'far fa-eye';
                 }
             });
         }
@@ -447,10 +447,10 @@ const App = {
                 
                 if (passwordInput.type === 'password') {
                     passwordInput.type = 'text';
-                    icon.className = 'fas fa-eye-slash';
+                    icon.className = 'fas fa-eye';
                 } else {
                     passwordInput.type = 'password';
-                    icon.className = 'fas fa-eye';
+                    icon.className = 'far fa-eye';
                 }
             });
         }
