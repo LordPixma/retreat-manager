@@ -69,6 +69,10 @@
     box-shadow: var(--shadow-lg);
 }
 
+.btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
 .btn-primary:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -172,6 +176,10 @@
     border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
+.alert.hide {
+    animation: fadeOutDown 0.3s ease-in forwards;
+}
+
 @keyframes slideInRight {
     from {
         opacity: 0;
@@ -180,6 +188,17 @@
     to {
         opacity: 1;
         transform: translateX(0);
+    }
+}
+
+@keyframes fadeOutDown {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
     }
 }
 
@@ -1619,4 +1638,28 @@
     .stat-icon {
         margin-bottom: 0.5rem;
     }
+}
+
+/* Skeleton Loading Styles */
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: #e2e8f0;
+    color: transparent;
+}
+
+.skeleton::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150px;
+    height: 100%;
+    width: 150px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: skeleton-loading 1s infinite;
+}
+
+@keyframes skeleton-loading {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(100%); }
 }
