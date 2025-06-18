@@ -11,6 +11,9 @@ const QuickActions = {
         document.getElementById('send-announcement-btn')?.addEventListener('click', () => {
             if (window.AnnouncementManagement) {
                 window.AnnouncementManagement.showModal();
+            } else {
+                Utils.showAlert('Announcement feature is currently unavailable.', 'warning');
+                console.warn('window.AnnouncementManagement is undefined. Cannot show announcement modal.');
             }
         });
         document.getElementById('qa-add-attendee')?.addEventListener('click', () => {
