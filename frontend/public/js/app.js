@@ -45,6 +45,7 @@ const App = {
     currentView: 'login',
     currentUser: null,
     initialized: false,
+    activeMenu: sessionStorage.getItem('activeMenu') || 'login',
     
     /**
      * Initialize the application
@@ -88,7 +89,9 @@ const App = {
             
             // Check for existing authentication
             await this.checkAuthentication();
-            
+
+            this.initNavigation();
+
             this.initialized = true;
         } catch (error) {
             console.error('Initialization error:', error);
@@ -149,15 +152,89 @@ const App = {
         window.addEventListener('unhandledrejection', (event) => {
             // Filter out extension-related promise rejections
             const reason = event.reason?.toString() || '';
-            if (reason.includes('extension') || 
+            if (reason.includes('extension') ||
                 reason.includes('DelayedMessageSender') ||
                 reason.includes('FrameDoesNotExistError')) {
                 return;
             }
-            
+
             console.error('Unhandled promise rejection:', event.reason);
             Utils.showAlert('A network error occurred. Please check your connection.', 'error');
         });
+    },
+
+    /**
+     * Display a loading screen while switching sections
+     */
+    showLoadingScreen(message = 'Loading...') {
+        const appEl = document.getElementById('app');
+        if (appEl) {
+            appEl.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>${message}</p>
+                </div>`;
+        }
+    },
+
+    /**
+     * Persist and highlight active sidebar item
+     */
+    setActiveMenu(view) {
+        this.activeMenu = view;
+        sessionStorage.setItem('activeMenu', view);
+        this.updateSidebarState();
+    },
+
+    /**
+     * Update sidebar active class based on current state
+     */
+    updateSidebarState() {
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.view === this.activeMenu);
+        });
+    },
+
+    /**
+     * Bind sidebar navigation events
+     */
+    initNavigation() {
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const view = item.dataset.view;
+                if (view) {
+                    await this.navigate(view);
+                }
+            });
+        });
+        this.updateSidebarState();
+    },
+
+    /**
+     * Navigate to a specific section with error boundary
+     */
+    async navigate(view) {
+        this.showLoadingScreen();
+        try {
+            switch (view) {
+                case 'admin':
+                    await this.loadAdminView();
+                    break;
+                case 'attendee':
+                    await this.loadAttendeeView();
+                    break;
+                case 'admin-login':
+                    await this.showAdminLoginView();
+                    break;
+                default:
+                    await this.showLoginView();
+            }
+            this.setActiveMenu(view);
+        } catch (error) {
+            console.error('Navigation error:', error);
+            Utils.showAlert('Failed to load section', 'error');
+        }
     },
 
     /**
@@ -184,7 +261,9 @@ const App = {
      */
     async showLoginView() {
         this.currentView = 'login';
-        
+        this.showLoadingScreen('Loading login...');
+        this.setActiveMenu('login');
+
         try {
             // Try to use Login component if available
             if (ComponentChecker.isAvailable('Login')) {
@@ -198,6 +277,7 @@ const App = {
             console.error('Error loading Login component:', error);
             this.showFallbackLogin();
         }
+        this.initNavigation();
     },
 
     /**
@@ -205,6 +285,8 @@ const App = {
      */
     async showAdminLoginView() {
         this.currentView = 'admin-login';
+        this.showLoadingScreen('Loading admin login...');
+        this.setActiveMenu('admin-login');
         
         try {
             // Try to use Login component if available
@@ -219,6 +301,7 @@ const App = {
             console.error('Error loading Admin Login component:', error);
             this.showFallbackAdminLogin();
         }
+        this.initNavigation();
     },
 
     /**
@@ -461,6 +544,8 @@ const App = {
      */
     async loadAttendeeView() {
         this.currentView = 'attendee';
+        this.showLoadingScreen('Loading dashboard...');
+        this.setActiveMenu('attendee');
         
         try {
             // Get attendee data
@@ -482,6 +567,7 @@ const App = {
             Auth.clearAllTokens();
             await this.showLoginView();
         }
+        this.initNavigation();
     },
 
     /**
@@ -638,6 +724,8 @@ const App = {
      */
     async loadAdminView() {
         this.currentView = 'admin';
+        this.showLoadingScreen('Loading admin dashboard...');
+        this.setActiveMenu('admin');
         
         try {
             // Try to use AdminDashboard component if available
@@ -656,6 +744,7 @@ const App = {
             Auth.clearAllTokens();
             await this.showLoginView();
         }
+        this.initNavigation();
     },
 
     /**
@@ -825,6 +914,7 @@ const App = {
     logout() {
         Auth.clearAllTokens();
         this.currentUser = null;
+        this.setActiveMenu('login');
         this.showLoginView();
     }
 };
