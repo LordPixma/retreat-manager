@@ -7,7 +7,7 @@ const AdminDashboard = {
         announcements: [],
         stats: {}
     },
-    currentTab: 'attendees',
+    currentTab: 'dashboard',
     
     /**
      * Initialize admin dashboard
@@ -17,7 +17,7 @@ const AdminDashboard = {
             await this.render();
             await this.loadAllData();
             this.bindEvents();
-            this.setupTabNavigation();
+            this.setupSidebarNavigation();
             
             // Initialize email management with better error handling
             if (window.EmailManagement) {
@@ -56,7 +56,19 @@ const AdminDashboard = {
      */
     renderFallback() {
         document.getElementById('app').innerHTML = `
-            <div class="dashboard">
+            <div class="dashboard-container">
+                <nav class="sidebar">
+                    <ul class="sidebar-menu">
+                        <li class="sidebar-item active" data-tab="dashboard"><i class="fas fa-home"></i> Dashboard</li>
+                        <li class="sidebar-item" data-tab="attendees"><i class="fas fa-users"></i> Attendees</li>
+                        <li class="sidebar-item" data-tab="rooms"><i class="fas fa-door-open"></i> Room Management</li>
+                        <li class="sidebar-item" data-tab="groups"><i class="fas fa-user-friends"></i> Group Management</li>
+                        <li class="sidebar-item" data-tab="announcements"><i class="fas fa-bullhorn"></i> Announcements</li>
+                        <li class="sidebar-item" data-tab="emails"><i class="fas fa-envelope"></i> Email Management</li>
+                        <li class="sidebar-item" data-tab="analytics"><i class="fas fa-chart-line"></i> Analytics</li>
+                    </ul>
+                </nav>
+                <div class="dashboard">
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Admin Dashboard</h1>
@@ -91,21 +103,18 @@ const AdminDashboard = {
                     </div>
                 </div>
 
-                <!-- Tab Navigation -->
-                <div class="tab-navigation">
-                    <button class="tab-btn active" data-tab="attendees">
-                        <i class="fas fa-users"></i> Attendees
-                    </button>
-                    <button class="tab-btn" data-tab="announcements">
-                        <i class="fas fa-bullhorn"></i> Announcements
-                    </button>
-                    <button class="tab-btn" data-tab="rooms">
-                        <i class="fas fa-bed"></i> Rooms
-                    </button>
-                    <button class="tab-btn" data-tab="groups">
-                        <i class="fas fa-layer-group"></i> Groups
-                    </button>
-                </div>
+                <!-- Sidebar Navigation -->
+                <nav class="sidebar">
+                    <ul class="sidebar-menu">
+                        <li class="sidebar-item active" data-tab="dashboard"><i class="fas fa-home"></i> Dashboard</li>
+                        <li class="sidebar-item" data-tab="attendees"><i class="fas fa-users"></i> Attendees</li>
+                        <li class="sidebar-item" data-tab="rooms"><i class="fas fa-door-open"></i> Room Management</li>
+                        <li class="sidebar-item" data-tab="groups"><i class="fas fa-user-friends"></i> Group Management</li>
+                        <li class="sidebar-item" data-tab="announcements"><i class="fas fa-bullhorn"></i> Announcements</li>
+                        <li class="sidebar-item" data-tab="emails"><i class="fas fa-envelope"></i> Email Management</li>
+                        <li class="sidebar-item" data-tab="analytics"><i class="fas fa-chart-line"></i> Analytics</li>
+                    </ul>
+                </nav>
 
                 <!-- Attendees Tab -->
                 <div class="tab-content active" id="attendees-tab">
@@ -634,27 +643,25 @@ const AdminDashboard = {
     },
 
     /**
-     * Set up tab navigation
+     * Set up sidebar navigation
      */
-    setupTabNavigation() {
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
+    setupSidebarNavigation() {
+        const menuItems = document.querySelectorAll('.sidebar-item');
+        const sections = document.querySelectorAll('.tab-content');
 
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const tabName = button.dataset.tab;
-                
-                // Update active tab button
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Update active tab content
-                tabContents.forEach(content => content.classList.remove('active'));
-                const targetContent = document.getElementById(`${tabName}-tab`);
-                if (targetContent) {
-                    targetContent.classList.add('active');
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tabName = item.dataset.tab;
+
+                menuItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+
+                sections.forEach(sec => sec.classList.remove('active'));
+                const target = document.getElementById(`${tabName}-tab`);
+                if (target) {
+                    target.classList.add('active');
                 }
-                
+
                 this.currentTab = tabName;
             });
         });

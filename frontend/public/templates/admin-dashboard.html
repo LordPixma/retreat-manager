@@ -1,4 +1,31 @@
-<div class="dashboard">
+<div class="dashboard-container">
+    <nav class="sidebar">
+        <ul class="sidebar-menu">
+            <li class="sidebar-item active" data-tab="dashboard">
+                <i class="fas fa-home"></i> Dashboard
+            </li>
+            <li class="sidebar-item" data-tab="attendees">
+                <i class="fas fa-users"></i> Attendees
+            </li>
+            <li class="sidebar-item" data-tab="rooms">
+                <i class="fas fa-door-open"></i> Room Management
+            </li>
+            <li class="sidebar-item" data-tab="groups">
+                <i class="fas fa-user-friends"></i> Group Management
+            </li>
+            <li class="sidebar-item" data-tab="announcements">
+                <i class="fas fa-bullhorn"></i> Announcements
+            </li>
+            <li class="sidebar-item" data-tab="emails">
+                <i class="fas fa-envelope"></i> Email Management
+            </li>
+            <li class="sidebar-item" data-tab="analytics">
+                <i class="fas fa-chart-line"></i> Analytics
+            </li>
+        </ul>
+    </nav>
+    <div class="dashboard">
+        <div class="tab-content active" id="dashboard-tab">
     <div class="dashboard-header">
         <div>
             <h1 class="dashboard-title">Admin Dashboard</h1>
@@ -41,24 +68,6 @@
             <div class="stat-label">Active Announcements</div>
         </div>
     </div>
-
-    <!-- Tab Navigation -->
-    <div class="tab-navigation">
-        <button class="tab-btn active" data-tab="attendees">
-            <i class="fas fa-users"></i> Attendees
-        </button>
-        <button class="tab-btn" data-tab="announcements">
-            <i class="fas fa-bullhorn"></i> Announcements
-        </button>
-        <button class="tab-btn" data-tab="emails">
-            <i class="fas fa-envelope"></i> Email Management
-        </button>
-        <button class="tab-btn" data-tab="rooms">
-            <i class="fas fa-bed"></i> Rooms
-        </button>
-        <button class="tab-btn" data-tab="groups">
-            <i class="fas fa-layer-group"></i> Groups
-        </button>
     </div>
 
     <!-- Attendees Tab -->
@@ -364,4 +373,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Analytics Tab -->
+    <div class="tab-content" id="analytics-tab">
+        <div class="data-table" style="text-align:center; padding:2rem;">
+            <p style="color: var(--text-secondary);">Analytics coming soon...</p>
+        </div>
+    </div>
+</div>
 </div>
