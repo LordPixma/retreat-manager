@@ -17,24 +17,19 @@ const AdminDashboard = {
             await this.render();
             await this.loadAllData();
             this.bindEvents();
-            this.setupSidebarNavigation();
-
-            // Update top header information
+            this.setupPurpleSidebarNavigation(); // New method
+            this.setupMobileSidebar(); // New method
+            this.setupQuickActions(); // New method
             this.updateHeaderInfo();
+            this.populateRecentAttendeesTable(); // New method
 
-            
-            // Initialize email management with better error handling
+            // Initialize other components
             if (window.EmailManagement) {
                 try {
                     await window.EmailManagement.init();
-                    console.log('EmailManagement initialized successfully');
                 } catch (error) {
                     console.error('EmailManagement initialization failed:', error);
-                    // Don't fail the entire dashboard init, just log the error
                 }
-            } else {
-                console.warn('EmailManagement component not available at dashboard init');
-                // Try to initialize it later when needed
             }
 
             if (window.QuickActions) {
@@ -959,6 +954,112 @@ const AdminDashboard = {
         });
     },
 
+    setupPurpleSidebarNavigation() {
+        const navItems = document.querySelectorAll('.nav-item');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tabName = item.dataset.tab;
+                
+                // Update active nav item
+                navItems.forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                // Show corresponding tab content
+                tabContents.forEach(content => content.classList.remove('active'));
+                const targetContent = document.getElementById(`${tabName}-tab`);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
+                
+                // Update grid layout based on tab
+                this.updateContentLayout(tabName);
+                this.currentTab = tabName;
+                
+                // Close mobile sidebar
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.remove('open');
+                }
+            });
+        });
+    },
+
+    /**
+     * Update content layout based on active tab
+     */
+    updateContentLayout(tabName) {
+        const contentGrid = document.querySelector('.content-grid');
+        const sidebarRight = document.getElementById('dashboard-sidebar');
+        
+        if (tabName === 'dashboard') {
+            // Show two-column layout with sidebar for dashboard
+            contentGrid.style.gridTemplateColumns = '2fr 1fr';
+            if (sidebarRight) sidebarRight.style.display = 'block';
+        } else {
+            // Show single column for other tabs
+            contentGrid.style.gridTemplateColumns = '1fr';
+            if (sidebarRight) sidebarRight.style.display = 'none';
+        }
+    },
+
+    /**
+     * Populate recent attendees table
+     */
+    populateRecentAttendeesTable() {
+        const tableBody = document.getElementById('recent-attendees-table');
+        if (!tableBody) return;
+        
+        // Get last 4 attendees
+        const recentAttendees = this.data.attendees.slice(-4);
+        
+        tableBody.innerHTML = recentAttendees.map(attendee => {
+            const room = this.data.rooms.find(r => r.id === attendee.room_id);
+            const group = this.data.groups.find(g => g.id === attendee.group_id);
+            
+            return `
+                <tr>
+                    <td>
+                        <div class="attendee-info">
+                            <div class="attendee-name">${attendee.name}</div>
+                            <div class="attendee-ref">${attendee.ref_number}</div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="room-badge">${room ? room.number : 'Unassigned'}</span>
+                    </td>
+                    <td>
+                        <span class="group-badge ${this.getGroupBadgeClass(group?.name || '')}">${group?.name || 'No Group'}</span>
+                    </td>
+                    <td>
+                        <span class="status-badge ${this.getPaymentStatusClass(attendee.payment_status)}">${this.formatPaymentStatus(attendee.payment_status)}</span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-icon" title="View" data-action="view" data-id="${attendee.id}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-secondary btn-icon" title="Edit" data-action="edit" data-id="${attendee.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Get group badge CSS class
+     */
+    getGroupBadgeClass(groupName) {
+        const name = groupName.toLowerCase();
+        if (name.includes('serenity')) return 'group-serenity';
+        if (name.includes('wisdom')) return 'group-wisdom';
+        if (name.includes('growth')) return 'group-growth';
+        return 'group-default';
+    },
+
     /**
      * Bind search boxes (updated with announcements)
      */
@@ -1008,6 +1109,30 @@ const AdminDashboard = {
             const visible = !searchTerm || text.includes(searchTerm);
             row.style.display = visible ? '' : 'none';
         });
+    },
+
+    /**
+     * Get payment status CSS class
+     */
+    getPaymentStatusClass(status) {
+        switch(status) {
+            case 'paid': return 'status-paid';
+            case 'pending': return 'status-pending';
+            case 'partial': return 'status-partial';
+            default: return 'status-pending';
+        }
+    },
+
+    /**
+     * Format payment status for display
+     */
+    formatPaymentStatus(status) {
+        switch(status) {
+            case 'paid': return 'Paid';
+            case 'pending': return 'Pending';
+            case 'partial': return 'Partial';
+            default: return 'Pending';
+        }
     },
 
     /**
@@ -1269,6 +1394,64 @@ const AdminDashboard = {
                 return { text: 'Unknown', class: 'badge-secondary' };
         }
     },
+
+    /**
+     * Setup mobile sidebar toggle
+     */
+    setupMobileSidebar() {
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        };
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !toggle.contains(event.target) && 
+                sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+    },
+
+    /**
+     * Setup quick actions
+     */
+    setupQuickActions() {
+        document.querySelectorAll('.action-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.dataset.action;
+                this.handleQuickAction(action);
+            });
+        });
+    },
+
+    /**
+     * Handle quick action clicks
+     */
+    handleQuickAction(action) {
+        switch(action) {
+            case 'add-attendee':
+                document.getElementById('add-attendee-btn')?.click();
+                break;
+            case 'assign-rooms':
+                // Implement room assignment logic
+                console.log('Assign rooms clicked');
+                break;
+            case 'create-group':
+                document.getElementById('add-group-btn')?.click();
+                break;
+            case 'payment-report':
+                // Implement payment report logic
+                console.log('Payment report clicked');
+                break;
+        }
+    },
+
 
     /**
      * Update header information such as date and user name
