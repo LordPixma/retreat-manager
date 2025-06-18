@@ -36,16 +36,9 @@ const AttendeeDashboard = {
     renderFallback() {
         document.getElementById('app').innerHTML = `
             <div class="dashboard">
-                <div class="top-header">
-                    <div class="top-header-left">
-                        <input type="search" class="search-box top-search" placeholder="Search...">
-                    </div>
-                    <div class="top-header-right">
-                        <div id="current-date" class="current-date"></div>
-                        <i class="fas fa-bell notification-icon"></i>
-                        <div class="profile-dropdown"><span id="user-name">User</span> <i class="fas fa-caret-down"></i></div>
-                    </div>
-                </div>
+
+                <button class="sidebar-toggle" id="nav-toggle"><i class="fas fa-bars"></i></button>
+
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Welcome, <span id="attendee-name-display">Loading...</span></h1>
@@ -388,6 +381,14 @@ const AttendeeDashboard = {
      * Bind event listeners (updated with announcements)
      */
     bindEvents() {
+        // Sidebar toggle
+        const navToggle = document.getElementById('nav-toggle');
+        if (navToggle) {
+            navToggle.addEventListener('click', () => {
+                document.body.classList.toggle('sidebar-open');
+            });
+        }
+
         // Logout button
         const logoutBtn = document.getElementById('attendee-logout');
         if (logoutBtn) {

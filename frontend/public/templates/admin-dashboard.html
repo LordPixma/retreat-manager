@@ -1,15 +1,8 @@
+
 <div class="dashboard">
-    <div class="top-header">
-        <div class="top-header-left">
-            <input type="search" class="search-box top-search" placeholder="Search...">
-        </div>
-        <div class="top-header-right">
-            <div id="current-date" class="current-date"></div>
-            <i class="fas fa-bell notification-icon"></i>
-            <div class="profile-dropdown"><span id="user-name">Admin</span> <i class="fas fa-caret-down"></i></div>
-        </div>
-    </div>
+    <button class="sidebar-toggle" id="nav-toggle"><i class="fas fa-bars"></i></button>
     <div class="dashboard-header">
+
         <div>
             <h1 class="dashboard-title">Admin Dashboard</h1>
             <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, groups, announcements, and email communications</p>
@@ -105,7 +98,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th style="width: 40px;"><input type="checkbox" id="select-all-attendees" title="Select All"></th>
@@ -144,7 +137,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th>Title</th>
@@ -331,7 +324,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th>Number</th>
@@ -367,7 +360,7 @@
                 </div>
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table card-view">
                     <thead>
                         <tr>
                             <th>Name</th>

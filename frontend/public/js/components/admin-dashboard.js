@@ -62,6 +62,7 @@ const AdminDashboard = {
     renderFallback() {
         document.getElementById('app').innerHTML = `
             <div class="dashboard">
+                <button class="sidebar-toggle" id="nav-toggle"><i class="fas fa-bars"></i></button>
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Admin Dashboard</h1>
@@ -136,7 +137,7 @@ const AdminDashboard = {
                             </div>
                         </div>
                         <div class="table-container">
-                            <table class="table">
+                            <table class="table card-view">
                                 <thead>
                                     <tr>
                                         <th>Reference</th>
@@ -174,7 +175,7 @@ const AdminDashboard = {
                             </div>
                         </div>
                         <div class="table-container">
-                            <table class="table">
+                            <table class="table card-view">
                                 <thead>
                                     <tr>
                                         <th>Title</th>
@@ -211,7 +212,7 @@ const AdminDashboard = {
                             </div>
                         </div>
                         <div class="table-container">
-                            <table class="table">
+                            <table class="table card-view">
                                 <thead>
                                     <tr>
                                         <th>Room Number</th>
@@ -246,7 +247,7 @@ const AdminDashboard = {
                             </div>
                         </div>
                         <div class="table-container">
-                            <table class="table">
+                            <table class="table card-view">
                                 <thead>
                                     <tr>
                                         <th>Group Name</th>
@@ -465,23 +466,25 @@ const AdminDashboard = {
                 </div>`
                 : `<span class="no-email" style="color: var(--text-secondary); font-style: italic;">No email</span>`;
                 
+
             return `
                 <tr data-attendee-id="${attendee.id}">
-                    <td style="text-align: center;">
+                    <td data-label="Select" style="text-align: center;">
                         <input type="checkbox" name="attendee-select" value="${attendee.id}">
                     </td>
-                    <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
-                    <td><div class="avatar">${Utils.getInitials(attendee.name)}</div>${Utils.escapeHtml(attendee.name)}</td>
-                    <td>${emailDisplay}</td>
-                    <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
-                    <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
-                    <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : '<span class="badge badge-secondary">No Group</span>'}</td>
-                    <td>${statusBadge}</td>
-                    <td>
+                    <td data-label="Reference"><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
+                    <td data-label="Name">${Utils.escapeHtml(attendee.name)}</td>
+                    <td data-label="Email">${emailDisplay}</td>
+                    <td data-label="Room">${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
+                    <td data-label="Payment Due"><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
+                    <td data-label="Group">${attendee.group ? Utils.escapeHtml(attendee.group.name) : '<span class="badge badge-secondary">No Group</span>'}</td>
+                    <td data-label="Status">${statusBadge}</td>
+                    <td data-label="Actions">
                         <div class="action-buttons" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-                            <button class="btn btn-sm btn-outline-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
+                            <button class="btn btn-sm btn-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
                                 <i class="fas fa-edit"></i>
                             </button>
+
                             ${attendee.email ? `
                             <button class="btn btn-sm btn-info email-attendee" 
                                     data-id="${attendee.id}" 
@@ -530,42 +533,44 @@ const AdminDashboard = {
             const createdDate = new Date(announcement.created_at).toLocaleDateString();
             const isExpired = announcement.expires_at && new Date(announcement.expires_at) < new Date();
             
+
             return `
                 <tr data-announcement-id="${announcement.id}" ${isExpired ? 'style="opacity: 0.6;"' : ''}>
-                    <td>
+                    <td data-label="Title">
                         <div style="max-width: 200px;">
                             <strong>${Utils.escapeHtml(announcement.title)}</strong>
                             ${isExpired ? '<br><small style="color: var(--error);">Expired</small>' : ''}
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Type">
                         <span class="badge ${typeBadge.class}">
                             <i class="${typeBadge.icon}"></i> ${typeBadge.text}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Priority">
                         <span class="badge ${priorityBadge.class}">
                             ${priorityBadge.text}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Target">
                         <span class="badge ${targetBadge.class}">
                             ${targetBadge.text}
                         </span>
                     </td>
-                    <td>${statusBadge}</td>
-                    <td>
+                    <td data-label="Status">${statusBadge}</td>
+                    <td data-label="Created">
                         <small>${createdDate}</small><br>
                         <small style="color: var(--text-secondary);">by ${Utils.escapeHtml(announcement.author_name)}</small>
                     </td>
-                    <td>
+                    <td data-label="Actions">
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-outline-primary edit-announcement" data-id="${announcement.id}" title="Edit Announcement">
+                            <button class="btn btn-sm btn-primary edit-announcement" data-id="${announcement.id}" title="Edit Announcement">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-secondary toggle-announcement" data-id="${announcement.id}" title="${announcement.is_active ? 'Deactivate' : 'Activate'}">
-                                <i class="${announcement.is_active ? 'fas fa-eye' : 'far fa-eye'}"></i>
+                                <i class="fas fa-${announcement.is_active ? 'eye-slash' : 'eye'}"></i>
                             </button>
+
                             <button class="btn btn-sm btn-danger delete-announcement" data-id="${announcement.id}" title="Delete Announcement">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -605,15 +610,16 @@ const AdminDashboard = {
                   (room.occupants.length > 3 ? ` +${room.occupants.length - 3} more` : '')
                 : '<span class="text-secondary">No occupants</span>';
                 
+
             return `
                 <tr data-room-id="${room.id}">
-                    <td><strong>${Utils.escapeHtml(room.number)}</strong></td>
-                    <td>${room.description ? Utils.escapeHtml(room.description) : '<span class="text-secondary">—</span>'}</td>
-                    <td>${occupancyBadge}</td>
-                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${occupantsList}</td>
-                    <td>
+                    <td data-label="Number"><strong>${Utils.escapeHtml(room.number)}</strong></td>
+                    <td data-label="Description">${room.description ? Utils.escapeHtml(room.description) : '<span class="text-secondary">—</span>'}</td>
+                    <td data-label="Occupancy">${occupancyBadge}</td>
+                    <td data-label="Occupants" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${occupantsList}</td>
+                    <td data-label="Actions">
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-outline-primary edit-room" data-id="${room.id}" title="Edit Room">
+                            <button class="btn btn-sm btn-primary edit-room" data-id="${room.id}" title="Edit Room">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-room" data-id="${room.id}" title="Delete Room" ${occupancy > 0 ? 'disabled' : ''}>
@@ -621,6 +627,7 @@ const AdminDashboard = {
                             </button>
                         </div>
                     </td>
+
                 </tr>
             `;
         }).join('');
@@ -654,12 +661,13 @@ const AdminDashboard = {
                 (group.members.length > 3 ? ` +${group.members.length - 3} more` : '')
                 : '<span class="text-secondary">No members</span>';
                 
+
             return `
                 <tr data-group-id="${group.id}">
-                    <td><strong>${Utils.escapeHtml(group.name)}</strong></td>
-                    <td><span class="badge badge-secondary">${memberCount} members</span></td>
-                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${membersList}</td>
-                    <td>
+                    <td data-label="Group"><strong>${Utils.escapeHtml(group.name)}</strong></td>
+                    <td data-label="Members"><span class="badge badge-secondary">${memberCount} members</span></td>
+                    <td data-label="Member List" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${membersList}</td>
+                    <td data-label="Outstanding">
                         <div style="text-align: right;">
                             <div style="font-weight: 600; color: ${totalOutstanding > 0 ? 'var(--warning)' : 'var(--success)'};">
                                 ${Utils.formatCurrency(totalOutstanding)}
@@ -673,11 +681,12 @@ const AdminDashboard = {
                             `}
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Actions">
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-outline-primary edit-group" data-id="${group.id}" title="Edit Group">
+                            <button class="btn btn-sm btn-primary edit-group" data-id="${group.id}" title="Edit Group">
                                 <i class="fas fa-edit"></i>
                             </button>
+
                             <button class="btn btn-sm btn-danger delete-group" data-id="${group.id}" title="Delete Group" ${memberCount > 0 ? 'disabled' : ''}>
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -717,6 +726,14 @@ const AdminDashboard = {
      * Bind all event listeners
      */
     bindEvents() {
+        // Sidebar toggle
+        const navToggle = document.getElementById('nav-toggle');
+        if (navToggle) {
+            navToggle.addEventListener('click', () => {
+                document.body.classList.toggle('sidebar-open');
+            });
+        }
+
         // Logout button
         const logoutBtn = document.getElementById('admin-logout');
         if (logoutBtn) {
