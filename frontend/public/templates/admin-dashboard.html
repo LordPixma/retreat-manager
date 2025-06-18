@@ -50,24 +50,57 @@
         </div>
     </div>
 
+
     <div class="stats-grid" id="admin-stats">
         <div class="stat-card">
-            <div class="stat-value" id="total-attendees">0</div>
-            <div class="stat-label">Total Attendees</div>
+            <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="total-attendees">0</div>
+                <div class="stat-label">Total Attendees</div>
+            </div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="total-revenue">£0</div>
-            <div class="stat-label">Total Revenue</div>
+            <div class="stat-icon icon-purple"><i class="fas fa-pound-sign"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="total-revenue">£0</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="pending-payments">0</div>
-            <div class="stat-label">Pending Payments</div>
+            <div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="pending-payments">0</div>
+                <div class="stat-label">Pending Payments</div>
+                <div class="stat-trend" id="pending-payments-trend"></div>
+            </div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="active-announcements">0</div>
-            <div class="stat-label">Active Announcements</div>
+            <div class="stat-icon icon-green"><i class="fas fa-bullhorn"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="active-announcements">0</div>
+                <div class="stat-label">Active Announcements</div>
+                <div class="stat-trend" id="active-announcements-trend"></div>
+            </div>
         </div>
     </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+        <button class="tab-btn active" data-tab="attendees">
+            <i class="fas fa-users"></i> Attendees
+        </button>
+        <button class="tab-btn" data-tab="announcements">
+            <i class="fas fa-bullhorn"></i> Announcements
+        </button>
+        <button class="tab-btn" data-tab="emails">
+            <i class="fas fa-envelope"></i> Email Management
+        </button>
+        <button class="tab-btn" data-tab="rooms">
+            <i class="fas fa-bed"></i> Rooms
+        </button>
+        <button class="tab-btn" data-tab="groups">
+            <i class="fas fa-layer-group"></i> Groups
+        </button>
     </div>
 
     <!-- Attendees Tab -->

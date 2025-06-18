@@ -1537,7 +1537,6 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    border-left: 4px solid var(--primary);
 }
 
 .stat-icon {
@@ -1556,8 +1555,8 @@
 }
 
 .stat-value {
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 2rem;
+    font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
@@ -1565,6 +1564,29 @@
 .stat-label {
     font-size: 0.875rem;
     color: var(--text-secondary);
+}
+
+.stat-trend {
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.icon-purple {
+    color: var(--purple);
+    background: rgba(124, 58, 237, 0.1);
+}
+
+.icon-green {
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.icon-orange {
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
 }
 
 .email-actions-grid {
