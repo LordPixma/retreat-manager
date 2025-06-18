@@ -45,6 +45,7 @@ const App = {
     currentView: 'login',
     currentUser: null,
     initialized: false,
+    activeMenu: sessionStorage.getItem('activeMenu') || 'login',
     
     /**
      * Initialize the application
@@ -88,7 +89,9 @@ const App = {
             
             // Check for existing authentication
             await this.checkAuthentication();
-            
+
+            this.initNavigation();
+
             this.initialized = true;
         } catch (error) {
             console.error('Initialization error:', error);
@@ -149,15 +152,89 @@ const App = {
         window.addEventListener('unhandledrejection', (event) => {
             // Filter out extension-related promise rejections
             const reason = event.reason?.toString() || '';
-            if (reason.includes('extension') || 
+            if (reason.includes('extension') ||
                 reason.includes('DelayedMessageSender') ||
                 reason.includes('FrameDoesNotExistError')) {
                 return;
             }
-            
+
             console.error('Unhandled promise rejection:', event.reason);
             Utils.showAlert('A network error occurred. Please check your connection.', 'error');
         });
+    },
+
+    /**
+     * Display a loading screen while switching sections
+     */
+    showLoadingScreen(message = 'Loading...') {
+        const appEl = document.getElementById('app');
+        if (appEl) {
+            appEl.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>${message}</p>
+                </div>`;
+        }
+    },
+
+    /**
+     * Persist and highlight active sidebar item
+     */
+    setActiveMenu(view) {
+        this.activeMenu = view;
+        sessionStorage.setItem('activeMenu', view);
+        this.updateSidebarState();
+    },
+
+    /**
+     * Update sidebar active class based on current state
+     */
+    updateSidebarState() {
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.view === this.activeMenu);
+        });
+    },
+
+    /**
+     * Bind sidebar navigation events
+     */
+    initNavigation() {
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const {view} = item.dataset;
+                if (view) {
+                    await this.navigate(view);
+                }
+            });
+        });
+        this.updateSidebarState();
+    },
+
+    /**
+     * Navigate to a specific section with error boundary
+     */
+    async navigate(view) {
+        this.showLoadingScreen();
+        try {
+            switch (view) {
+                case 'admin':
+                    await this.loadAdminView();
+                    break;
+                case 'attendee':
+                    await this.loadAttendeeView();
+                    break;
+                case 'admin-login':
+                    await this.showAdminLoginView();
+                    break;
+                default:
+                    await this.showLoginView();
+            }
+            this.setActiveMenu(view);
+        } catch (error) {
+            console.error('Navigation error:', error);
+            Utils.showAlert('Failed to load section', 'error');
+        }
     },
 
     /**
@@ -182,48 +259,54 @@ const App = {
     /**
      * Show login view
      */
-    async showLoginView() {
-        await Utils.pageTransition(async () => {
-            this.currentView = 'login';
 
-            try {
-                // Try to use Login component if available
-                if (ComponentChecker.isAvailable('Login')) {
-                    console.log('Using Login component');
-                    await window.Login.init('attendee');
-                } else {
-                    console.warn('Login component not available, using fallback');
-                    this.showFallbackLogin();
-                }
-            } catch (error) {
-                console.error('Error loading Login component:', error);
+    async showLoginView() {
+        this.currentView = 'login';
+        this.showLoadingScreen('Loading login...');
+        this.setActiveMenu('login');
+
+        try {
+            // Try to use Login component if available
+            if (ComponentChecker.isAvailable('Login')) {
+                console.log('Using Login component');
+                await window.Login.init('attendee');
+            } else {
+                console.warn('Login component not available, using fallback');
                 this.showFallbackLogin();
             }
-        });
+        } catch (error) {
+            console.error('Error loading Login component:', error);
+            this.showFallbackLogin();
+        }
+        this.initNavigation();
     },
+
 
     /**
      * Show admin login view
      */
-    async showAdminLoginView() {
-        await Utils.pageTransition(async () => {
-            this.currentView = 'admin-login';
 
-            try {
-                // Try to use Login component if available
-                if (ComponentChecker.isAvailable('Login')) {
-                    console.log('Using Login component for admin');
-                    await window.Login.init('admin');
-                } else {
-                    console.warn('Login component not available, using fallback');
-                    this.showFallbackAdminLogin();
-                }
-            } catch (error) {
-                console.error('Error loading Admin Login component:', error);
+    async showAdminLoginView() {
+        this.currentView = 'admin-login';
+        this.showLoadingScreen('Loading admin login...');
+        this.setActiveMenu('admin-login');
+        
+        try {
+            // Try to use Login component if available
+            if (ComponentChecker.isAvailable('Login')) {
+                console.log('Using Login component for admin');
+                await window.Login.init('admin');
+            } else {
+                console.warn('Login component not available, using fallback');
                 this.showFallbackAdminLogin();
             }
-        });
+        } catch (error) {
+            console.error('Error loading Admin Login component:', error);
+            this.showFallbackAdminLogin();
+        }
+        this.initNavigation();
     },
+
 
     /**
      * Fallback login form (if templates fail to load)
@@ -463,36 +546,35 @@ const App = {
     /**
      * Load attendee dashboard view
      */
+
     async loadAttendeeView() {
-        await Utils.pageTransition(async () => {
-            this.currentView = 'attendee';
-            const appEl = document.getElementById('app');
-            Utils.showSkeleton(appEl);
+        this.currentView = 'attendee';
+        this.showLoadingScreen('Loading dashboard...');
+        this.setActiveMenu('attendee');
+        
+        try {
+            // Get attendee data
+            const attendeeData = await API.get('/me');
+            this.currentUser = attendeeData;
 
-            try {
-                // Get attendee data
-                const attendeeData = await API.get('/me');
-                this.currentUser = attendeeData;
-
-                // Try to use AttendeeDashboard component if available
-                if (ComponentChecker.isAvailable('AttendeeDashboard')) {
-                    console.log('Using AttendeeDashboard component');
-                    await window.AttendeeDashboard.init();
-                } else {
-                    console.warn('AttendeeDashboard component not available, using fallback');
-                    this.showFallbackAttendeeDashboard(attendeeData);
-                }
-
-            } catch (error) {
-                console.error('Failed to load attendee view:', error);
-                Utils.showAlert('Failed to load dashboard. Please try logging in again.', 'error');
-                Auth.clearAllTokens();
-                await this.showLoginView();
-            } finally {
-                Utils.hideSkeleton(appEl);
+            // Try to use AttendeeDashboard component if available
+            if (ComponentChecker.isAvailable('AttendeeDashboard')) {
+                console.log('Using AttendeeDashboard component');
+                await window.AttendeeDashboard.init();
+            } else {
+                console.warn('AttendeeDashboard component not available, using fallback');
+                this.showFallbackAttendeeDashboard(attendeeData);
             }
-        });
+
+        } catch (error) {
+            console.error('Failed to load attendee view:', error);
+            Utils.showAlert('Failed to load dashboard. Please try logging in again.', 'error');
+            Auth.clearAllTokens();
+            await this.showLoginView();
+        }
+        this.initNavigation();
     },
+
 
     /**
      * Fallback attendee dashboard
@@ -646,33 +728,32 @@ const App = {
     /**
      * Load admin dashboard view
      */
+
     async loadAdminView() {
-        await Utils.pageTransition(async () => {
-            this.currentView = 'admin';
-            const appEl = document.getElementById('app');
-            Utils.showSkeleton(appEl);
-
-            try {
-                // Try to use AdminDashboard component if available
-                if (ComponentChecker.isAvailable('AdminDashboard')) {
-                    console.log('Using AdminDashboard component');
-                    await window.AdminDashboard.init();
-                } else {
-                    console.warn('AdminDashboard component not available, using fallback');
-                    const attendeesData = await API.get('/admin/attendees');
-                    this.showFallbackAdminDashboard(attendeesData);
-                }
-
-            } catch (error) {
-                console.error('Failed to load admin view:', error);
-                Utils.showAlert('Failed to load admin dashboard. Please try logging in again.', 'error');
-                Auth.clearAllTokens();
-                await this.showLoginView();
-            } finally {
-                Utils.hideSkeleton(appEl);
+        this.currentView = 'admin';
+        this.showLoadingScreen('Loading admin dashboard...');
+        this.setActiveMenu('admin');
+        
+        try {
+            // Try to use AdminDashboard component if available
+            if (ComponentChecker.isAvailable('AdminDashboard')) {
+                console.log('Using AdminDashboard component');
+                await window.AdminDashboard.init();
+            } else {
+                console.warn('AdminDashboard component not available, using fallback');
+                const attendeesData = await API.get('/admin/attendees');
+                this.showFallbackAdminDashboard(attendeesData);
             }
-        });
+
+        } catch (error) {
+            console.error('Failed to load admin view:', error);
+            Utils.showAlert('Failed to load admin dashboard. Please try logging in again.', 'error');
+            Auth.clearAllTokens();
+            await this.showLoginView();
+        }
+        this.initNavigation();
     },
+
 
     /**
      * Fallback admin dashboard
@@ -853,6 +934,7 @@ const App = {
     logout() {
         Auth.clearAllTokens();
         this.currentUser = null;
+        this.setActiveMenu('login');
         this.showLoginView();
     }
 };
