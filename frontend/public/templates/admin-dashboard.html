@@ -17,8 +17,14 @@
             <button class="btn btn-primary" id="bulk-email-btn" title="Send Bulk Email">
                 <i class="fas fa-envelope-bulk"></i> Send Email
             </button>
+            <button class="btn btn-primary" id="send-announcement-btn" title="Send Announcement">
+                <i class="fas fa-bell"></i> Send Announcement
+            </button>
             <button class="btn btn-primary" id="add-attendee-btn">
                 <i class="fas fa-plus"></i> Add Attendee
+            </button>
+            <button class="btn btn-accent" id="export-data-btn">
+                <i class="fas fa-file-export"></i> Export Data
             </button>
             <button class="btn btn-secondary" id="admin-logout">
                 <i class="fas fa-sign-out-alt"></i> Logout
@@ -26,39 +32,40 @@
         </div>
     </div>
 
-
     <div class="stats-grid" id="admin-stats">
         <div class="stat-card">
-            <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
-            <div class="stat-content">
-                <div class="stat-value" id="total-attendees">0</div>
-                <div class="stat-label">Total Attendees</div>
-            </div>
+            <div class="stat-value" id="total-attendees">0</div>
+            <div class="stat-label">Total Attendees</div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon icon-purple"><i class="fas fa-pound-sign"></i></div>
-            <div class="stat-content">
-                <div class="stat-value" id="total-revenue">£0</div>
-                <div class="stat-label">Total Revenue</div>
-            </div>
+            <div class="stat-value" id="total-revenue">£0</div>
+            <div class="stat-label">Total Revenue</div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
-            <div class="stat-content">
-                <div class="stat-value" id="pending-payments">0</div>
-                <div class="stat-label">Pending Payments</div>
-                <div class="stat-trend" id="pending-payments-trend"></div>
-            </div>
+            <div class="stat-value" id="pending-payments">0</div>
+            <div class="stat-label">Pending Payments</div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon icon-green"><i class="fas fa-bullhorn"></i></div>
-            <div class="stat-content">
-                <div class="stat-value" id="active-announcements">0</div>
-                <div class="stat-label">Active Announcements</div>
-                <div class="stat-trend" id="active-announcements-trend"></div>
-            </div>
+            <div class="stat-value" id="active-announcements">0</div>
+            <div class="stat-label">Active Announcements</div>
         </div>
     </div>
+
+    <div id="quick-actions-section" style="margin-bottom:2rem;">
+        <h3 style="margin-bottom:1rem;">Quick Actions</h3>
+        <div class="quick-actions-grid">
+            <button class="btn btn-primary" id="qa-add-attendee"><i class="fas fa-user-plus"></i> Add Attendee</button>
+            <button class="btn btn-success" id="qa-bulk-upload"><i class="fas fa-file-upload"></i> Bulk Upload</button>
+            <button class="btn btn-primary" id="qa-send-announcement"><i class="fas fa-bell"></i> Send Announcement</button>
+            <button class="btn btn-accent" id="qa-export-data"><i class="fas fa-file-export"></i> Export Data</button>
+        </div>
+    </div>
+
+    <div id="recent-activity-section" style="margin-bottom:2rem;">
+        <h3 style="margin-bottom:1rem;">Recent Activity</h3>
+        <ul id="activity-feed" class="timeline"></ul>
+    </div>
+
 
     <!-- Tab Navigation -->
     <div class="tab-navigation">

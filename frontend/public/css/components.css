@@ -72,10 +72,17 @@ i[class*="fa-"]:hover {
     min-height: 48px;
 }
 
+
 .btn-primary {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-    color: #fff;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
 }
+
+.btn-accent {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: white;
+}
+
 
 .btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
@@ -1707,9 +1714,48 @@ i[class*="fa-"]:hover {
         text-align: center;
     }
     
+
     .stat-icon {
         margin-bottom: 0.5rem;
     }
+}
+
+/* Quick Actions */
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.quick-actions-grid .btn {
+    width: 100%;
+}
+
+/* Timeline */
+.timeline {
+    list-style: none;
+    padding-left: 1rem;
+    border-left: 2px solid var(--border);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1rem;
+    padding-left: 1rem;
+    color: var(--text-secondary);
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -9px;
+    top: 4px;
+    width: 8px;
+    height: 8px;
+    background: var(--primary);
+    border-radius: 50%;
+
 }
 
 body.login-page .card {
@@ -1725,4 +1771,5 @@ body.login-page .card {
         opacity: 1;
         transform: translateY(0);
     }
+
 }
