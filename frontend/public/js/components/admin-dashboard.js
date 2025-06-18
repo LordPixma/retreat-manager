@@ -17,7 +17,11 @@ const AdminDashboard = {
             await this.render();
             await this.loadAllData();
             this.bindEvents();
-            this.setupSidebarNavigation();
+            this.setupTabNavigation();
+
+            // Update top header information
+            this.updateHeaderInfo();
+
             
             // Initialize email management with better error handling
             if (window.EmailManagement) {
@@ -56,20 +60,20 @@ const AdminDashboard = {
      */
     renderFallback() {
         document.getElementById('app').innerHTML = `
-            <div class="dashboard-container">
-                <nav class="sidebar">
-                    <ul class="sidebar-menu">
-                        <li class="sidebar-item active" data-tab="dashboard"><i class="fas fa-home"></i> Dashboard</li>
-                        <li class="sidebar-item" data-tab="attendees"><i class="fas fa-users"></i> Attendees</li>
-                        <li class="sidebar-item" data-tab="rooms"><i class="fas fa-door-open"></i> Room Management</li>
-                        <li class="sidebar-item" data-tab="groups"><i class="fas fa-user-friends"></i> Group Management</li>
-                        <li class="sidebar-item" data-tab="announcements"><i class="fas fa-bullhorn"></i> Announcements</li>
-                        <li class="sidebar-item" data-tab="emails"><i class="fas fa-envelope"></i> Email Management</li>
-                        <li class="sidebar-item" data-tab="analytics"><i class="fas fa-chart-line"></i> Analytics</li>
-                    </ul>
-                </nav>
-                <div class="dashboard">
+
+            <div class="dashboard">
+                <div class="top-header">
+                    <div class="top-header-left">
+                        <input type="search" class="search-box top-search" placeholder="Search...">
+                    </div>
+                    <div class="top-header-right">
+                        <div id="current-date" class="current-date"></div>
+                        <i class="fas fa-bell notification-icon"></i>
+                        <div class="profile-dropdown"><span id="user-name">Admin</span> <i class="fas fa-caret-down"></i></div>
+                    </div>
+                </div>
                 <div class="dashboard-header">
+
                     <div>
                         <h1 class="dashboard-title">Admin Dashboard</h1>
                         <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage attendees, rooms, groups, and announcements</p>
@@ -378,6 +382,7 @@ const AdminDashboard = {
         this.updateAnnouncementsDisplay();
         this.updateRoomsDisplay();
         this.updateGroupsDisplay();
+        this.updateHeaderInfo();
     },
 
     /**
@@ -1206,6 +1211,29 @@ const AdminDashboard = {
             default:
                 return { text: 'Unknown', class: 'badge-secondary' };
         }
+    },
+
+    /**
+     * Update header information such as date and user name
+     */
+    updateHeaderInfo() {
+        this.updateDate();
+        this.updateUserName();
+    },
+
+    updateDate() {
+        const el = document.getElementById('current-date');
+        if (el) {
+            const now = new Date();
+            el.textContent = now.toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+        }
+    },
+
+    updateUserName() {
+        const el = document.getElementById('user-name');
+        if (el) el.textContent = 'Admin';
     },
 
     /**

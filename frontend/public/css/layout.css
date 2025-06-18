@@ -70,12 +70,56 @@
     min-height: 100vh;
 }
 
-.dashboard-header {
+.top-header {
     background: var(--surface);
-    border-radius: var(--border-radius);
-    padding: 2rem;
+    padding: 0.75rem 2rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.top-header-left {
+    flex: 1;
+}
+
+.top-header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.notification-icon {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.current-date {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.profile-dropdown {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.top-search {
+    max-width: 300px;
+    width: 100%;
+}
+
+.dashboard-header {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
     margin-bottom: 2rem;
-    box-shadow: var(--shadow);
+    box-shadow: none;
     display: flex;
     justify-content: space-between;
     align-items: center;

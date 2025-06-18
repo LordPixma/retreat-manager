@@ -1,31 +1,14 @@
-<div class="dashboard-container">
-    <nav class="sidebar">
-        <ul class="sidebar-menu">
-            <li class="sidebar-item active" data-tab="dashboard">
-                <i class="fas fa-home"></i> Dashboard
-            </li>
-            <li class="sidebar-item" data-tab="attendees">
-                <i class="fas fa-users"></i> Attendees
-            </li>
-            <li class="sidebar-item" data-tab="rooms">
-                <i class="fas fa-door-open"></i> Room Management
-            </li>
-            <li class="sidebar-item" data-tab="groups">
-                <i class="fas fa-user-friends"></i> Group Management
-            </li>
-            <li class="sidebar-item" data-tab="announcements">
-                <i class="fas fa-bullhorn"></i> Announcements
-            </li>
-            <li class="sidebar-item" data-tab="emails">
-                <i class="fas fa-envelope"></i> Email Management
-            </li>
-            <li class="sidebar-item" data-tab="analytics">
-                <i class="fas fa-chart-line"></i> Analytics
-            </li>
-        </ul>
-    </nav>
-    <div class="dashboard">
-        <div class="tab-content active" id="dashboard-tab">
+<div class="dashboard">
+    <div class="top-header">
+        <div class="top-header-left">
+            <input type="search" class="search-box top-search" placeholder="Search...">
+        </div>
+        <div class="top-header-right">
+            <div id="current-date" class="current-date"></div>
+            <i class="fas fa-bell notification-icon"></i>
+            <div class="profile-dropdown"><span id="user-name">Admin</span> <i class="fas fa-caret-down"></i></div>
+        </div>
+    </div>
     <div class="dashboard-header">
         <div>
             <h1 class="dashboard-title">Admin Dashboard</h1>
