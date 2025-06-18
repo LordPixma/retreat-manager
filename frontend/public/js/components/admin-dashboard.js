@@ -17,7 +17,7 @@ const AdminDashboard = {
             await this.render();
             await this.loadAllData();
             this.bindEvents();
-            this.setupTabNavigation();
+            this.setupSidebarNavigation();
 
             // Update top header information
             this.updateHeaderInfo();
