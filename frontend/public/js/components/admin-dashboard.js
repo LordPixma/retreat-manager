@@ -395,9 +395,9 @@ const AdminDashboard = {
 
         tbody.innerHTML = this.data.attendees.map(attendee => {
             const paymentDue = attendee.payment_due || 0;
-            const statusBadge = paymentDue > 0 
-                ? `<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Payment Due</span>`
-                : `<span class="badge badge-success"><i class="fas fa-check"></i> Paid</span>`;
+            const statusBadge = paymentDue > 0
+                ? `<span class="badge badge-due"><i class="fas fa-exclamation-triangle"></i> Due</span>`
+                : `<span class="badge badge-paid"><i class="fas fa-check"></i> Paid</span>`;
                 
             // Enhanced email display with status indicator
             const emailDisplay = attendee.email 
@@ -416,7 +416,7 @@ const AdminDashboard = {
                         <input type="checkbox" name="attendee-select" value="${attendee.id}">
                     </td>
                     <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
-                    <td>${Utils.escapeHtml(attendee.name)}</td>
+                    <td><div class="avatar">${Utils.getInitials(attendee.name)}</div>${Utils.escapeHtml(attendee.name)}</td>
                     <td>${emailDisplay}</td>
                     <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
                     <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
@@ -424,7 +424,7 @@ const AdminDashboard = {
                     <td>${statusBadge}</td>
                     <td>
                         <div class="action-buttons" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-                            <button class="btn btn-sm btn-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
+                            <button class="btn btn-sm btn-outline-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
                                 <i class="fas fa-edit"></i>
                             </button>
                             ${attendee.email ? `
@@ -505,7 +505,7 @@ const AdminDashboard = {
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-announcement" data-id="${announcement.id}" title="Edit Announcement">
+                            <button class="btn btn-sm btn-outline-primary edit-announcement" data-id="${announcement.id}" title="Edit Announcement">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-secondary toggle-announcement" data-id="${announcement.id}" title="${announcement.is_active ? 'Deactivate' : 'Activate'}">
@@ -558,7 +558,7 @@ const AdminDashboard = {
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${occupantsList}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-room" data-id="${room.id}" title="Edit Room">
+                            <button class="btn btn-sm btn-outline-primary edit-room" data-id="${room.id}" title="Edit Room">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-room" data-id="${room.id}" title="Delete Room" ${occupancy > 0 ? 'disabled' : ''}>
@@ -620,7 +620,7 @@ const AdminDashboard = {
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-group" data-id="${group.id}" title="Edit Group">
+                            <button class="btn btn-sm btn-outline-primary edit-group" data-id="${group.id}" title="Edit Group">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-group" data-id="${group.id}" title="Delete Group" ${memberCount > 0 ? 'disabled' : ''}>

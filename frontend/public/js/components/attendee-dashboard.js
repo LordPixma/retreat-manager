@@ -536,8 +536,8 @@ const AttendeeDashboard = {
                 </div>
             </div>
             <div class="info-item" style="margin-top: 1rem;">
-                <span class="badge ${paymentDue > 0 ? 'badge-warning' : 'badge-success'}">
-                    <i class="fas fa-${paymentDue > 0 ? 'exclamation-triangle' : 'check'}"></i> 
+                <span class="badge ${paymentDue > 0 ? 'badge-due' : 'badge-paid'}">
+                    <i class="fas fa-${paymentDue > 0 ? 'exclamation-triangle' : 'check'}"></i>
                     ${paymentDue > 0 ? 'Payment Due' : 'Paid in Full'}
                 </span>
                 ${paymentDue > 0 ? `
