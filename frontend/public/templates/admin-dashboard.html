@@ -1,4 +1,14 @@
 <div class="dashboard">
+    <div class="top-header">
+        <div class="top-header-left">
+            <input type="search" class="search-box top-search" placeholder="Search...">
+        </div>
+        <div class="top-header-right">
+            <div id="current-date" class="current-date"></div>
+            <i class="fas fa-bell notification-icon"></i>
+            <div class="profile-dropdown"><span id="user-name">Admin</span> <i class="fas fa-caret-down"></i></div>
+        </div>
+    </div>
     <div class="dashboard-header">
         <div>
             <h1 class="dashboard-title">Admin Dashboard</h1>
@@ -23,22 +33,37 @@
         </div>
     </div>
 
+
     <div class="stats-grid" id="admin-stats">
         <div class="stat-card">
-            <div class="stat-value" id="total-attendees">0</div>
-            <div class="stat-label">Total Attendees</div>
+            <div class="stat-icon icon-purple"><i class="fas fa-users"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="total-attendees">0</div>
+                <div class="stat-label">Total Attendees</div>
+            </div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="total-revenue">£0</div>
-            <div class="stat-label">Total Revenue</div>
+            <div class="stat-icon icon-purple"><i class="fas fa-pound-sign"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="total-revenue">£0</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="pending-payments">0</div>
-            <div class="stat-label">Pending Payments</div>
+            <div class="stat-icon icon-orange"><i class="fas fa-hourglass-half"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="pending-payments">0</div>
+                <div class="stat-label">Pending Payments</div>
+                <div class="stat-trend" id="pending-payments-trend"></div>
+            </div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="active-announcements">0</div>
-            <div class="stat-label">Active Announcements</div>
+            <div class="stat-icon icon-green"><i class="fas fa-bullhorn"></i></div>
+            <div class="stat-content">
+                <div class="stat-value" id="active-announcements">0</div>
+                <div class="stat-label">Active Announcements</div>
+                <div class="stat-trend" id="active-announcements-trend"></div>
+            </div>
         </div>
     </div>
 
@@ -364,4 +389,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Analytics Tab -->
+    <div class="tab-content" id="analytics-tab">
+        <div class="data-table" style="text-align:center; padding:2rem;">
+            <p style="color: var(--text-secondary);">Analytics coming soon...</p>
+        </div>
+    </div>
+</div>
 </div>
