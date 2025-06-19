@@ -12,7 +12,7 @@ const AdminDashboard = {
     /**
      * Initialize admin dashboard
      */
-    async init() {
+   async init() {
         try {
             await this.render();
             await this.loadAllData();
