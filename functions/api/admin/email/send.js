@@ -50,7 +50,7 @@ export async function onRequestPost(context) {
       subject,
       message,
       email_type,
-      sender: admin.user || 'Admin'
+      sender: 'The Growth and Wisdom Retreat Team'
     });
 
     return createResponse({
