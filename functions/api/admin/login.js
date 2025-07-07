@@ -1,5 +1,5 @@
 // functions/api/admin/login.js - Updated admin login
-import { createResponse, handleCORS } from '../../_shared/auth.js';
+import { createResponse, handleCORS, getClientIP } from '../../_shared/auth.js';
 
 // Handle CORS preflight
 export async function onRequestOptions() {
@@ -30,11 +30,13 @@ export async function onRequestPost(context) {
     
     console.log('Admin login successful for:', user);
 
+    const ipAddress = getClientIP(context.request);
+
     // Record login history
     await context.env.DB.prepare(`
-      INSERT INTO login_history (user_type, user_id, login_time)
-      VALUES ('admin', ?, CURRENT_TIMESTAMP)
-    `).bind(user.trim()).run();
+      INSERT INTO login_history (user_type, user_id, ip_address, login_time)
+      VALUES ('admin', ?, ?, CURRENT_TIMESTAMP)
+    `).bind(user.trim(), ipAddress).run();
 
     // Create admin token
     const token = 'admin-token-' + btoa(user + ':' + Date.now() + ':admin');

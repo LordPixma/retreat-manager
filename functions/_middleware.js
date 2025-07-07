@@ -1,5 +1,6 @@
 // functions/_middleware.js
 // Enhanced middleware for session management, rate limiting, and security - FIXED VERSION
+import { getClientIP } from './_shared/auth.js';
 
 /**
  * Rate Limiter Class for request throttling (local version to avoid conflicts)
@@ -313,10 +314,7 @@ export async function onRequest(context) {
         }
 
         // Get client information
-        const clientIP = request.headers.get('CF-Connecting-IP') || 
-                        request.headers.get('X-Forwarded-For') || 
-                        request.headers.get('X-Real-IP') || 
-                        'unknown';
+        const clientIP = getClientIP(request);
         
         const userAgent = request.headers.get('User-Agent') || '';
         const sessionId = request.headers.get('X-Session-ID') || '';

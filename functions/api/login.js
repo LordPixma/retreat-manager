@@ -1,5 +1,5 @@
 // functions/api/login.js - Updated attendee login
-import { createResponse, checkAttendeeAuth, handleCORS, hashPassword, verifyPassword } from '../_shared/auth.js';
+import { createResponse, checkAttendeeAuth, handleCORS, hashPassword, verifyPassword, getClientIP } from '../_shared/auth.js';
 
 // Handle CORS preflight
 export async function onRequestOptions() {
@@ -41,11 +41,13 @@ export async function onRequestPost(context) {
     
     console.log('Login successful for:', ref);
 
+    const ipAddress = getClientIP(context.request);
+
     // Record login history and update last_login
     await context.env.DB.prepare(`
-      INSERT INTO login_history (user_type, user_id, login_time)
-      VALUES ('attendee', ?, CURRENT_TIMESTAMP)
-    `).bind(ref.trim()).run();
+      INSERT INTO login_history (user_type, user_id, ip_address, login_time)
+      VALUES ('attendee', ?, ?, CURRENT_TIMESTAMP)
+    `).bind(ref.trim(), ipAddress).run();
 
     await context.env.DB.prepare(`
       UPDATE attendees SET last_login = CURRENT_TIMESTAMP
