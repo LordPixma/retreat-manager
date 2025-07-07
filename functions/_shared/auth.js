@@ -108,3 +108,26 @@ export function handleCORS() {
     }
   });
 }
+
+/**
+ * Extract the client IP address from request headers
+ * Returns 'unknown' if no valid IP can be determined
+ */
+export function getClientIP(request) {
+  const cf = request.headers.get('CF-Connecting-IP');
+  const xff = request.headers.get('X-Forwarded-For');
+  const real = request.headers.get('X-Real-IP');
+  const raw = cf || xff || real || '';
+  const first = raw.split(',')[0].trim();
+  return isValidIP(first) ? first : 'unknown';
+}
+
+/**
+ * Basic IPv4/IPv6 validation
+ */
+function isValidIP(ip) {
+  if (!ip) return false;
+  const ipv4 = /^((25[0-5]|2[0-4]\d|1?\d?\d)(\.|$)){4}$/;
+  const ipv6 = /^[0-9a-fA-F:]{2,45}$/;
+  return ipv4.test(ip) || ipv6.test(ip);
+}

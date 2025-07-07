@@ -1,5 +1,5 @@
 // functions/api/admin/login.js - Updated admin login
-import { createResponse, handleCORS } from '../../_shared/auth.js';
+import { createResponse, handleCORS, getClientIP } from '../../_shared/auth.js';
 
 // Handle CORS preflight
 export async function onRequestOptions() {
@@ -30,11 +30,7 @@ export async function onRequestPost(context) {
     
     console.log('Admin login successful for:', user);
 
-    const ipAddress =
-      context.request.headers.get('CF-Connecting-IP') ||
-      context.request.headers.get('X-Forwarded-For') ||
-      context.request.headers.get('X-Real-IP') ||
-      'unknown';
+    const ipAddress = getClientIP(context.request);
 
     // Record login history
     await context.env.DB.prepare(`

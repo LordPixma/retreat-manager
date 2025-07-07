@@ -1,5 +1,5 @@
 // functions/api/login.js - Updated attendee login
-import { createResponse, checkAttendeeAuth, handleCORS, hashPassword, verifyPassword } from '../_shared/auth.js';
+import { createResponse, checkAttendeeAuth, handleCORS, hashPassword, verifyPassword, getClientIP } from '../_shared/auth.js';
 
 // Handle CORS preflight
 export async function onRequestOptions() {
@@ -41,11 +41,7 @@ export async function onRequestPost(context) {
     
     console.log('Login successful for:', ref);
 
-    const ipAddress =
-      context.request.headers.get('CF-Connecting-IP') ||
-      context.request.headers.get('X-Forwarded-For') ||
-      context.request.headers.get('X-Real-IP') ||
-      'unknown';
+    const ipAddress = getClientIP(context.request);
 
     // Record login history and update last_login
     await context.env.DB.prepare(`
