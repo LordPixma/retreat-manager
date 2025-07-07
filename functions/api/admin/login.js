@@ -29,10 +29,16 @@ export async function onRequestPost(context) {
     }
     
     console.log('Admin login successful for:', user);
-    
+
+    // Record login history
+    await context.env.DB.prepare(`
+      INSERT INTO login_history (user_type, user_id, login_time)
+      VALUES ('admin', ?, CURRENT_TIMESTAMP)
+    `).bind(user.trim()).run();
+
     // Create admin token
     const token = 'admin-token-' + btoa(user + ':' + Date.now() + ':admin');
-    
+
     return createResponse({ token });
     
   } catch (error) {

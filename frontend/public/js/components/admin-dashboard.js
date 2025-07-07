@@ -5,6 +5,7 @@ const AdminDashboard = {
         rooms: [],
         groups: [],
         announcements: [],
+        loginHistory: [],
         stats: {}
     },
     currentTab: 'attendees',
@@ -263,7 +264,8 @@ const AdminDashboard = {
                 this.loadAttendees(),
                 this.loadRooms(),
                 this.loadGroups(),
-                this.loadAnnouncements()
+                this.loadAnnouncements(),
+                this.loadLoginHistory()
             ]);
             
             this.calculateStats();
@@ -327,12 +329,26 @@ const AdminDashboard = {
     },
 
     /**
+     * Load login history data
+     */
+    async loadLoginHistory() {
+        try {
+            this.data.loginHistory = await API.get('/admin/reports/login-history');
+            console.log('Loaded login history:', this.data.loginHistory.length);
+        } catch (error) {
+            console.error('Failed to load login history:', error);
+            this.data.loginHistory = [];
+        }
+    },
+
+    /**
      * Calculate dashboard statistics (updated with announcements)
      */
     calculateStats() {
         const attendees = this.data.attendees;
         const rooms = this.data.rooms;
         const announcements = this.data.announcements;
+        const loginHistory = this.data.loginHistory;
         
         this.data.stats = {
             totalAttendees: attendees.length,
@@ -342,7 +358,12 @@ const AdminDashboard = {
             totalRooms: rooms.length,
             occupancyRate: rooms.length > 0 ? Math.round((attendees.filter(a => a.room).length / rooms.length) * 100) : 0,
             activeAnnouncements: announcements.filter(a => a.is_active).length,
-            totalAnnouncements: announcements.length
+            totalAnnouncements: announcements.length,
+            loginsToday: loginHistory.filter(r => {
+                const dt = new Date(r.login_time);
+                const today = new Date();
+                return dt.toDateString() === today.toDateString();
+            }).length
         };
     },
 
@@ -355,6 +376,7 @@ const AdminDashboard = {
         this.updateAnnouncementsDisplay();
         this.updateRoomsDisplay();
         this.updateGroupsDisplay();
+        this.updateLoginHistoryDisplay();
     },
 
     /**
@@ -367,11 +389,13 @@ const AdminDashboard = {
         const totalRevenueEl = document.getElementById('total-revenue');
         const pendingPaymentsEl = document.getElementById('pending-payments');
         const activeAnnouncementsEl = document.getElementById('active-announcements');
+        const loginsTodayEl = document.getElementById('logins-today');
         
         if (totalAttendeesEl) totalAttendeesEl.textContent = stats.totalAttendees;
         if (totalRevenueEl) totalRevenueEl.textContent = Utils.formatCurrency(stats.totalRevenue);
         if (pendingPaymentsEl) pendingPaymentsEl.textContent = stats.pendingPayments;
         if (activeAnnouncementsEl) activeAnnouncementsEl.textContent = stats.activeAnnouncements;
+        if (loginsTodayEl) loginsTodayEl.textContent = stats.loginsToday;
     },
 
     /**
@@ -630,6 +654,34 @@ const AdminDashboard = {
                     </td>
                 </tr>
             `;
+        }).join('');
+    },
+
+    /**
+     * Update login history table display
+     */
+    updateLoginHistoryDisplay() {
+        const tbody = document.getElementById('login-history-body');
+        if (!tbody) return;
+
+        if (this.data.loginHistory.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No login history found
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = this.data.loginHistory.map(record => {
+            const time = new Date(record.login_time).toLocaleString();
+            return `
+                <tr>
+                    <td>${Utils.escapeHtml(record.user_id)}</td>
+                    <td>${Utils.escapeHtml(record.user_type)}</td>
+                    <td>${time}</td>
+                </tr>`;
         }).join('');
     },
 
