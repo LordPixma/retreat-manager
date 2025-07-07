@@ -667,7 +667,7 @@ const AdminDashboard = {
         if (this.data.loginHistory.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
                         No login history found
                     </td>
                 </tr>`;
@@ -680,6 +680,7 @@ const AdminDashboard = {
                 <tr>
                     <td>${Utils.escapeHtml(record.user_id)}</td>
                     <td>${Utils.escapeHtml(record.user_type)}</td>
+                    <td>${Utils.escapeHtml(record.ip_address || '')}</td>
                     <td>${time}</td>
                 </tr>`;
         }).join('');

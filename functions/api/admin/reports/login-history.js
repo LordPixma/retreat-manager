@@ -15,7 +15,7 @@ export async function onRequestGet(context) {
     }
 
     const { results } = await context.env.DB.prepare(`
-      SELECT id, user_type, user_id, login_time
+      SELECT id, user_type, user_id, ip_address, login_time
       FROM login_history
       ORDER BY datetime(login_time) DESC
       LIMIT 20

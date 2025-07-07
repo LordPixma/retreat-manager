@@ -41,11 +41,17 @@ export async function onRequestPost(context) {
     
     console.log('Login successful for:', ref);
 
+    const ipAddress =
+      context.request.headers.get('CF-Connecting-IP') ||
+      context.request.headers.get('X-Forwarded-For') ||
+      context.request.headers.get('X-Real-IP') ||
+      'unknown';
+
     // Record login history and update last_login
     await context.env.DB.prepare(`
-      INSERT INTO login_history (user_type, user_id, login_time)
-      VALUES ('attendee', ?, CURRENT_TIMESTAMP)
-    `).bind(ref.trim()).run();
+      INSERT INTO login_history (user_type, user_id, ip_address, login_time)
+      VALUES ('attendee', ?, ?, CURRENT_TIMESTAMP)
+    `).bind(ref.trim(), ipAddress).run();
 
     await context.env.DB.prepare(`
       UPDATE attendees SET last_login = CURRENT_TIMESTAMP

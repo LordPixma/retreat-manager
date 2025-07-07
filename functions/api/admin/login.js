@@ -30,11 +30,17 @@ export async function onRequestPost(context) {
     
     console.log('Admin login successful for:', user);
 
+    const ipAddress =
+      context.request.headers.get('CF-Connecting-IP') ||
+      context.request.headers.get('X-Forwarded-For') ||
+      context.request.headers.get('X-Real-IP') ||
+      'unknown';
+
     // Record login history
     await context.env.DB.prepare(`
-      INSERT INTO login_history (user_type, user_id, login_time)
-      VALUES ('admin', ?, CURRENT_TIMESTAMP)
-    `).bind(user.trim()).run();
+      INSERT INTO login_history (user_type, user_id, ip_address, login_time)
+      VALUES ('admin', ?, ?, CURRENT_TIMESTAMP)
+    `).bind(user.trim(), ipAddress).run();
 
     // Create admin token
     const token = 'admin-token-' + btoa(user + ':' + Date.now() + ':admin');
