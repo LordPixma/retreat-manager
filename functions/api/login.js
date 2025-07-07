@@ -40,10 +40,21 @@ export async function onRequestPost(context) {
     }
     
     console.log('Login successful for:', ref);
-    
+
+    // Record login history and update last_login
+    await context.env.DB.prepare(`
+      INSERT INTO login_history (user_type, user_id, login_time)
+      VALUES ('attendee', ?, CURRENT_TIMESTAMP)
+    `).bind(ref.trim()).run();
+
+    await context.env.DB.prepare(`
+      UPDATE attendees SET last_login = CURRENT_TIMESTAMP
+      WHERE ref_number = ?
+    `).bind(ref.trim()).run();
+
     // Create token
     const token = 'attendee-token-' + btoa(ref + ':' + Date.now());
-    
+
     return createResponse({ token });
     
   } catch (error) {
