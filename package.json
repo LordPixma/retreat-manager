@@ -1,0 +1,16 @@
+{
+  "name": "retreat-manager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev frontend/public --d1=DB",
+    "deploy": "wrangler pages deploy frontend/public",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512.0",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.57.0"
+  }
+}
