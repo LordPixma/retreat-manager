@@ -27,7 +27,7 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
   const requestId = generateRequestId();
 
   try {
-    const admin = checkAdminAuth(context.request);
+    const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET);
     if (!admin) {
       return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
     }
@@ -73,7 +73,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
   const requestId = generateRequestId();
 
   try {
-    const admin = checkAdminAuth(context.request);
+    const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET);
     if (!admin) {
       return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
     }
@@ -136,7 +136,7 @@ export async function onRequestDelete(context: PagesContext<IdParams>): Promise<
   const requestId = generateRequestId();
 
   try {
-    const admin = checkAdminAuth(context.request);
+    const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET);
     if (!admin) {
       return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
     }

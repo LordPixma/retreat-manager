@@ -9,6 +9,7 @@ export interface Env {
   ADMIN_PASS?: string;
   PORTAL_URL?: string;
   RETREAT_NAME?: string;
+  JWT_SECRET?: string; // Secret key for signing tokens (required for production)
 }
 
 // Context type for Pages Functions

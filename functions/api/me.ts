@@ -51,7 +51,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
   const requestId = generateRequestId();
 
   try {
-    const attendee = checkAttendeeAuth(context.request);
+    const attendee = await checkAttendeeAuth(context.request, context.env.JWT_SECRET);
     if (!attendee) {
       return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
     }

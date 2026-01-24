@@ -1,7 +1,17 @@
-// Attendee login endpoint with TypeScript and validation
+// Attendee login endpoint with TypeScript, validation, and security
 
 import type { PagesContext } from '../_shared/types.js';
-import { createResponse, handleCORS, verifyPassword, generateAttendeeToken } from '../_shared/auth.js';
+import {
+  createResponse,
+  handleCORS,
+  verifyPassword,
+  generateAttendeeToken,
+  checkRateLimit,
+  recordLoginAttempt,
+  clearRateLimit,
+  needsPasswordUpgrade,
+  hashPassword
+} from '../_shared/auth.js';
 import { validate, loginSchema } from '../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../_shared/errors.js';
 
@@ -31,16 +41,30 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     const { ref, password } = body as { ref: string; password: string };
+    const trimmedRef = ref.trim();
+
+    // Get client IP for rate limiting
+    const clientIP = context.request.headers.get('CF-Connecting-IP') ||
+                     context.request.headers.get('X-Forwarded-For') ||
+                     'unknown';
+
+    // Check rate limit
+    const rateLimit = await checkRateLimit(context.env.DB, trimmedRef, 'attendee');
+    if (!rateLimit.allowed) {
+      return createErrorResponse(errors.rateLimited(Math.ceil((rateLimit.resetTime - Date.now()) / 1000), requestId));
+    }
 
     // Query attendee from database
     const { results } = await context.env.DB.prepare(`
       SELECT id, ref_number, password_hash, name
       FROM attendees
       WHERE ref_number = ?
-    `).bind(ref.trim()).all();
+    `).bind(trimmedRef).all();
 
     if (!results.length) {
-      return createErrorResponse(errors.unauthorized('Unknown reference number', requestId));
+      // Record failed attempt
+      await recordLoginAttempt(context.env.DB, trimmedRef, 'attendee', false, clientIP);
+      return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
     }
 
     const attendee = results[0] as unknown as AttendeeRow;
@@ -49,22 +73,36 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const isValid = await verifyPassword(password, attendee.password_hash);
 
     if (!isValid) {
-      return createErrorResponse(errors.unauthorized('Invalid password', requestId));
+      // Record failed attempt
+      await recordLoginAttempt(context.env.DB, trimmedRef, 'attendee', false, clientIP);
+      return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
+    }
+
+    // Record successful login and clear rate limit
+    await recordLoginAttempt(context.env.DB, trimmedRef, 'attendee', true, clientIP);
+    await clearRateLimit(context.env.DB, trimmedRef, 'attendee');
+
+    // Upgrade password hash if using legacy format
+    if (needsPasswordUpgrade(attendee.password_hash)) {
+      const newHash = await hashPassword(password);
+      await context.env.DB.prepare(`
+        UPDATE attendees SET password_hash = ? WHERE id = ?
+      `).bind(newHash, attendee.id).run();
     }
 
     // Record login history and update last_login
     await context.env.DB.prepare(`
       INSERT INTO login_history (user_type, user_id, login_time)
       VALUES ('attendee', ?, CURRENT_TIMESTAMP)
-    `).bind(ref.trim()).run();
+    `).bind(trimmedRef).run();
 
     await context.env.DB.prepare(`
       UPDATE attendees SET last_login = CURRENT_TIMESTAMP
       WHERE ref_number = ?
-    `).bind(ref.trim()).run();
+    `).bind(trimmedRef).run();
 
-    // Create token
-    const token = generateAttendeeToken(ref);
+    // Create token with JWT secret from environment
+    const token = await generateAttendeeToken(trimmedRef, context.env.JWT_SECRET);
 
     return createResponse({ token });
 
