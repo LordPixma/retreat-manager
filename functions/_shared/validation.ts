@@ -318,3 +318,20 @@ export const adminLoginSchema: ValidationSchema = {
   user: { validators: [validators.required] },
   pass: { validators: [validators.required] }
 };
+
+// Public registration schema
+export const registrationSchema: ValidationSchema = {
+  name: { validators: [validators.required, validators.maxLength(255)] },
+  email: { validators: [validators.required, validators.email, validators.maxLength(255)] },
+  phone: { validators: [validators.maxLength(50)], optional: true },
+  emergency_contact: { validators: [validators.maxLength(255)], optional: true },
+  dietary_requirements: { validators: [validators.maxLength(500)], optional: true },
+  special_requests: { validators: [validators.maxLength(1000)], optional: true },
+  preferred_room_type: {
+    validators: [validators.enum(['single', 'double', 'suite', 'family', 'standard'] as const)],
+    optional: true
+  },
+  payment_option: {
+    validators: [validators.required, validators.enum(['full', 'installments', 'sponsorship'] as const)]
+  }
+};
