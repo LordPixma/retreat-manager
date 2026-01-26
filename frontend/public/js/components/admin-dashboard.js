@@ -5,6 +5,7 @@ const AdminDashboard = {
         rooms: [],
         groups: [],
         announcements: [],
+        registrations: [],
         loginHistory: [],
         stats: {}
     },
@@ -255,101 +256,212 @@ const AdminDashboard = {
         `;
     },
 
+    // Track loading states per section
+    loadingStates: {
+        attendees: false,
+        rooms: false,
+        groups: false,
+        announcements: false,
+        registrations: false,
+        loginHistory: false
+    },
+
+    // Track failed loads for retry
+    failedLoads: new Set(),
+
     /**
      * Load all data from API (updated to include announcements)
      */
     async loadAllData() {
-        try {
-            await Promise.all([
-                this.loadAttendees(),
-                this.loadRooms(),
-                this.loadGroups(),
-                this.loadAnnouncements(),
-                this.loadLoginHistory()
-            ]);
-            
-            this.calculateStats();
-            this.updateAllDisplays();
-        } catch (error) {
-            console.error('Failed to load dashboard data:', error);
-            Utils.showAlert('Failed to load some data. Please refresh the page.', 'error');
+        this.failedLoads.clear();
+
+        const results = await Promise.allSettled([
+            this.loadAttendees(),
+            this.loadRooms(),
+            this.loadGroups(),
+            this.loadAnnouncements(),
+            this.loadRegistrations(),
+            this.loadLoginHistory()
+        ]);
+
+        // Check for failures
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+            const failedCount = failures.length;
+            Utils.showAlert(
+                `${failedCount} section${failedCount > 1 ? 's' : ''} failed to load. Click retry buttons to try again.`,
+                'warning'
+            );
         }
+
+        this.calculateStats();
+        this.updateAllDisplays();
     },
 
     /**
-     * Load attendees data
+     * Load attendees data with loading state
      */
     async loadAttendees() {
+        const tableBody = 'attendees-table-body';
+        this.loadingStates.attendees = true;
+        Utils.showSectionLoading(tableBody, 'Loading attendees...');
+
         try {
-            this.data.attendees = await API.get('/admin/attendees');
+            const response = await API.get('/admin/attendees');
+            this.data.attendees = response.data || response;
+            this.loadingStates.attendees = false;
+            this.failedLoads.delete('attendees');
             console.log('Loaded attendees:', this.data.attendees.length);
         } catch (error) {
             console.error('Failed to load attendees:', error);
             this.data.attendees = [];
+            this.loadingStates.attendees = false;
+            this.failedLoads.add('attendees');
+            Utils.showSectionError(tableBody, 'Failed to load attendees', () => {
+                this.loadAttendees().then(() => this.updateAttendeesDisplay());
+            });
+            throw error;
         }
     },
 
     /**
-     * Load rooms data
+     * Load rooms data with loading state
      */
     async loadRooms() {
+        const tableBody = 'rooms-table-body';
+        this.loadingStates.rooms = true;
+        Utils.showSectionLoading(tableBody, 'Loading rooms...');
+
         try {
-            this.data.rooms = await API.get('/admin/rooms');
+            const response = await API.get('/admin/rooms');
+            this.data.rooms = response.data || response;
+            this.loadingStates.rooms = false;
+            this.failedLoads.delete('rooms');
             console.log('Loaded rooms:', this.data.rooms.length);
         } catch (error) {
             console.error('Failed to load rooms:', error);
             this.data.rooms = [];
+            this.loadingStates.rooms = false;
+            this.failedLoads.add('rooms');
+            Utils.showSectionError(tableBody, 'Failed to load rooms', () => {
+                this.loadRooms().then(() => this.updateRoomsDisplay());
+            });
+            throw error;
         }
     },
 
     /**
-     * Load groups data
+     * Load groups data with loading state
      */
     async loadGroups() {
+        const tableBody = 'groups-table-body';
+        this.loadingStates.groups = true;
+        Utils.showSectionLoading(tableBody, 'Loading groups...');
+
         try {
-            this.data.groups = await API.get('/admin/groups');
+            const response = await API.get('/admin/groups');
+            this.data.groups = response.data || response;
+            this.loadingStates.groups = false;
+            this.failedLoads.delete('groups');
             console.log('Loaded groups:', this.data.groups.length);
         } catch (error) {
             console.error('Failed to load groups:', error);
             this.data.groups = [];
+            this.loadingStates.groups = false;
+            this.failedLoads.add('groups');
+            Utils.showSectionError(tableBody, 'Failed to load groups', () => {
+                this.loadGroups().then(() => this.updateGroupsDisplay());
+            });
+            throw error;
         }
     },
 
     /**
-     * Load announcements data
+     * Load announcements data with loading state
      */
     async loadAnnouncements() {
+        const tableBody = 'announcements-table-body';
+        this.loadingStates.announcements = true;
+        Utils.showSectionLoading(tableBody, 'Loading announcements...');
+
         try {
-            this.data.announcements = await API.get('/admin/announcements');
+            const response = await API.get('/admin/announcements');
+            this.data.announcements = response.data || response;
+            this.loadingStates.announcements = false;
+            this.failedLoads.delete('announcements');
             console.log('Loaded announcements:', this.data.announcements.length);
         } catch (error) {
             console.error('Failed to load announcements:', error);
             this.data.announcements = [];
+            this.loadingStates.announcements = false;
+            this.failedLoads.add('announcements');
+            Utils.showSectionError(tableBody, 'Failed to load announcements', () => {
+                this.loadAnnouncements().then(() => this.updateAnnouncementsDisplay());
+            });
+            throw error;
         }
     },
 
     /**
-     * Load login history data
+     * Load registrations data with loading state
+     */
+    async loadRegistrations(status = 'pending') {
+        const tableBody = 'registrations-table-body';
+        this.loadingStates.registrations = true;
+        Utils.showSectionLoading(tableBody, 'Loading registrations...');
+
+        try {
+            const url = status ? `/admin/registrations?status=${status}` : '/admin/registrations';
+            const response = await API.get(url);
+            this.data.registrations = response.data || response;
+            this.loadingStates.registrations = false;
+            this.failedLoads.delete('registrations');
+            console.log('Loaded registrations:', this.data.registrations.length);
+        } catch (error) {
+            console.error('Failed to load registrations:', error);
+            this.data.registrations = [];
+            this.loadingStates.registrations = false;
+            this.failedLoads.add('registrations');
+            Utils.showSectionError(tableBody, 'Failed to load registrations', () => {
+                this.loadRegistrations(status).then(() => this.updateRegistrationsDisplay());
+            });
+            throw error;
+        }
+    },
+
+    /**
+     * Load login history data with loading state
      */
     async loadLoginHistory() {
+        const tableBody = 'login-history-body';
+        this.loadingStates.loginHistory = true;
+
         try {
-            this.data.loginHistory = await API.get('/admin/reports/login-history');
+            const response = await API.get('/admin/reports/login-history');
+            this.data.loginHistory = response.data || response;
+            this.loadingStates.loginHistory = false;
+            this.failedLoads.delete('loginHistory');
             console.log('Loaded login history:', this.data.loginHistory.length);
         } catch (error) {
             console.error('Failed to load login history:', error);
             this.data.loginHistory = [];
+            this.loadingStates.loginHistory = false;
+            this.failedLoads.add('loginHistory');
+            // Login history is less critical, don't show error in table
+            throw error;
         }
     },
 
     /**
-     * Calculate dashboard statistics (updated with announcements)
+     * Calculate dashboard statistics (updated with announcements and registrations)
      */
     calculateStats() {
         const attendees = this.data.attendees;
         const rooms = this.data.rooms;
         const announcements = this.data.announcements;
+        const registrations = this.data.registrations;
         const loginHistory = this.data.loginHistory;
-        
+
         this.data.stats = {
             totalAttendees: attendees.length,
             totalRevenue: attendees.reduce((sum, a) => sum + (a.payment_due || 0), 0),
@@ -357,6 +469,8 @@ const AdminDashboard = {
             roomsOccupied: attendees.filter(a => a.room).length,
             totalRooms: rooms.length,
             occupancyRate: rooms.length > 0 ? Math.round((attendees.filter(a => a.room).length / rooms.length) * 100) : 0,
+            pendingRegistrations: registrations.filter(r => r.status === 'pending').length,
+            totalRegistrations: registrations.length,
             activeAnnouncements: announcements.filter(a => a.is_active).length,
             totalAnnouncements: announcements.length,
             loginsToday: loginHistory.filter(r => {
@@ -368,11 +482,12 @@ const AdminDashboard = {
     },
 
     /**
-     * Update all displays with current data (updated to include announcements)
+     * Update all displays with current data (updated to include announcements and registrations)
      */
     updateAllDisplays() {
         this.updateStatsDisplay();
         this.updateAttendeesDisplay();
+        this.updateRegistrationsDisplay();
         this.updateAnnouncementsDisplay();
         this.updateRoomsDisplay();
         this.updateGroupsDisplay();
@@ -380,20 +495,22 @@ const AdminDashboard = {
     },
 
     /**
-     * Update statistics display (updated with announcements)
+     * Update statistics display (updated with announcements and registrations)
      */
     updateStatsDisplay() {
         const stats = this.data.stats;
-        
+
         const totalAttendeesEl = document.getElementById('total-attendees');
         const totalRevenueEl = document.getElementById('total-revenue');
         const pendingPaymentsEl = document.getElementById('pending-payments');
+        const pendingRegistrationsEl = document.getElementById('pending-registrations');
         const activeAnnouncementsEl = document.getElementById('active-announcements');
         const loginsTodayEl = document.getElementById('logins-today');
-        
+
         if (totalAttendeesEl) totalAttendeesEl.textContent = stats.totalAttendees;
         if (totalRevenueEl) totalRevenueEl.textContent = Utils.formatCurrency(stats.totalRevenue);
         if (pendingPaymentsEl) pendingPaymentsEl.textContent = stats.pendingPayments;
+        if (pendingRegistrationsEl) pendingRegistrationsEl.textContent = stats.pendingRegistrations;
         if (activeAnnouncementsEl) activeAnnouncementsEl.textContent = stats.activeAnnouncements;
         if (loginsTodayEl) loginsTodayEl.textContent = stats.loginsToday;
     },
@@ -461,6 +578,98 @@ const AdminDashboard = {
                             </button>
                             ` : ''}
                             <button class="btn btn-sm btn-danger delete-attendee" data-id="${attendee.id}" title="Delete Attendee">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Update registrations table display
+     */
+    updateRegistrationsDisplay() {
+        const tbody = document.getElementById('registrations-table-body');
+        if (!tbody) return;
+
+        if (this.data.registrations.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        <i class="fas fa-clipboard-list" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                        No registrations found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.data.registrations.map(reg => {
+            const submittedDate = new Date(reg.submitted_at).toLocaleDateString();
+            const memberCount = reg.member_count || 1;
+            const totalAmount = reg.total_amount || 200;
+            const paymentOption = reg.payment_option || 'full';
+
+            // Parse family members if available
+            let familyMembers = [];
+            try {
+                if (reg.family_members) {
+                    familyMembers = JSON.parse(reg.family_members);
+                }
+            } catch (e) {
+                console.warn('Failed to parse family members:', e);
+            }
+
+            // Status badge
+            const statusBadges = {
+                'pending': '<span class="badge badge-warning"><i class="fas fa-clock"></i> Pending</span>',
+                'approved': '<span class="badge badge-success"><i class="fas fa-check"></i> Approved</span>',
+                'rejected': '<span class="badge badge-danger"><i class="fas fa-times"></i> Rejected</span>',
+                'waitlist': '<span class="badge badge-info"><i class="fas fa-list"></i> Waitlist</span>'
+            };
+            const statusBadge = statusBadges[reg.status] || statusBadges['pending'];
+
+            // Payment option badge
+            const paymentBadges = {
+                'full': '<span class="badge badge-success">Full Payment</span>',
+                'installments': '<span class="badge badge-info">Installments</span>',
+                'sponsorship': '<span class="badge badge-warning">Sponsorship</span>'
+            };
+            const paymentBadge = paymentBadges[paymentOption] || paymentBadges['full'];
+
+            // Create member details tooltip
+            const memberDetails = familyMembers.length > 0
+                ? familyMembers.map(m => `${m.name} (${m.member_type})`).join(', ')
+                : reg.name;
+
+            return `
+                <tr data-registration-id="${reg.id}">
+                    <td><small>${submittedDate}</small></td>
+                    <td><strong>${Utils.escapeHtml(reg.name)}</strong></td>
+                    <td><small>${Utils.escapeHtml(reg.email)}</small></td>
+                    <td><small>${reg.phone ? Utils.escapeHtml(reg.phone) : '-'}</small></td>
+                    <td title="${Utils.escapeHtml(memberDetails)}">
+                        <span class="badge badge-secondary">${memberCount} member${memberCount > 1 ? 's' : ''}</span>
+                    </td>
+                    <td><strong>${Utils.formatCurrency(totalAmount)}</strong></td>
+                    <td>${paymentBadge}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="action-buttons" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                            <button class="btn btn-sm btn-info view-registration" data-id="${reg.id}" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            ${reg.status === 'pending' ? `
+                            <button class="btn btn-sm btn-success approve-registration" data-id="${reg.id}" title="Approve">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger reject-registration" data-id="${reg.id}" title="Reject">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            ` : ''}
+                            <button class="btn btn-sm btn-danger delete-registration" data-id="${reg.id}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -902,6 +1111,14 @@ const AdminDashboard = {
                         Utils.showAlert('Email system is not available. Please refresh the page and try again.', 'error');
                     }
                 }
+            } else if (target.classList.contains('view-registration')) {
+                await this.viewRegistration(id);
+            } else if (target.classList.contains('approve-registration')) {
+                await this.approveRegistration(id);
+            } else if (target.classList.contains('reject-registration')) {
+                await this.rejectRegistration(id);
+            } else if (target.classList.contains('delete-registration')) {
+                await this.deleteRegistration(id);
             } else if (target.classList.contains('edit-announcement')) {
                 await this.editAnnouncement(id);
             } else if (target.classList.contains('toggle-announcement')) {
@@ -921,11 +1138,13 @@ const AdminDashboard = {
     },
 
     /**
-     * Bind search boxes (updated with announcements)
+     * Bind search boxes (updated with announcements and registrations)
      */
     bindSearchBoxes() {
         const searchAttendees = document.getElementById('search-attendees');
         const searchAnnouncements = document.getElementById('search-announcements');
+        const searchRegistrations = document.getElementById('search-registrations');
+        const filterRegistrationsStatus = document.getElementById('filter-registrations-status');
         const searchRooms = document.getElementById('search-rooms');
         const searchGroups = document.getElementById('search-groups');
 
@@ -939,6 +1158,19 @@ const AdminDashboard = {
             searchAnnouncements.addEventListener('input', Utils.debounce((e) => {
                 this.filterTable('announcements-table-body', e.target.value);
             }, 300));
+        }
+
+        if (searchRegistrations) {
+            searchRegistrations.addEventListener('input', Utils.debounce((e) => {
+                this.filterTable('registrations-table-body', e.target.value);
+            }, 300));
+        }
+
+        if (filterRegistrationsStatus) {
+            filterRegistrationsStatus.addEventListener('change', async (e) => {
+                await this.loadRegistrations(e.target.value);
+                this.updateRegistrationsDisplay();
+            });
         }
 
         if (searchRooms) {
@@ -961,7 +1193,7 @@ const AdminDashboard = {
         const tbody = document.getElementById(tableBodyId);
         if (!tbody) return;
 
-        const rows = tbody.querySelectorAll('tr[data-attendee-id], tr[data-announcement-id], tr[data-room-id], tr[data-group-id]');
+        const rows = tbody.querySelectorAll('tr[data-attendee-id], tr[data-announcement-id], tr[data-registration-id], tr[data-room-id], tr[data-group-id]');
         const searchTerm = query.toLowerCase().trim();
 
         rows.forEach(row => {
@@ -1043,31 +1275,37 @@ const AdminDashboard = {
     },
 
     /**
-     * Edit methods
+     * Edit methods with loading states
      */
     async editAttendee(id) {
+        Utils.showGlobalLoading('Loading attendee details...');
         try {
             const attendee = await API.get(`/admin/attendees/${id}`);
+            Utils.hideGlobalLoading();
             if (window.AttendeeManagement) {
                 await window.AttendeeManagement.showModal(attendee, this.data.rooms, this.data.groups);
             } else {
                 Utils.showAlert('Attendee management component not loaded', 'error');
             }
         } catch (error) {
-            Utils.showAlert('Failed to load attendee details', 'error');
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to load attendee details: ' + error.message, 'error');
         }
     },
 
     async editAnnouncement(id) {
+        Utils.showGlobalLoading('Loading announcement details...');
         try {
             const announcement = await API.get(`/admin/announcements/${id}`);
+            Utils.hideGlobalLoading();
             if (window.AnnouncementManagement) {
                 await window.AnnouncementManagement.showModal(announcement, this.data.groups);
             } else {
                 Utils.showAlert('Announcement management component not loaded', 'error');
             }
         } catch (error) {
-            Utils.showAlert('Failed to load announcement details', 'error');
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to load announcement details: ' + error.message, 'error');
         }
     },
 
@@ -1080,7 +1318,7 @@ const AdminDashboard = {
                 Utils.showAlert('Room management component not loaded', 'error');
             }
         } catch (error) {
-            Utils.showAlert('Failed to load room details', 'error');
+            Utils.showAlert('Failed to load room details: ' + error.message, 'error');
         }
     },
 
@@ -1093,12 +1331,12 @@ const AdminDashboard = {
                 Utils.showAlert('Group management component not loaded', 'error');
             }
         } catch (error) {
-            Utils.showAlert('Failed to load group details', 'error');
+            Utils.showAlert('Failed to load group details: ' + error.message, 'error');
         }
     },
 
     /**
-     * Delete methods
+     * Delete methods with loading states
      */
     async deleteAttendee(id) {
         const attendee = this.data.attendees.find(a => a.id == id);
@@ -1108,27 +1346,33 @@ const AdminDashboard = {
             return;
         }
 
+        Utils.showGlobalLoading('Deleting attendee...');
         try {
             await API.delete(`/admin/attendees/${id}`);
+            Utils.hideGlobalLoading();
             Utils.showAlert('Attendee deleted successfully', 'success');
             await this.refresh();
         } catch (error) {
+            Utils.hideGlobalLoading();
             Utils.showAlert('Failed to delete attendee: ' + error.message, 'error');
         }
     },
 
     async toggleAnnouncement(id) {
-        try {
-            const announcement = this.data.announcements.find(a => a.id == id);
-            if (!announcement) return;
+        const announcement = this.data.announcements.find(a => a.id == id);
+        if (!announcement) return;
 
-            const newStatus = !announcement.is_active;
+        const newStatus = !announcement.is_active;
+        const action = newStatus ? 'Activating' : 'Deactivating';
+        Utils.showGlobalLoading(`${action} announcement...`);
+
+        try {
             await API.put(`/admin/announcements/${id}`, { is_active: newStatus });
-            
-            const action = newStatus ? 'activated' : 'deactivated';
-            Utils.showAlert(`Announcement ${action} successfully`, 'success');
+            Utils.hideGlobalLoading();
+            Utils.showAlert(`Announcement ${newStatus ? 'activated' : 'deactivated'} successfully`, 'success');
             await this.refresh();
         } catch (error) {
+            Utils.hideGlobalLoading();
             Utils.showAlert('Failed to toggle announcement: ' + error.message, 'error');
         }
     },
@@ -1141,11 +1385,14 @@ const AdminDashboard = {
             return;
         }
 
+        Utils.showGlobalLoading('Deleting announcement...');
         try {
             await API.delete(`/admin/announcements/${id}`);
+            Utils.hideGlobalLoading();
             Utils.showAlert('Announcement deleted successfully', 'success');
             await this.refresh();
         } catch (error) {
+            Utils.hideGlobalLoading();
             Utils.showAlert('Failed to delete announcement: ' + error.message, 'error');
         }
     },
@@ -1163,11 +1410,14 @@ const AdminDashboard = {
             return;
         }
 
+        Utils.showGlobalLoading('Deleting room...');
         try {
             await API.delete(`/admin/rooms/${id}`);
+            Utils.hideGlobalLoading();
             Utils.showAlert('Room deleted successfully', 'success');
             await this.refresh();
         } catch (error) {
+            Utils.hideGlobalLoading();
             Utils.showAlert('Failed to delete room: ' + error.message, 'error');
         }
     },
@@ -1185,12 +1435,270 @@ const AdminDashboard = {
             return;
         }
 
+        Utils.showGlobalLoading('Deleting group...');
         try {
             await API.delete(`/admin/groups/${id}`);
+            Utils.hideGlobalLoading();
             Utils.showAlert('Group deleted successfully', 'success');
             await this.refresh();
         } catch (error) {
+            Utils.hideGlobalLoading();
             Utils.showAlert('Failed to delete group: ' + error.message, 'error');
+        }
+    },
+
+    /**
+     * View registration details in a modal
+     */
+    async viewRegistration(id) {
+        const registration = this.data.registrations.find(r => r.id == id);
+        if (!registration) return;
+
+        // Parse family members
+        let familyMembers = [];
+        try {
+            if (registration.family_members) {
+                familyMembers = JSON.parse(registration.family_members);
+            }
+        } catch (e) {
+            console.warn('Failed to parse family members:', e);
+        }
+
+        const membersHtml = familyMembers.length > 0
+            ? familyMembers.map(m => `
+                <tr>
+                    <td>${Utils.escapeHtml(m.name)}</td>
+                    <td>${m.date_of_birth || '-'}</td>
+                    <td><span class="badge badge-${m.member_type === 'adult' ? 'primary' : m.member_type === 'child' ? 'info' : 'secondary'}">${m.member_type}</span></td>
+                    <td>${Utils.formatCurrency(m.price || 0)}</td>
+                    <td>${m.dietary || '-'}</td>
+                </tr>
+            `).join('')
+            : `<tr><td colspan="5" style="text-align: center;">No family member details available</td></tr>`;
+
+        const modalHtml = `
+            <div class="modal-overlay" id="registration-detail-modal">
+                <div class="modal" style="max-width: 700px;">
+                    <div class="modal-header">
+                        <h2>Registration Details</h2>
+                        <button class="modal-close" onclick="document.getElementById('registration-detail-modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="detail-section">
+                            <h4>Contact Information</h4>
+                            <div class="detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div><strong>Name:</strong> ${Utils.escapeHtml(registration.name)}</div>
+                                <div><strong>Email:</strong> ${Utils.escapeHtml(registration.email)}</div>
+                                <div><strong>Phone:</strong> ${registration.phone || '-'}</div>
+                                <div><strong>Emergency Contact:</strong> ${registration.emergency_contact || '-'}</div>
+                            </div>
+                        </div>
+                        <div class="detail-section" style="margin-top: 1.5rem;">
+                            <h4>Family Members (${familyMembers.length || 1})</h4>
+                            <table class="table" style="margin-top: 0.5rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>DOB</th>
+                                        <th>Type</th>
+                                        <th>Price</th>
+                                        <th>Dietary</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${membersHtml}</tbody>
+                            </table>
+                        </div>
+                        <div class="detail-section" style="margin-top: 1.5rem;">
+                            <h4>Payment & Status</h4>
+                            <div class="detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div><strong>Total Amount:</strong> ${Utils.formatCurrency(registration.total_amount || 200)}</div>
+                                <div><strong>Payment Option:</strong> ${registration.payment_option || 'full'}</div>
+                                <div><strong>Status:</strong> ${registration.status}</div>
+                                <div><strong>Submitted:</strong> ${new Date(registration.submitted_at).toLocaleString()}</div>
+                            </div>
+                        </div>
+                        ${registration.special_requests ? `
+                        <div class="detail-section" style="margin-top: 1.5rem;">
+                            <h4>Special Requests</h4>
+                            <p>${Utils.escapeHtml(registration.special_requests)}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer">
+                        ${registration.status === 'pending' ? `
+                        <button class="btn btn-success" onclick="AdminDashboard.approveRegistration(${registration.id}); document.getElementById('registration-detail-modal').remove();">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="btn btn-danger" onclick="AdminDashboard.rejectRegistration(${registration.id}); document.getElementById('registration-detail-modal').remove();">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                        ` : ''}
+                        <button class="btn btn-secondary" onclick="document.getElementById('registration-detail-modal').remove();">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('registration-detail-modal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    /**
+     * Approve a registration
+     */
+    async approveRegistration(id) {
+        const registration = this.data.registrations.find(r => r.id == id);
+        if (!registration) return;
+
+        // Parse member count for confirmation
+        const memberCount = registration.member_count || 1;
+        if (!confirm(`Approve registration for ${registration.name}?\n\nThis will create ${memberCount} attendee account(s) and send login credentials to ${registration.email}.`)) {
+            return;
+        }
+
+        Utils.showGlobalLoading('Approving registration and creating accounts...');
+        try {
+            const result = await API.put(`/admin/registrations/${id}`, { action: 'approve' });
+            Utils.hideGlobalLoading();
+
+            // Show credentials for all created attendees
+            if (result.attendees && result.attendees.length > 0) {
+                this.showCredentialsModal(result.attendees, registration.email);
+            } else {
+                Utils.showAlert('Registration approved successfully', 'success');
+            }
+
+            await this.loadRegistrations(document.getElementById('filter-registrations-status')?.value || 'pending');
+            await this.loadAttendees();
+            this.updateRegistrationsDisplay();
+            this.updateAttendeesDisplay();
+            this.calculateStats();
+            this.updateStatsDisplay();
+        } catch (error) {
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to approve registration: ' + error.message, 'error');
+        }
+    },
+
+    /**
+     * Show modal with created credentials
+     */
+    showCredentialsModal(attendees, email) {
+        const credentialsRows = attendees.map((a, i) => `
+            <tr ${i === 0 ? 'style="background: rgba(102, 126, 234, 0.1);"' : ''}>
+                <td style="padding: 0.75rem;">${Utils.escapeHtml(a.name)}${i === 0 ? ' <span class="badge badge-primary">Primary</span>' : ''}</td>
+                <td style="padding: 0.75rem; font-family: monospace; font-weight: bold;">${a.ref_number}</td>
+                <td style="padding: 0.75rem; font-family: monospace; color: var(--warning);">${a.temp_password}</td>
+                <td style="padding: 0.75rem; text-align: right;">${a.payment_due === 0 ? '<span style="color: var(--success);">FREE</span>' : Utils.formatCurrency(a.payment_due)}</td>
+            </tr>
+        `).join('');
+
+        const modalHtml = `
+            <div class="modal-overlay" id="credentials-modal">
+                <div class="modal" style="max-width: 650px;">
+                    <div class="modal-header" style="background: var(--gradient-primary); color: white;">
+                        <h2 style="color: white; margin: 0;"><i class="fas fa-check-circle"></i> Registration Approved!</h2>
+                        <button class="modal-close" onclick="document.getElementById('credentials-modal').remove()" style="color: white;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success" style="margin-bottom: 1rem;">
+                            <i class="fas fa-envelope"></i> Credentials have been emailed to <strong>${Utils.escapeHtml(email)}</strong>
+                        </div>
+
+                        <h4 style="margin: 0 0 1rem 0;">Created ${attendees.length} Attendee Account${attendees.length > 1 ? 's' : ''}</h4>
+
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Reference #</th>
+                                        <th>Password</th>
+                                        <th style="text-align: right;">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${credentialsRows}</tbody>
+                            </table>
+                        </div>
+
+                        <div class="alert alert-warning" style="margin-top: 1rem;">
+                            <i class="fas fa-info-circle"></i> Each family member can log in with their own Reference Number and Password.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="document.getElementById('credentials-modal').remove();">
+                            <i class="fas fa-check"></i> Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('credentials-modal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    /**
+     * Reject a registration
+     */
+    async rejectRegistration(id) {
+        const registration = this.data.registrations.find(r => r.id == id);
+        if (!registration) return;
+
+        if (!confirm(`Reject registration for ${registration.name}?`)) {
+            return;
+        }
+
+        Utils.showGlobalLoading('Rejecting registration...');
+        try {
+            await API.put(`/admin/registrations/${id}`, { action: 'reject' });
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Registration rejected', 'success');
+            await this.loadRegistrations(document.getElementById('filter-registrations-status')?.value || 'pending');
+            this.updateRegistrationsDisplay();
+            this.calculateStats();
+            this.updateStatsDisplay();
+        } catch (error) {
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to reject registration: ' + error.message, 'error');
+        }
+    },
+
+    /**
+     * Delete a registration
+     */
+    async deleteRegistration(id) {
+        const registration = this.data.registrations.find(r => r.id == id);
+        if (!registration) return;
+
+        if (!confirm(`Are you sure you want to delete registration for ${registration.name}? This action cannot be undone.`)) {
+            return;
+        }
+
+        Utils.showGlobalLoading('Deleting registration...');
+        try {
+            await API.delete(`/admin/registrations/${id}`);
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Registration deleted successfully', 'success');
+            await this.loadRegistrations(document.getElementById('filter-registrations-status')?.value || 'pending');
+            this.updateRegistrationsDisplay();
+            this.calculateStats();
+            this.updateStatsDisplay();
+        } catch (error) {
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to delete registration: ' + error.message, 'error');
         }
     },
 
@@ -1232,14 +1740,72 @@ const AdminDashboard = {
     },
 
     /**
-     * Refresh dashboard data
+     * Refresh dashboard data with loading feedback
      */
     async refresh() {
+        Utils.showGlobalLoading('Refreshing data...');
         try {
             await this.loadAllData();
-            Utils.showAlert('Data refreshed successfully', 'success');
+            Utils.hideGlobalLoading();
+
+            // Only show success if no sections failed
+            if (this.failedLoads.size === 0) {
+                Utils.showAlert('Data refreshed successfully', 'success');
+            }
         } catch (error) {
+            Utils.hideGlobalLoading();
             Utils.showAlert('Failed to refresh data', 'error');
+        }
+    },
+
+    /**
+     * Retry all failed loads
+     */
+    async retryFailedLoads() {
+        if (this.failedLoads.size === 0) return;
+
+        const toRetry = [...this.failedLoads];
+        Utils.showGlobalLoading(`Retrying ${toRetry.length} failed section(s)...`);
+
+        const retryPromises = toRetry.map(async (section) => {
+            switch (section) {
+                case 'attendees':
+                    await this.loadAttendees();
+                    this.updateAttendeesDisplay();
+                    break;
+                case 'rooms':
+                    await this.loadRooms();
+                    this.updateRoomsDisplay();
+                    break;
+                case 'groups':
+                    await this.loadGroups();
+                    this.updateGroupsDisplay();
+                    break;
+                case 'announcements':
+                    await this.loadAnnouncements();
+                    this.updateAnnouncementsDisplay();
+                    break;
+                case 'registrations':
+                    await this.loadRegistrations();
+                    this.updateRegistrationsDisplay();
+                    break;
+                case 'loginHistory':
+                    await this.loadLoginHistory();
+                    this.updateLoginHistoryDisplay();
+                    break;
+            }
+        });
+
+        await Promise.allSettled(retryPromises);
+        Utils.hideGlobalLoading();
+
+        this.calculateStats();
+        this.updateStatsDisplay();
+
+        if (this.failedLoads.size === 0) {
+            Utils.showAlert('All sections loaded successfully', 'success');
+        } else {
+            Utils.showAlert(`${this.failedLoads.size} section(s) still failed to load`, 'warning');
         }
     }
 };

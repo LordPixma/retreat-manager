@@ -5,7 +5,10 @@
       "Bash(git config:*)",
       "Bash(npm install)",
       "Bash(npm run typecheck:*)",
-      "Bash(npx wrangler:*)"
+      "Bash(npx wrangler:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''c:\\\\Users\\\\sodekunle\\\\retreat-manager\\\\functions'' -Recurse -Filter ''*.ts'' | ForEach-Object { \\(Get-Content $_FullName\\) -replace ''context\\\\.env\\\\.JWT_SECRET\\\\\\)'', ''context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET\\)'' | Set-Content $_FullName }\")",
+      "Bash(npm test:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

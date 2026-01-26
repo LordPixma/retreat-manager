@@ -197,18 +197,21 @@ const Login = {
     showFieldError(input, message) {
         input.classList.add('invalid');
         input.classList.remove('valid');
-        
+
+        // Find the form-group container for error message placement
+        const formGroup = input.closest('.form-group') || input.parentNode;
+
         // Remove existing error message
-        const existingError = input.parentNode.querySelector('.form-validation-message');
+        const existingError = formGroup.querySelector('.form-validation-message');
         if (existingError) {
             existingError.remove();
         }
-        
+
         // Add new error message
         const errorDiv = document.createElement('div');
         errorDiv.className = 'form-validation-message error';
         errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        input.parentNode.appendChild(errorDiv);
+        formGroup.appendChild(errorDiv);
     },
 
     /**
@@ -217,8 +220,10 @@ const Login = {
     clearFieldError(input) {
         input.classList.remove('invalid');
         input.classList.add('valid');
-        
-        const errorMessage = input.parentNode.querySelector('.form-validation-message');
+
+        // Find the form-group container for error message
+        const formGroup = input.closest('.form-group') || input.parentNode;
+        const errorMessage = formGroup.querySelector('.form-validation-message');
         if (errorMessage) {
             errorMessage.remove();
         }
@@ -309,14 +314,14 @@ const Login = {
      * Setup real-time validation
      */
     setupValidation() {
-        const inputs = document.querySelectorAll('.form-input');
-        
+        const inputs = document.querySelectorAll('.form-input, .form-input-light');
+
         inputs.forEach(input => {
             // Clear validation on input
             input.addEventListener('input', () => {
                 this.clearFieldError(input);
             });
-            
+
             // Validate on blur
             input.addEventListener('blur', () => {
                 this.validateField(input);
@@ -355,18 +360,18 @@ const Login = {
      */
     setupAccessibility() {
         // Add ARIA labels
-        const passwordToggles = document.querySelectorAll('.password-toggle');
+        const passwordToggles = document.querySelectorAll('.password-toggle, .password-toggle-light');
         passwordToggles.forEach(toggle => {
             toggle.setAttribute('aria-label', 'Show password');
             toggle.setAttribute('tabindex', '0');
         });
-        
+
         // Add form labels and descriptions
         const form = document.querySelector('form');
         if (form) {
             form.setAttribute('novalidate', 'true'); // We handle validation
         }
-        
+
         // Set up Enter key handling for password toggles
         passwordToggles.forEach(toggle => {
             toggle.addEventListener('keydown', (e) => {

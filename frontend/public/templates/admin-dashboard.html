@@ -37,6 +37,10 @@
             <div class="stat-label">Pending Payments</div>
         </div>
         <div class="stat-card">
+            <div class="stat-value" id="pending-registrations">0</div>
+            <div class="stat-label">Pending Registrations</div>
+        </div>
+        <div class="stat-card">
             <div class="stat-value" id="active-announcements">0</div>
             <div class="stat-label">Active Announcements</div>
         </div>
@@ -50,6 +54,9 @@
     <div class="tab-navigation">
         <button class="tab-btn active" data-tab="attendees">
             <i class="fas fa-users"></i> Attendees
+        </button>
+        <button class="tab-btn" data-tab="registrations">
+            <i class="fas fa-clipboard-list"></i> Registrations
         </button>
         <button class="tab-btn" data-tab="announcements">
             <i class="fas fa-bullhorn"></i> Announcements
@@ -105,6 +112,49 @@
                         <tr>
                             <td colspan="9" class="loading-placeholder">
                                 <i class="fas fa-spinner fa-spin"></i> Loading attendees...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registrations Tab -->
+    <div class="tab-content" id="registrations-tab">
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title">Pending Registrations</h3>
+                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                    <select class="search-box" id="filter-registrations-status" style="width: auto;">
+                        <option value="">All Status</option>
+                        <option value="pending" selected>Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="waitlist">Waitlist</option>
+                    </select>
+                    <input type="search" class="search-box" id="search-registrations" placeholder="Search registrations...">
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Submitted</th>
+                            <th>Contact Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Members</th>
+                            <th>Total</th>
+                            <th>Payment</th>
+                            <th>Status</th>
+                            <th style="width: 180px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registrations-table-body">
+                        <tr>
+                            <td colspan="9" class="loading-placeholder">
+                                <i class="fas fa-spinner fa-spin"></i> Loading registrations...
                             </td>
                         </tr>
                     </tbody>

@@ -102,7 +102,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     `).bind(trimmedRef).run();
 
     // Create token with JWT secret from environment
-    const token = await generateAttendeeToken(trimmedRef, context.env.JWT_SECRET);
+    const token = await generateAttendeeToken(trimmedRef, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
 
     return createResponse({ token });
 

@@ -1,45 +1,126 @@
-<div class="page-container">
-    <div class="card">
-        <div class="card-header">
-            <div class="logo-container">
-                <img src="logo.png" alt="Retreat Logo" class="header-logo">
+<div class="split-login-container">
+    <!-- Left Panel - Branding -->
+    <div class="login-brand-panel">
+        <div class="brand-content">
+            <div class="brand-logo">
+                <img src="logo.png" alt="Retreat Logo" class="brand-logo-img">
             </div>
-            <h1><i class="fas fa-mountain"></i> Retreat Portal</h1>
-            <p>Welcome back</p>
-        </div>
-        <div class="card-body">
-            <div id="login-alert" class="alert alert-error hidden"></div>
-            
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="login-ref" class="form-label">
-                        <i class="fas fa-id-card"></i> Reference Number
-                    </label>
-                    <input type="text" id="login-ref" name="ref" class="form-input" required 
-                           placeholder="Enter your reference number" autocomplete="username">
+            <h1 class="brand-title">Growth & Wisdom<br>Family Retreat 2026</h1>
+            <div class="brand-theme">
+                <span class="theme-label">"The Abundant Life"</span>
+            </div>
+            <p class="brand-scripture">
+                <i class="fas fa-book-open"></i>
+                John 10:10 — "I have come that they may have life, and have it to the full."
+            </p>
+
+            <div class="brand-details">
+                <div class="brand-detail-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>July 31 - August 2, 2026</span>
                 </div>
-                
+                <div class="brand-detail-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>The Hayes, Swanwick, Derbyshire</span>
+                </div>
+                <div class="brand-detail-item">
+                    <i class="fas fa-church"></i>
+                    <span>Hosted by Cloverleaf Christian Centre</span>
+                </div>
+            </div>
+
+            <div class="brand-features">
+                <div class="brand-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="feature-text">
+                        <strong>View Schedule</strong>
+                        <span>Access retreat activities</span>
+                    </div>
+                </div>
+                <div class="brand-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-bed"></i>
+                    </div>
+                    <div class="feature-text">
+                        <strong>Room Assignment</strong>
+                        <span>Check your accommodation</span>
+                    </div>
+                </div>
+                <div class="brand-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <div class="feature-text">
+                        <strong>Announcements</strong>
+                        <span>Stay updated with news</span>
+                    </div>
+                </div>
+                <div class="brand-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="feature-text">
+                        <strong>Group Info</strong>
+                        <span>Connect with your group</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="brand-footer">
+            <p>&copy; 2026 Cloverleaf Christian Centre. All rights reserved.</p>
+        </div>
+    </div>
+
+    <!-- Right Panel - Login Form -->
+    <div class="login-form-panel">
+        <div class="login-form-container">
+            <div class="login-header">
+                <h2>Welcome Back</h2>
+                <p>Sign in to access your retreat portal</p>
+            </div>
+
+            <div id="login-alert" class="alert alert-error hidden"></div>
+
+            <form id="login-form" class="login-form">
                 <div class="form-group">
-                    <label for="login-password" class="form-label">
-                        <i class="fas fa-lock"></i> Password
-                    </label>
-                    <div class="password-input-container">
-                        <input type="password" id="login-password" name="password" class="form-input" required 
+                    <label for="login-ref" class="form-label-light">Reference Number</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-card input-icon"></i>
+                        <input type="text" id="login-ref" name="ref" class="form-input-light" required
+                               placeholder="Enter your reference number" autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="login-password" class="form-label-light">Password</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="login-password" name="password" class="form-input-light" required
                                placeholder="Enter your password" autocomplete="current-password">
-                        <button type="button" class="password-toggle" id="toggle-password">
+                        <button type="button" class="password-toggle-light" id="toggle-password">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
                 </div>
-                
-                <button type="submit" class="btn btn-primary" id="login-btn" style="width: 100%;">
+
+                <button type="submit" class="btn-signin" id="login-btn">
                     <span id="login-text">Sign In</span>
                     <div id="login-spinner" class="loading-spinner hidden"></div>
                 </button>
             </form>
-            
-            <div class="login-footer">
-                <a href="#" id="admin-link" class="link-secondary">
+
+            <div class="login-divider">
+                <span>or</span>
+            </div>
+
+            <a href="/register" class="btn-register">
+                <i class="fas fa-user-plus"></i> Register for Retreat
+            </a>
+
+            <div class="login-footer-links">
+                <a href="#" id="admin-link" class="admin-access-link">
                     <i class="fas fa-cog"></i> Admin Access
                 </a>
             </div>

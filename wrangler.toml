@@ -1,6 +1,7 @@
 name = "retreat-portal"
 account_id = "9dbefd5c67069aa84dbc395946c55839"
 compatibility_date = "2025-05-30"
+compatibility_flags = ["nodejs_compat"]
 
 # D1 Database binding
 [[d1_databases]]

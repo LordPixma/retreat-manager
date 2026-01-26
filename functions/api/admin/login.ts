@@ -69,7 +69,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     `).bind(trimmedUser).run();
 
     // Create admin token with JWT secret from environment
-    const token = await generateAdminToken(trimmedUser, 'admin', context.env.JWT_SECRET);
+    const token = await generateAdminToken(trimmedUser, 'admin', context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
 
     return createResponse({ token });
 

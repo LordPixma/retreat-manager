@@ -39,7 +39,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
   const requestId = generateRequestId();
 
   try {
-    const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET);
+    const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
     if (!admin) {
       return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
     }

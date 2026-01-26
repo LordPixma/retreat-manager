@@ -21,6 +21,9 @@ interface RegistrationRow {
   submitted_at: string;
   reviewed_at: string | null;
   reviewed_by: string | null;
+  family_members: string | null;
+  total_amount: number | null;
+  member_count: number | null;
 }
 
 interface CountResult {
@@ -52,7 +55,8 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       SELECT id, name, email, phone, emergency_contact,
              dietary_requirements, special_requests,
              preferred_room_type, group_preference, status,
-             notes, submitted_at, reviewed_at, reviewed_by
+             notes, submitted_at, reviewed_at, reviewed_by,
+             family_members, total_amount, member_count, payment_option
       FROM registrations
     `;
 

@@ -79,7 +79,7 @@ window.EmailManagement = {
             }
             
             const data = await response.json();
-            this.availableGroups = data || [];
+            this.availableGroups = data.data || data || [];
             console.log(`Loaded ${this.availableGroups.length} groups`);
         } catch (error) {
             console.error('Failed to load groups:', error);
@@ -104,7 +104,8 @@ window.EmailManagement = {
             }
             
             const data = await response.json();
-            this.availableAttendees = (data || []).filter(a => a.email);
+            const attendees = data.data || data || [];
+            this.availableAttendees = attendees.filter(a => a.email);
             console.log(`Loaded ${this.availableAttendees.length} attendees with email`);
         } catch (error) {
             console.error('Failed to load attendees:', error);
