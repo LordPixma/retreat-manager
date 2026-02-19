@@ -968,17 +968,18 @@
         // Add member
         function addMember() {
             const container = document.getElementById('family-members-container');
+            const index = memberCount; // Capture current value before incrementing
             const newCard = document.createElement('div');
-            newCard.innerHTML = createMemberCard(memberCount);
+            newCard.innerHTML = createMemberCard(index);
             container.appendChild(newCard.firstElementChild);
 
             // Add event listener for DOB change
-            const dobInput = document.querySelector(`input[name="members[${memberCount}][dob]"]`);
-            dobInput.addEventListener('change', () => updateMemberDisplay(memberCount));
+            const dobInput = document.querySelector(`input[name="members[${index}][dob]"]`);
+            dobInput.addEventListener('change', () => updateMemberDisplay(index));
 
             // Add event listener for remove button
-            const removeBtn = document.querySelector(`.remove-member-btn[data-index="${memberCount}"]`);
-            removeBtn.addEventListener('click', () => removeMember(memberCount));
+            const removeBtn = document.querySelector(`.remove-member-btn[data-index="${index}"]`);
+            removeBtn.addEventListener('click', () => removeMember(index));
 
             memberCount++;
             updateTotalSummary();
