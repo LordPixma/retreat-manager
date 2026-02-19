@@ -464,6 +464,12 @@
             color: var(--warning);
         }
 
+        .member-badge.pending {
+            background: rgba(161, 161, 170, 0.2);
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
         .member-price {
             font-weight: 600;
             color: var(--text-primary);
@@ -663,9 +669,9 @@
                                     <div class="member-number">
                                         <i class="fas fa-user"></i> Member 1
                                         <span class="member-badge primary-contact">Primary Contact</span>
-                                        <span class="member-badge adult" id="member-type-0">Adult</span>
+                                        <span class="member-badge pending" id="member-type-0">Enter DOB</span>
                                     </div>
-                                    <div class="member-price" id="member-price-0">£200</div>
+                                    <div class="member-price" id="member-price-0">—</div>
                                 </div>
                                 <div class="member-fields">
                                     <div class="form-group">
@@ -699,13 +705,13 @@
                             <h4><i class="fas fa-calculator"></i> Registration Summary</h4>
                             <div id="summary-breakdown">
                                 <div class="summary-row">
-                                    <span>1 x Adult</span>
-                                    <span>£200</span>
+                                    <span>1 x Awaiting DOB</span>
+                                    <span>—</span>
                                 </div>
                             </div>
                             <div class="summary-row total">
                                 <span>Total</span>
-                                <span id="total-amount">£200</span>
+                                <span id="total-amount">£0</span>
                             </div>
                         </div>
                     </div>
@@ -844,7 +850,7 @@
 
         // Get member type and price based on DOB
         function getMemberTypeAndPrice(dob) {
-            if (!dob) return { type: 'adult', label: 'Adult', price: PRICING.adult };
+            if (!dob) return { type: 'pending', label: 'Enter DOB', price: 0 };
 
             const age = calculateAge(dob);
 
@@ -874,24 +880,28 @@
 
             typeBadge.textContent = label;
             typeBadge.className = `member-badge ${type}`;
-            priceDisplay.textContent = price === 0 ? 'FREE' : formatCurrency(price);
+            if (type === 'pending') {
+                priceDisplay.textContent = '—';
+            } else {
+                priceDisplay.textContent = price === 0 ? 'FREE' : formatCurrency(price);
+            }
 
             updateTotalSummary();
         }
 
         // Update total summary
         function updateTotalSummary() {
-            const members = [];
-            let adults = 0, children = 0, infants = 0;
+            let adults = 0, children = 0, infants = 0, pending = 0;
             let total = 0;
 
-            document.querySelectorAll('.family-member-card').forEach((card, index) => {
-                const dobInput = card.querySelector(`input[name="members[${index}][dob]"]`);
+            document.querySelectorAll('.family-member-card').forEach((card) => {
+                const dobInput = card.querySelector('input.member-dob');
                 const { type, price } = getMemberTypeAndPrice(dobInput?.value);
 
                 if (type === 'adult') adults++;
                 else if (type === 'child') children++;
-                else infants++;
+                else if (type === 'infant') infants++;
+                else pending++;
 
                 total += price;
             });
@@ -907,6 +917,9 @@
             if (infants > 0) {
                 breakdownHtml += `<div class="summary-row"><span>${infants} x Under 6</span><span>FREE</span></div>`;
             }
+            if (pending > 0) {
+                breakdownHtml += `<div class="summary-row"><span>${pending} x Awaiting DOB</span><span>—</span></div>`;
+            }
 
             document.getElementById('summary-breakdown').innerHTML = breakdownHtml;
             document.getElementById('total-amount').textContent = formatCurrency(total);
@@ -919,10 +932,10 @@
                     <div class="member-header">
                         <div class="member-number">
                             <i class="fas fa-user"></i> Member ${index + 1}
-                            <span class="member-badge adult" id="member-type-${index}">Adult</span>
+                            <span class="member-badge pending" id="member-type-${index}">Enter DOB</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 1rem;">
-                            <div class="member-price" id="member-price-${index}">£200</div>
+                            <div class="member-price" id="member-price-${index}">—</div>
                             <button type="button" class="btn btn-danger remove-member-btn" data-index="${index}">
                                 <i class="fas fa-times"></i> Remove
                             </button>
