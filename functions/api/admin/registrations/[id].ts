@@ -162,8 +162,8 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
           INSERT INTO attendees (
             ref_number, name, email, password_hash, phone,
             emergency_contact, dietary_requirements, special_requests,
-            room_id, group_id, payment_due, payment_status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            room_id, group_id, payment_due, payment_status, payment_option
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
         `).bind(
           refNumber,
           member.name.trim(),
@@ -175,7 +175,8 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
           isPrimary ? registration.special_requests : null,
           body.room_id || null,
           groupId,
-          member.price || 0
+          member.price || 0,
+          registration.payment_option || 'full'
         ).run();
 
         if (!attendeeResult.success) {

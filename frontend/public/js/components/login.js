@@ -199,7 +199,7 @@ const Login = {
         input.classList.remove('valid');
 
         // Find the form-group container for error message placement
-        const formGroup = input.closest('.form-group') || input.parentNode;
+        const formGroup = input.closest('.form-group') || input.closest('.modern-form-group') || input.parentNode;
 
         // Remove existing error message
         const existingError = formGroup.querySelector('.form-validation-message');
@@ -222,7 +222,7 @@ const Login = {
         input.classList.add('valid');
 
         // Find the form-group container for error message
-        const formGroup = input.closest('.form-group') || input.parentNode;
+        const formGroup = input.closest('.form-group') || input.closest('.modern-form-group') || input.parentNode;
         const errorMessage = formGroup.querySelector('.form-validation-message');
         if (errorMessage) {
             errorMessage.remove();
@@ -233,26 +233,23 @@ const Login = {
      * Bind password toggle functionality
      */
     bindPasswordToggle() {
-        const toggleButtons = ['toggle-password', 'toggle-admin-password'];
-        
-        toggleButtons.forEach(buttonId => {
-            const button = document.getElementById(buttonId);
-            if (button) {
-                button.addEventListener('click', () => {
-                    const passwordInput = button.parentNode.querySelector('input[type="password"], input[type="text"]');
-                    const icon = button.querySelector('i');
-                    
-                    if (passwordInput.type === 'password') {
-                        passwordInput.type = 'text';
-                        icon.className = 'fas fa-eye-slash';
-                        button.setAttribute('aria-label', 'Hide password');
-                    } else {
-                        passwordInput.type = 'password';
-                        icon.className = 'fas fa-eye';
-                        button.setAttribute('aria-label', 'Show password');
-                    }
-                });
-            }
+        const toggleButtons = document.querySelectorAll('.password-toggle-light, .modern-pw-toggle');
+
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const passwordInput = button.parentNode.querySelector('input[type="password"], input[type="text"]');
+                const icon = button.querySelector('i');
+
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.className = 'fas fa-eye-slash';
+                    button.setAttribute('aria-label', 'Hide password');
+                } else {
+                    passwordInput.type = 'password';
+                    icon.className = 'fas fa-eye';
+                    button.setAttribute('aria-label', 'Show password');
+                }
+            });
         });
     },
 
@@ -314,7 +311,7 @@ const Login = {
      * Setup real-time validation
      */
     setupValidation() {
-        const inputs = document.querySelectorAll('.form-input, .form-input-light');
+        const inputs = document.querySelectorAll('.form-input, .form-input-light, .modern-input-wrap input');
 
         inputs.forEach(input => {
             // Clear validation on input
@@ -360,7 +357,7 @@ const Login = {
      */
     setupAccessibility() {
         // Add ARIA labels
-        const passwordToggles = document.querySelectorAll('.password-toggle, .password-toggle-light');
+        const passwordToggles = document.querySelectorAll('.password-toggle, .password-toggle-light, .modern-pw-toggle');
         passwordToggles.forEach(toggle => {
             toggle.setAttribute('aria-label', 'Show password');
             toggle.setAttribute('tabindex', '0');

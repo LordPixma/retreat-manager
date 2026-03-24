@@ -1,4 +1,4 @@
-// frontend/public/js/components/attendee-dashboard.js - Complete updated version with announcements
+// frontend/public/js/components/attendee-dashboard.js - v2 with Stripe payments
 const AttendeeDashboard = {
     data: null,
 
@@ -38,72 +38,69 @@ const AttendeeDashboard = {
                 <div class="dashboard-header">
                     <div>
                         <h1 class="dashboard-title">Welcome, <span id="attendee-name-display">Loading...</span></h1>
-                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">Your retreat information and latest updates</p>
+                        <p class="dashboard-subtitle">Your retreat portal</p>
                     </div>
                     <div class="dashboard-actions">
-                        <button class="btn btn-secondary" id="refresh-dashboard" title="Refresh all information">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                        <button class="btn btn-secondary" id="attendee-logout">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </button>
+                        <button class="btn btn-ghost" id="refresh-dashboard"><i class="fas fa-sync-alt"></i></button>
+                        <button class="btn btn-ghost" id="attendee-logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
                     </div>
                 </div>
 
-                <!-- Announcements Section (New) -->
-                <div id="announcements-section" style="margin-bottom: 2rem;">
+                <div id="payment-banner" style="display: none; margin-bottom: 1.5rem;">
+                    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(118, 75, 162, 0.08) 100%); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 16px; padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: #a78bfa; font-weight: 600; margin-bottom: 0.25rem;">Outstanding Balance</div>
+                            <div id="banner-amount" style="font-size: 2rem; font-weight: 700; color: #fff;">£0.00</div>
+                        </div>
+                        <div id="banner-pay-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+                    </div>
+                </div>
+
+                <div id="announcements-section" style="margin-bottom: 1.5rem;">
                     <div class="data-table">
                         <div class="table-header">
-                            <h3 class="table-title">
-                                <i class="fas fa-bullhorn"></i> Latest Updates & Announcements
-                            </h3>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <span id="announcements-count" class="badge badge-secondary" style="display: none;">0 updates</span>
-                                <button class="btn btn-sm btn-secondary" id="refresh-announcements" title="Refresh announcements">
-                                    <i class="fas fa-sync-alt"></i>
-                                </button>
-                            </div>
+                            <h3 class="table-title"><i class="fas fa-bullhorn"></i> Announcements</h3>
+                            <span id="announcements-count" class="badge badge-secondary" style="display: none;">0</span>
                         </div>
                         <div id="announcements-content" class="table-content">
-                            <div class="loading-placeholder">
-                                <i class="fas fa-spinner fa-spin"></i> Loading announcements...
+                            <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 1.5rem;">
+                    <div class="stat-card" id="payment-info-card" style="padding: 0; border: none;">
+                        <div style="padding: 1.25rem 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
+                                <div class="stat-icon-modern" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa;"><i class="fas fa-credit-card"></i></div>
+                                <div style="font-size: 0.85rem; font-weight: 600; color: #fff;">Payment</div>
                             </div>
+                            <div id="payment-info-content"><div class="loading-placeholder" style="padding: 0;">Loading...</div></div>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="room-info-card" style="padding: 0; border: none;">
+                        <div style="padding: 1.25rem 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
+                                <div class="stat-icon-modern" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd;"><i class="fas fa-bed"></i></div>
+                                <div style="font-size: 0.85rem; font-weight: 600; color: #fff;">Room</div>
+                            </div>
+                            <div id="room-info-content"><div class="loading-placeholder" style="padding: 0;">Loading...</div></div>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="group-info-card" style="padding: 0; border: none;">
+                        <div style="padding: 1.25rem 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
+                                <div class="stat-icon-modern" style="background: rgba(16, 185, 129, 0.15); color: #6ee7b7;"><i class="fas fa-users"></i></div>
+                                <div style="font-size: 0.85rem; font-weight: 600; color: #fff;">Group</div>
+                            </div>
+                            <div id="group-info-content"><div class="loading-placeholder" style="padding: 0;">Loading...</div></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Info Cards -->
-                <div class="info-grid">
-                    <div class="info-card" id="room-info-card">
-                        <h3><i class="fas fa-bed"></i> Room Allocation</h3>
-                        <div id="room-info-content">
-                            <div class="loading-placeholder">Loading room information...</div>
-                        </div>
-                    </div>
-
-                    <div class="info-card" id="payment-info-card">
-                        <h3><i class="fas fa-credit-card"></i> Payment Information</h3>
-                        <div id="payment-info-content">
-                            <div class="loading-placeholder">Loading payment information...</div>
-                        </div>
-                    </div>
-
-                    <div class="info-card" id="group-info-card">
-                        <h3><i class="fas fa-users"></i> Group Information</h3>
-                        <div id="group-info-content">
-                            <div class="loading-placeholder">Loading group information...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detailed Information -->
                 <div class="data-table" id="detailed-info">
-                    <div class="table-header">
-                        <h3 class="table-title">Detailed Information</h3>
-                    </div>
-                    <div class="table-content" id="detailed-info-content">
-                        <div class="loading-placeholder">Loading detailed information...</div>
-                    </div>
+                    <div class="table-header"><h3 class="table-title">Your Details</h3></div>
+                    <div class="table-content" id="detailed-info-content"><div class="loading-placeholder">Loading...</div></div>
                 </div>
             </div>
         `;
@@ -525,28 +522,139 @@ const AttendeeDashboard = {
     updatePaymentInfo() {
         const content = document.getElementById('payment-info-content');
         if (!content) return;
-        
+
         const paymentDue = this.data.payment_due || 0;
-        
+        const paymentOption = this.data.payment_option || 'full';
+
+        // Update the top banner
+        const banner = document.getElementById('payment-banner');
+        const bannerAmount = document.getElementById('banner-amount');
+        const bannerButtons = document.getElementById('banner-pay-buttons');
+
+        if (banner && paymentDue > 0 && paymentOption !== 'sponsorship') {
+            banner.style.display = 'block';
+            if (bannerAmount) bannerAmount.textContent = Utils.formatCurrency(paymentDue);
+            if (bannerButtons) {
+                if (paymentOption === 'installments') {
+                    bannerButtons.innerHTML = `
+                        <button class="btn btn-sm btn-primary pay-installment-btn" data-count="3">3 x ${Utils.formatCurrency(Math.ceil(paymentDue / 3 * 100) / 100)}</button>
+                        <button class="btn btn-sm btn-primary pay-installment-btn" data-count="4">4 x ${Utils.formatCurrency(Math.ceil(paymentDue / 4 * 100) / 100)}</button>
+                        <button class="btn btn-success pay-full-btn"><i class="fas fa-credit-card"></i> Pay Full</button>
+                    `;
+                } else {
+                    bannerButtons.innerHTML = `
+                        <button class="btn btn-success pay-full-btn"><i class="fas fa-credit-card"></i> Pay Now</button>
+                    `;
+                }
+                this.bindPayButtons(bannerButtons);
+            }
+        } else if (banner) {
+            banner.style.display = 'none';
+        }
+
+        // Update the card
         content.innerHTML = `
-            <div class="info-item">
-                <div class="info-label">Outstanding Balance</div>
-                <div class="info-value" style="font-size: 1.5rem; font-weight: 700; color: ${paymentDue > 0 ? 'var(--warning)' : 'var(--success)'};">
-                    ${Utils.formatCurrency(paymentDue)}
+            <div style="font-size: 1.5rem; font-weight: 700; color: ${paymentDue > 0 ? '#fbbf24' : '#6ee7b7'}; margin-bottom: 0.4rem;">
+                ${Utils.formatCurrency(paymentDue)}
+            </div>
+            <span class="badge ${paymentDue > 0 ? 'badge-warning' : 'badge-success'}">
+                <i class="fas fa-${paymentDue > 0 ? 'clock' : 'check'}"></i>
+                ${paymentDue > 0 ? 'Due' : 'Paid'}
+            </span>
+            ${paymentDue > 0 && paymentOption !== 'sponsorship' ? `
+                <div style="margin-top: 1rem;">
+                    <button class="btn btn-sm btn-success pay-full-btn" style="width: 100%;">
+                        <i class="fas fa-credit-card"></i> Pay Now
+                    </button>
                 </div>
-            </div>
-            <div class="info-item" style="margin-top: 1rem;">
-                <span class="badge ${paymentDue > 0 ? 'badge-warning' : 'badge-success'}">
-                    <i class="fas fa-${paymentDue > 0 ? 'exclamation-triangle' : 'check'}"></i> 
-                    ${paymentDue > 0 ? 'Payment Due' : 'Paid in Full'}
-                </span>
-                ${paymentDue > 0 ? `
-                    <small style="display: block; margin-top: 0.5rem; color: var(--text-secondary);">
-                        Please contact the organizers for payment instructions
-                    </small>
-                ` : ''}
-            </div>
+            ` : ''}
+            ${paymentOption === 'sponsorship' ? '<div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-tertiary);">Sponsorship requested</div>' : ''}
+            <div id="payment-history-section" style="margin-top: 0.75rem;"></div>
         `;
+
+        this.bindPayButtons(content);
+        this.loadPaymentHistory();
+    },
+
+    bindPayButtons(container) {
+        container.querySelectorAll('.pay-full-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.handlePayment('full', null, e));
+        });
+        container.querySelectorAll('.pay-installment-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const count = parseInt(e.currentTarget.dataset.count);
+                this.handlePayment('installment', count, e);
+            });
+        });
+    },
+
+    async handlePayment(type, installmentCount, e) {
+        try {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Redirecting...';
+
+            const body = { payment_type: type };
+            if (type === 'installment') body.installment_count = installmentCount;
+
+            const response = await API.post('/payments/checkout', body);
+
+            if (response.checkout_url) {
+                window.location.href = response.checkout_url;
+            } else {
+                throw new Error('No checkout URL received');
+            }
+        } catch (error) {
+            console.error('Payment error:', error);
+            Utils.showAlert(error.message || 'Failed to start payment. Please try again.', 'error');
+            document.querySelectorAll('.pay-full-btn, .pay-installment-btn').forEach(b => {
+                b.disabled = false;
+            });
+            this.updatePaymentInfo();
+        }
+    },
+
+    async loadPaymentHistory() {
+        const section = document.getElementById('payment-history-section');
+        if (!section) return;
+
+        try {
+            const response = await API.get('/payments/history');
+            const payments = response.payments || [];
+
+            if (payments.length === 0) return;
+
+            const rows = payments.map(p => {
+                const amount = (p.amount / 100).toFixed(2);
+                const statusBadge = {
+                    'succeeded': '<span class="badge badge-success">Paid</span>',
+                    'pending': '<span class="badge badge-warning">Pending</span>',
+                    'failed': '<span class="badge badge-danger">Failed</span>',
+                    'cancelled': '<span class="badge badge-secondary">Cancelled</span>',
+                }[p.status] || '<span class="badge badge-secondary">' + p.status + '</span>';
+
+                const date = p.paid_at || p.created_at;
+                const dateStr = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 500;">£${amount}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">${dateStr}</div>
+                    </div>
+                    ${statusBadge}
+                </div>`;
+            }).join('');
+
+            section.innerHTML = `
+                <div style="padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+                    <div class="info-label" style="margin-bottom: 0.5rem;">Payment History</div>
+                    ${rows}
+                </div>
+            `;
+        } catch (error) {
+            // Silently fail - payment history is supplementary
+            console.warn('Could not load payment history:', error);
+        }
     },
 
     /**

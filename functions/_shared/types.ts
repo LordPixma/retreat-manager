@@ -9,8 +9,11 @@ export interface Env {
   ADMIN_PASS?: string;
   PORTAL_URL?: string;
   RETREAT_NAME?: string;
-  JWT_SECRET?: string; // Secret key for signing tokens (required for production)
-  ADMIN_JWT_SECRET?: string; // Alternative secret key (for backward compatibility)
+  JWT_SECRET?: string;
+  ADMIN_JWT_SECRET?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PUBLISHABLE_KEY?: string;
 }
 
 // Context type for Pages Functions
@@ -89,6 +92,38 @@ export interface LoginHistory {
   user_type: 'attendee' | 'admin';
   user_id: string;
   login_time: string;
+}
+
+export interface Payment {
+  id: number;
+  attendee_id: number;
+  stripe_payment_intent_id: string | null;
+  stripe_checkout_session_id: string | null;
+  stripe_customer_id: string | null;
+  amount: number; // in pence
+  currency: string;
+  status: 'pending' | 'succeeded' | 'failed' | 'refunded' | 'cancelled';
+  payment_type: 'full' | 'installment';
+  installment_number: number | null;
+  installment_total: number | null;
+  description: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstallmentSchedule {
+  id: number;
+  attendee_id: number;
+  total_amount: number; // in pence
+  installment_count: number;
+  installment_amount: number; // in pence
+  installments_paid: number;
+  status: 'active' | 'completed' | 'cancelled';
+  next_due_date: string | null;
+  stripe_customer_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Auth Types

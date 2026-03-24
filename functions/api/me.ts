@@ -8,6 +8,7 @@ interface AttendeeRow {
   name: string;
   email: string | null;
   payment_due: number;
+  payment_option: string | null;
   room_number: string | null;
   room_description: string | null;
   group_name: string | null;
@@ -64,6 +65,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         a.name,
         a.email,
         a.payment_due,
+        a.payment_option,
         r.number AS room_number,
         r.description AS room_description,
         g.name AS group_name,
@@ -123,6 +125,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       name: attendeeData.name,
       email: attendeeData.email,
       payment_due: attendeeData.payment_due || 0,
+      payment_option: attendeeData.payment_option || 'full',
       room: attendeeData.room_number ? {
         number: attendeeData.room_number,
         description: attendeeData.room_description || ''

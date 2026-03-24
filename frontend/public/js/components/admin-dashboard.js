@@ -7,6 +7,8 @@ const AdminDashboard = {
         announcements: [],
         registrations: [],
         loginHistory: [],
+        payments: [],
+        paymentSummary: {},
         stats: {}
     },
     currentTab: 'attendees',
@@ -125,11 +127,13 @@ const AdminDashboard = {
                             <table class="table">
                                 <thead>
                                     <tr>
+                                        <th style="width: 40px;"><input type="checkbox" id="select-all-attendees"></th>
                                         <th>Reference</th>
                                         <th>Name</th>
                                         <th>Email</th>
                                         <th>Room</th>
                                         <th>Payment Due</th>
+                                        <th>Plan</th>
                                         <th>Group</th>
                                         <th>Status</th>
                                         <th>Actions</th>
@@ -137,7 +141,7 @@ const AdminDashboard = {
                                 </thead>
                                 <tbody id="attendees-table-body">
                                     <tr>
-                                        <td colspan="8" class="loading-placeholder">
+                                        <td colspan="11" class="loading-placeholder">
                                             <i class="fas fa-spinner fa-spin"></i> Loading attendees...
                                         </td>
                                     </tr>
@@ -525,7 +529,7 @@ const AdminDashboard = {
         if (this.data.attendees.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
                         <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                         No attendees found
                     </td>
@@ -536,9 +540,16 @@ const AdminDashboard = {
 
         tbody.innerHTML = this.data.attendees.map(attendee => {
             const paymentDue = attendee.payment_due || 0;
-            const statusBadge = paymentDue > 0 
+            const statusBadge = paymentDue > 0
                 ? `<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Payment Due</span>`
                 : `<span class="badge badge-success"><i class="fas fa-check"></i> Paid</span>`;
+
+            const planBadges = {
+                'full': '<span class="badge badge-success"><i class="fas fa-check-circle"></i> Full</span>',
+                'installments': '<span class="badge badge-info"><i class="fas fa-calendar-alt"></i> Installments</span>',
+                'sponsorship': '<span class="badge badge-warning"><i class="fas fa-hand-holding-heart"></i> Sponsorship</span>'
+            };
+            const planBadge = planBadges[attendee.payment_option] || planBadges['full'];
                 
             // Enhanced email display with status indicator
             const emailDisplay = attendee.email 
@@ -561,6 +572,7 @@ const AdminDashboard = {
                     <td>${emailDisplay}</td>
                     <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
                     <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
+                    <td>${planBadge}</td>
                     <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : '<span class="badge badge-secondary">No Group</span>'}</td>
                     <td>${statusBadge}</td>
                     <td>
@@ -895,6 +907,84 @@ const AdminDashboard = {
     },
 
     /**
+     * Load payment data
+     */
+    async loadPayments(statusFilter) {
+        try {
+            const query = statusFilter ? `?status=${statusFilter}` : '';
+            const response = await API.get(`/admin/payments${query}`);
+            this.data.payments = response.data || response || [];
+        } catch (error) {
+            console.error('Failed to load payments:', error);
+            this.data.payments = [];
+        }
+    },
+
+    async loadPaymentSummary() {
+        try {
+            this.data.paymentSummary = await API.get('/admin/payments/summary');
+        } catch (error) {
+            console.error('Failed to load payment summary:', error);
+            this.data.paymentSummary = {};
+        }
+    },
+
+    updatePaymentsDisplay() {
+        const summary = this.data.paymentSummary;
+
+        // Update stat cards
+        const collectedEl = document.getElementById('payments-collected');
+        const outstandingEl = document.getElementById('payments-outstanding');
+        const installmentEl = document.getElementById('payments-installment-plans');
+        const countEl = document.getElementById('payments-total-count');
+
+        if (collectedEl) collectedEl.textContent = `£${((summary.total_collected_pence || 0) / 100).toFixed(2)}`;
+        if (outstandingEl) outstandingEl.textContent = `£${(summary.total_outstanding_pounds || 0).toFixed(2)}`;
+        if (installmentEl) installmentEl.textContent = summary.active_installment_plans || 0;
+        if (countEl) countEl.textContent = summary.total_collected_count || 0;
+
+        // Update table
+        const tbody = document.getElementById('payments-table-body');
+        if (!tbody) return;
+
+        if (this.data.payments.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        <i class="fas fa-credit-card" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                        No payments recorded yet
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = this.data.payments.map(p => {
+            const amount = `£${(p.amount / 100).toFixed(2)}`;
+            const date = new Date(p.paid_at || p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            const statusBadges = {
+                'succeeded': '<span class="badge badge-success">Succeeded</span>',
+                'pending': '<span class="badge badge-warning">Pending</span>',
+                'failed': '<span class="badge badge-danger">Failed</span>',
+                'cancelled': '<span class="badge badge-secondary">Cancelled</span>',
+                'refunded': '<span class="badge badge-info">Refunded</span>',
+            };
+            const typeBadges = {
+                'full': '<span class="badge badge-primary">Full</span>',
+                'installment': '<span class="badge badge-info">Installment ' + (p.installment_number || '') + '/' + (p.installment_total || '') + '</span>',
+            };
+
+            return `
+                <tr>
+                    <td>${date}</td>
+                    <td><strong>${Utils.escapeHtml(p.attendee_name || 'Unknown')}</strong><br><small style="color: var(--text-tertiary);">${Utils.escapeHtml(p.attendee_ref || '')}</small></td>
+                    <td><strong>${amount}</strong></td>
+                    <td>${typeBadges[p.payment_type] || p.payment_type}</td>
+                    <td>${statusBadges[p.status] || p.status}</td>
+                </tr>`;
+        }).join('');
+    },
+
+    /**
      * Set up tab navigation
      */
     setupTabNavigation() {
@@ -917,8 +1007,23 @@ const AdminDashboard = {
                 }
                 
                 this.currentTab = tabName;
+
+                // Lazy-load payments on first visit
+                if (tabName === 'payments' && this.data.payments.length === 0) {
+                    Promise.all([this.loadPayments(), this.loadPaymentSummary()])
+                        .then(() => this.updatePaymentsDisplay());
+                }
             });
         });
+
+        // Payment status filter
+        const filterPaymentStatus = document.getElementById('filter-payment-status');
+        if (filterPaymentStatus) {
+            filterPaymentStatus.addEventListener('change', async (e) => {
+                await this.loadPayments(e.target.value);
+                this.updatePaymentsDisplay();
+            });
+        }
     },
 
     /**
@@ -1037,6 +1142,27 @@ const AdminDashboard = {
         const addGroupBtn = document.getElementById('add-group-btn');
         if (addGroupBtn) {
             addGroupBtn.addEventListener('click', () => this.showAddGroupModal());
+        }
+
+        // Send installment reminders button
+        const installmentBtn = document.getElementById('send-installment-reminders-btn');
+        if (installmentBtn) {
+            installmentBtn.addEventListener('click', async () => {
+                if (!confirm('Send installment payment reminders to all attendees with due installments?')) return;
+                installmentBtn.disabled = true;
+                installmentBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                try {
+                    const result = await API.post('/admin/payments/send-installment-reminders', {});
+                    Utils.showAlert(`${result.message}`, 'success');
+                    await Promise.all([this.loadPayments(), this.loadPaymentSummary()]);
+                    this.updatePaymentsDisplay();
+                } catch (error) {
+                    Utils.showAlert(error.message || 'Failed to send reminders', 'error');
+                } finally {
+                    installmentBtn.disabled = false;
+                    installmentBtn.innerHTML = '<i class="fas fa-bell"></i> Send Installment Reminders';
+                }
+            });
         }
     },
 

@@ -461,7 +461,7 @@ const App = {
      */
     async loadAttendeeView() {
         this.currentView = 'attendee';
-        
+
         try {
             // Get attendee data
             const attendeeData = await API.get('/me');
@@ -474,6 +474,16 @@ const App = {
             } else {
                 console.warn('AttendeeDashboard component not available, using fallback');
                 this.showFallbackAttendeeDashboard(attendeeData);
+            }
+
+            // Handle Stripe payment redirect params
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('payment') === 'success') {
+                Utils.showAlert('Payment successful! Thank you.', 'success');
+                window.history.replaceState({}, '', window.location.pathname);
+            } else if (params.get('payment') === 'cancelled') {
+                Utils.showAlert('Payment was cancelled. You can try again anytime.', 'warning');
+                window.history.replaceState({}, '', window.location.pathname);
             }
 
         } catch (error) {

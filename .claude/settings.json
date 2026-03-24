@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push:*)",
+      "Bash(CLOUDFLARE_ACCOUNT_ID=1e54c42267499cd9093c467c8b5517d1 npx wrangler pages project list)",
+      "Bash(CLOUDFLARE_ACCOUNT_ID=1e54c42267499cd9093c467c8b5517d1 npx wrangler deployments list --name retreat-portal)",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Users/sodekunle/retreat-manager -name *.env* -o -name .env*)"
+    ]
+  }
+}
