@@ -11,6 +11,7 @@ interface AttendeeRow {
   name: string;
   email: string | null;
   payment_due: number;
+  payment_option: string | null;
   room_id: number | null;
   group_id: number | null;
   room_number: string | null;
@@ -49,6 +50,7 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
         a.name,
         a.email,
         a.payment_due,
+        a.payment_option,
         a.room_id,
         a.group_id,
         r.number AS room_number,
@@ -72,6 +74,7 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
       name: attendee.name,
       email: attendee.email,
       payment_due: attendee.payment_due || 0,
+      payment_option: attendee.payment_option || 'full',
       room_id: attendee.room_id,
       group_id: attendee.group_id,
       room: attendee.room_number ? {
@@ -122,7 +125,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     }
 
     // Build dynamic UPDATE query
-    const allowedFields = ['name', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'password'];
+    const allowedFields = ['name', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'payment_option', 'password'];
     const updateFields: string[] = [];
     const updateValues: (string | number | null)[] = [];
 

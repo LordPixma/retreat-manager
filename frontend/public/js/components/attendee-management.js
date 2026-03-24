@@ -63,6 +63,7 @@ const AttendeeManagement = {
             document.getElementById('attendee-email').value = editData.email || '';
             document.getElementById('attendee-ref').value = editData.ref_number || '';
             document.getElementById('attendee-payment').value = editData.payment_due || 0;
+            document.getElementById('attendee-payment-option').value = editData.payment_option || 'full';
             document.getElementById('attendee-room').value = editData.room_id || '';
             document.getElementById('attendee-group').value = editData.group_id || '';
             

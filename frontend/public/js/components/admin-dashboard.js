@@ -9,6 +9,7 @@ const AdminDashboard = {
         loginHistory: [],
         payments: [],
         paymentSummary: {},
+        activityTeams: [],
         stats: {}
     },
     currentTab: 'attendees',
@@ -985,6 +986,64 @@ const AdminDashboard = {
     },
 
     /**
+     * Load activity teams
+     */
+    async loadActivityTeams() {
+        try {
+            const response = await API.get('/admin/activity-teams');
+            this.data.activityTeams = response.data || response || [];
+        } catch (error) {
+            console.error('Failed to load activity teams:', error);
+            this.data.activityTeams = [];
+        }
+    },
+
+    updateActivityTeamsDisplay() {
+        const tbody = document.getElementById('activity-teams-table-body');
+        if (!tbody) return;
+
+        if (this.data.activityTeams.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        <i class="fas fa-people-group" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                        No activity teams created yet
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = this.data.activityTeams.map(team => {
+            const memberList = team.members && team.members.length > 0
+                ? team.members.slice(0, 5).join(', ') + (team.members.length > 5 ? ` +${team.members.length - 5} more` : '')
+                : '<span style="color: var(--text-tertiary);">No members</span>';
+
+            return `
+                <tr>
+                    <td><strong>${Utils.escapeHtml(team.name)}</strong></td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHtml(team.description || '-')}</td>
+                    <td>${team.leader_name
+                        ? `<span class="badge badge-primary"><i class="fas fa-crown"></i> ${Utils.escapeHtml(team.leader_name)}</span>`
+                        : '<span style="color: var(--text-tertiary);">None</span>'}</td>
+                    <td>
+                        <span class="badge badge-secondary">${team.member_count} members</span>
+                        <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${memberList}</div>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-primary edit-activity-team" data-id="${team.id}" title="Edit Team">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-activity-team" data-id="${team.id}" title="Delete Team">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+    },
+
+    /**
      * Set up tab navigation
      */
     setupTabNavigation() {
@@ -1012,6 +1071,11 @@ const AdminDashboard = {
                 if (tabName === 'payments' && this.data.payments.length === 0) {
                     Promise.all([this.loadPayments(), this.loadPaymentSummary()])
                         .then(() => this.updatePaymentsDisplay());
+                }
+
+                // Lazy-load activity teams on first visit
+                if (tabName === 'activity-teams' && this.data.activityTeams.length === 0) {
+                    this.loadActivityTeams().then(() => this.updateActivityTeamsDisplay());
                 }
             });
         });
@@ -1144,6 +1208,18 @@ const AdminDashboard = {
             addGroupBtn.addEventListener('click', () => this.showAddGroupModal());
         }
 
+        // Add activity team button
+        const addActivityTeamBtn = document.getElementById('add-activity-team-btn');
+        if (addActivityTeamBtn) {
+            addActivityTeamBtn.addEventListener('click', async () => {
+                if (window.ActivityTeamManagement) {
+                    await window.ActivityTeamManagement.showModal(null, this.data.attendees);
+                } else {
+                    Utils.showAlert('Activity team management component not loaded', 'error');
+                }
+            });
+        }
+
         // Send installment reminders button
         const installmentBtn = document.getElementById('send-installment-reminders-btn');
         if (installmentBtn) {
@@ -1259,6 +1335,10 @@ const AdminDashboard = {
                 await this.editGroup(id);
             } else if (target.classList.contains('delete-group')) {
                 await this.deleteGroup(id);
+            } else if (target.classList.contains('edit-activity-team')) {
+                await this.editActivityTeam(id);
+            } else if (target.classList.contains('delete-activity-team')) {
+                await this.deleteActivityTeam(id);
             }
         });
     },
@@ -1570,6 +1650,38 @@ const AdminDashboard = {
         } catch (error) {
             Utils.hideGlobalLoading();
             Utils.showAlert('Failed to delete group: ' + error.message, 'error');
+        }
+    },
+
+    async editActivityTeam(id) {
+        try {
+            const team = await API.get(`/admin/activity-teams/${id}`);
+            if (window.ActivityTeamManagement) {
+                await window.ActivityTeamManagement.showModal(team, this.data.attendees);
+            } else {
+                Utils.showAlert('Activity team management component not loaded', 'error');
+            }
+        } catch (error) {
+            Utils.showAlert('Failed to load team details: ' + error.message, 'error');
+        }
+    },
+
+    async deleteActivityTeam(id) {
+        const team = this.data.activityTeams.find(t => t.id == id);
+        if (!team) return;
+
+        if (!confirm(`Are you sure you want to delete team "${team.name}"? This action cannot be undone.`)) return;
+
+        Utils.showGlobalLoading('Deleting team...');
+        try {
+            await API.delete(`/admin/activity-teams/${id}`);
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Activity team deleted successfully', 'success');
+            await this.loadActivityTeams();
+            this.updateActivityTeamsDisplay();
+        } catch (error) {
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to delete team: ' + error.message, 'error');
         }
     },
 
