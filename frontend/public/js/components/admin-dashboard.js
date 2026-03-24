@@ -312,7 +312,7 @@ const AdminDashboard = {
         Utils.showSectionLoading(tableBody, 'Loading attendees...');
 
         try {
-            const response = await API.get('/admin/attendees');
+            const response = await API.get('/admin/attendees?limit=500');
             this.data.attendees = response.data || response;
             this.loadingStates.attendees = false;
             this.failedLoads.delete('attendees');
@@ -523,80 +523,132 @@ const AdminDashboard = {
     /**
      * Update attendees table display
      */
+    getFilteredAttendees() {
+        let list = [...this.data.attendees];
+
+        // Search filter
+        const search = (document.getElementById('search-attendees')?.value || '').toLowerCase().trim();
+        if (search) {
+            list = list.filter(a =>
+                a.name.toLowerCase().includes(search) ||
+                a.ref_number.toLowerCase().includes(search) ||
+                (a.email || '').toLowerCase().includes(search)
+            );
+        }
+
+        // Status filter
+        const status = document.getElementById('filter-status')?.value;
+        if (status === 'paid') list = list.filter(a => (a.payment_due || 0) <= 0);
+        if (status === 'pending') list = list.filter(a => (a.payment_due || 0) > 0);
+
+        // Plan filter
+        const plan = document.getElementById('filter-plan')?.value;
+        if (plan) list = list.filter(a => (a.payment_option || 'full') === plan);
+
+        // Group filter
+        const group = document.getElementById('filter-group')?.value;
+        if (group) list = list.filter(a => a.group && a.group.name === group);
+
+        // Sort
+        const sort = document.getElementById('sort-attendees')?.value || 'name-asc';
+        const [field, dir] = sort.split('-');
+        list.sort((a, b) => {
+            let cmp = 0;
+            if (field === 'name') cmp = a.name.localeCompare(b.name);
+            else if (field === 'date') cmp = (a.created_at || '').localeCompare(b.created_at || '');
+            else if (field === 'payment') cmp = (a.payment_due || 0) - (b.payment_due || 0);
+            return dir === 'desc' ? -cmp : cmp;
+        });
+
+        return list;
+    },
+
+    populateGroupFilter() {
+        const select = document.getElementById('filter-group');
+        if (!select) return;
+        const current = select.value;
+        const groups = [...new Set(this.data.attendees.filter(a => a.group).map(a => a.group.name))].sort();
+        select.innerHTML = '<option value="">All Groups</option>' +
+            groups.map(g => `<option value="${Utils.escapeHtml(g)}">${Utils.escapeHtml(g)}</option>`).join('');
+        select.value = current;
+    },
+
     updateAttendeesDisplay() {
         const tbody = document.getElementById('attendees-table-body');
         if (!tbody) return;
 
-        if (this.data.attendees.length === 0) {
+        this.populateGroupFilter();
+
+        const filtered = this.getFilteredAttendees();
+        const showingEl = document.getElementById('attendees-showing');
+        if (showingEl) {
+            showingEl.textContent = filtered.length === this.data.attendees.length
+                ? `(${filtered.length})`
+                : `(${filtered.length} of ${this.data.attendees.length})`;
+        }
+
+        if (filtered.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-                        <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
-                        No attendees found
+                    <td colspan="12" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        <i class="fas fa-filter" style="font-size: 1.5rem; margin-bottom: 0.75rem; display: block;"></i>
+                        No attendees match your filters
                     </td>
                 </tr>
             `;
             return;
         }
 
-        tbody.innerHTML = this.data.attendees.map(attendee => {
+        const planBadges = {
+            'full': '<span class="badge badge-success">Full</span>',
+            'installments': '<span class="badge badge-info">Installments</span>',
+            'sponsorship': '<span class="badge badge-warning">Sponsorship</span>'
+        };
+
+        tbody.innerHTML = filtered.map(attendee => {
             const paymentDue = attendee.payment_due || 0;
             const statusBadge = paymentDue > 0
-                ? `<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Payment Due</span>`
-                : `<span class="badge badge-success"><i class="fas fa-check"></i> Paid</span>`;
-
-            const planBadges = {
-                'full': '<span class="badge badge-success"><i class="fas fa-check-circle"></i> Full</span>',
-                'installments': '<span class="badge badge-info"><i class="fas fa-calendar-alt"></i> Installments</span>',
-                'sponsorship': '<span class="badge badge-warning"><i class="fas fa-hand-holding-heart"></i> Sponsorship</span>'
-            };
+                ? `<span class="badge badge-warning">Due</span>`
+                : `<span class="badge badge-success">Paid</span>`;
             const planBadge = planBadges[attendee.payment_option] || planBadges['full'];
-                
-            // Enhanced email display with status indicator
-            const emailDisplay = attendee.email 
-                ? `<div class="email-info">
-                    <div class="email-address" style="font-size: 0.9rem; margin-bottom: 0.25rem;">${Utils.escapeHtml(attendee.email)}</div>
-                    <span class="email-status" title="Email address provided">
-                    <i class="fas fa-check-circle" style="color: var(--success); font-size: 0.8rem;"></i>
-                    <span style="font-size: 0.8rem; color: var(--success);">Verified</span>
-                    </span>
-                </div>`
-                : `<span class="no-email" style="color: var(--text-secondary); font-style: italic;">No email</span>`;
-                
+            const emailDisplay = attendee.email
+                ? `<span style="font-size: 0.8rem;">${Utils.escapeHtml(attendee.email)}</span>`
+                : `<span style="color: var(--text-tertiary); font-style: italic; font-size: 0.8rem;">No email</span>`;
+            const dateStr = attendee.created_at
+                ? new Date(attendee.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                : '-';
+
             return `
                 <tr data-attendee-id="${attendee.id}">
-                    <td style="text-align: center;">
-                        <input type="checkbox" name="attendee-select" value="${attendee.id}">
-                    </td>
+                    <td style="text-align: center;"><input type="checkbox" name="attendee-select" value="${attendee.id}"></td>
                     <td><strong>${Utils.escapeHtml(attendee.ref_number)}</strong></td>
                     <td>${Utils.escapeHtml(attendee.name)}</td>
                     <td>${emailDisplay}</td>
-                    <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">Unassigned</span>'}</td>
+                    <td>${attendee.room ? Utils.escapeHtml(attendee.room.number) : '<span class="badge badge-secondary">-</span>'}</td>
                     <td><strong>${Utils.formatCurrency(paymentDue)}</strong></td>
                     <td>${planBadge}</td>
-                    <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : '<span class="badge badge-secondary">No Group</span>'}</td>
+                    <td>${attendee.group ? Utils.escapeHtml(attendee.group.name) : '<span style="color: var(--text-tertiary);">-</span>'}</td>
                     <td>${statusBadge}</td>
+                    <td style="font-size: 0.75rem; color: var(--text-tertiary);">${dateStr}</td>
                     <td>
-                        <div class="action-buttons" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-                            <button class="btn btn-sm btn-primary edit-attendee" data-id="${attendee.id}" title="Edit Attendee">
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-primary edit-attendee" data-id="${attendee.id}" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
                             ${attendee.email ? `
-                            <button class="btn btn-sm btn-info email-attendee" 
-                                    data-id="${attendee.id}" 
-                                    data-email="${Utils.escapeHtml(attendee.email)}" 
-                                    data-name="${Utils.escapeHtml(attendee.name)}" 
-                                    title="Send Email to ${Utils.escapeHtml(attendee.name)}">
+                            <button class="btn btn-sm btn-info email-attendee"
+                                    data-id="${attendee.id}"
+                                    data-email="${Utils.escapeHtml(attendee.email)}"
+                                    data-name="${Utils.escapeHtml(attendee.name)}"
+                                    title="Email">
                                 <i class="fas fa-envelope"></i>
-                            </button>
-                            ` : ''}
-                            <button class="btn btn-sm btn-danger delete-attendee" data-id="${attendee.id}" title="Delete Attendee">
+                            </button>` : ''}
+                            <button class="btn btn-sm btn-danger delete-attendee" data-id="${attendee.id}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         }).join('');
     },
 
@@ -1355,9 +1407,27 @@ const AdminDashboard = {
         const searchGroups = document.getElementById('search-groups');
 
         if (searchAttendees) {
-            searchAttendees.addEventListener('input', Utils.debounce((e) => {
-                this.filterTable('attendees-table-body', e.target.value);
-            }, 300));
+            searchAttendees.addEventListener('input', Utils.debounce(() => {
+                this.updateAttendeesDisplay();
+            }, 200));
+        }
+
+        // Attendee filter/sort controls
+        ['filter-status', 'filter-plan', 'filter-group', 'sort-attendees'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', () => this.updateAttendeesDisplay());
+        });
+
+        const clearFilters = document.getElementById('clear-filters');
+        if (clearFilters) {
+            clearFilters.addEventListener('click', () => {
+                document.getElementById('search-attendees').value = '';
+                document.getElementById('filter-status').value = '';
+                document.getElementById('filter-plan').value = '';
+                document.getElementById('filter-group').value = '';
+                document.getElementById('sort-attendees').value = 'name-asc';
+                this.updateAttendeesDisplay();
+            });
         }
 
         if (searchAnnouncements) {

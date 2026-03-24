@@ -102,25 +102,55 @@
     <div class="tab-content active" id="attendees-tab">
         <div class="data-table">
             <div class="table-header">
-                <h3 class="table-title">Attendees</h3>
-                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                    <input type="search" class="search-box" id="search-attendees" placeholder="Search attendees...">
-                    <button class="btn btn-sm btn-ghost" id="email-selected-btn" disabled title="Email Selected Attendees">
-                        <i class="fas fa-envelope"></i> Email Selected (0)
+                <h3 class="table-title">Attendees <span id="attendees-showing" style="font-weight: 400; font-size: 0.75rem; color: var(--text-tertiary);"></span></h3>
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-sm btn-ghost" id="email-selected-btn" disabled title="Email Selected">
+                        <i class="fas fa-envelope"></i> Email (<span id="email-selected-count">0</span>)
                     </button>
                     <button class="btn btn-sm btn-success" id="bulk-upload-btn-2">
-                        <i class="fas fa-file-upload"></i> Bulk Upload
+                        <i class="fas fa-file-upload"></i> Upload
                     </button>
                     <button class="btn btn-sm btn-primary" id="add-attendee-btn-2">
-                        <i class="fas fa-plus"></i> Add Attendee
+                        <i class="fas fa-plus"></i> Add
                     </button>
                 </div>
             </div>
+
+            <!-- Filter Bar -->
+            <div style="padding: 0.75rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <input type="search" class="search-box" id="search-attendees" placeholder="Search name, ref, email..." style="width: 200px; font-size: 0.75rem; padding: 0.4rem 0.7rem;">
+                <select class="search-box" id="filter-status" style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem;">
+                    <option value="">All Status</option>
+                    <option value="paid">Paid</option>
+                    <option value="pending">Payment Due</option>
+                </select>
+                <select class="search-box" id="filter-plan" style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem;">
+                    <option value="">All Plans</option>
+                    <option value="full">Full Payment</option>
+                    <option value="installments">Installments</option>
+                    <option value="sponsorship">Sponsorship</option>
+                </select>
+                <select class="search-box" id="filter-group" style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem;">
+                    <option value="">All Groups</option>
+                </select>
+                <select class="search-box" id="sort-attendees" style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem;">
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="name-desc">Name Z-A</option>
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
+                    <option value="payment-desc">Payment High-Low</option>
+                    <option value="payment-asc">Payment Low-High</option>
+                </select>
+                <button class="btn btn-sm btn-ghost" id="clear-filters" title="Clear all filters" style="font-size: 0.7rem;">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+
             <div class="table-container">
                 <table class="table">
                     <thead>
                         <tr>
-                            <th style="width: 40px;"><input type="checkbox" id="select-all-attendees" title="Select All"></th>
+                            <th style="width: 36px;"><input type="checkbox" id="select-all-attendees" title="Select All"></th>
                             <th>Reference</th>
                             <th>Name</th>
                             <th>Email</th>
@@ -129,12 +159,13 @@
                             <th>Plan</th>
                             <th>Group</th>
                             <th>Status</th>
-                            <th style="width: 120px;">Actions</th>
+                            <th>Registered</th>
+                            <th style="width: 100px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="attendees-table-body">
                         <tr>
-                            <td colspan="11" class="loading-placeholder">
+                            <td colspan="12" class="loading-placeholder">
                                 <i class="fas fa-spinner fa-spin"></i> Loading attendees...
                             </td>
                         </tr>

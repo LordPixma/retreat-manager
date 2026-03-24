@@ -302,6 +302,12 @@
   cursor: pointer;
 }
 
+select.form-input option,
+.form-select option {
+  background: #1e1e2e;
+  color: #fff;
+}
+
 .form-help {
   font-size: var(--text-xs);
   color: var(--text-muted);

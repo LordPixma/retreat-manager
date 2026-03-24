@@ -518,6 +518,11 @@
   color: var(--text-muted);
 }
 
+select.search-box option {
+  background: #1e1e2e;
+  color: #fff;
+}
+
 .table-container {
   overflow-x: auto;
 }

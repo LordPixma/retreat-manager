@@ -13,10 +13,12 @@ interface AttendeeRow {
   email: string | null;
   payment_due: number;
   payment_option: string | null;
+  payment_status: string;
   room_id: number | null;
   group_id: number | null;
   room_number: string | null;
   group_name: string | null;
+  created_at: string;
 }
 
 interface CountResult {
@@ -57,8 +59,10 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         a.email,
         a.payment_due,
         a.payment_option,
+        a.payment_status,
         a.room_id,
         a.group_id,
+        a.created_at,
         r.number AS room_number,
         g.name AS group_name
       FROM attendees a
@@ -76,8 +80,10 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       email: attendee.email,
       payment_due: attendee.payment_due || 0,
       payment_option: attendee.payment_option || 'full',
+      payment_status: attendee.payment_status || 'pending',
       room_id: attendee.room_id,
       group_id: attendee.group_id,
+      created_at: attendee.created_at,
       room: attendee.room_number ? { number: attendee.room_number } : null,
       group: attendee.group_name ? { name: attendee.group_name } : null
     }));
