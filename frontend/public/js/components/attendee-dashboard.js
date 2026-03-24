@@ -143,6 +143,9 @@ const AttendeeDashboard = {
         
         // Update detailed information
         this.updateDetailedInfo();
+
+        // Update family registration summary
+        this.updateFamilySummary();
     },
 
     /**
@@ -911,6 +914,91 @@ const AttendeeDashboard = {
                 </div>
             </div>
         `;
+    },
+
+    updateFamilySummary() {
+        const reg = this.data.family_registration;
+        if (!reg || !reg.family_members || reg.family_members.length <= 1) return;
+
+        // Only show for primary attendees with a family registration
+        const container = document.getElementById('detailed-info');
+        if (!container) return;
+
+        const typeBadges = {
+            'adult': '<span class="badge badge-primary">Adult</span>',
+            'child': '<span class="badge badge-info">Child</span>',
+            'infant': '<span class="badge badge-success">Infant</span>',
+        };
+
+        const planLabels = {
+            'full': 'Full Payment',
+            'installments': 'Monthly Installments',
+            'sponsorship': 'Sponsorship Requested',
+        };
+
+        const registeredDate = new Date(reg.submitted_at).toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'long', year: 'numeric'
+        });
+
+        const memberRows = reg.family_members.map((m, i) => `
+            <tr>
+                <td style="padding: 0.6rem 1rem;">
+                    ${Utils.escapeHtml(m.name)}
+                    ${i === 0 ? ' <span class="badge badge-primary" style="font-size: 0.55rem;">Primary</span>' : ''}
+                </td>
+                <td style="padding: 0.6rem 1rem;">${typeBadges[m.member_type] || m.member_type}</td>
+                <td style="padding: 0.6rem 1rem;">${m.dietary_requirements ? Utils.escapeHtml(m.dietary_requirements) : '<span style="color: var(--text-tertiary);">None</span>'}</td>
+                <td style="padding: 0.6rem 1rem; text-align: right; font-weight: 600;">${m.price === 0 ? '<span style="color: var(--success);">FREE</span>' : Utils.formatCurrency(m.price)}</td>
+            </tr>
+        `).join('');
+
+        const totalPaid = reg.total_amount - (this.data.payment_due || 0);
+
+        const familyHtml = `
+            <div class="data-table" style="margin-top: 1.5rem;">
+                <div class="table-header">
+                    <h3 class="table-title"><i class="fas fa-people-roof"></i> Family Registration Summary</h3>
+                    <span class="badge badge-secondary">Registered ${registeredDate}</span>
+                </div>
+                <div style="padding: 1rem 1.25rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 10px;">
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${reg.member_count}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Family Members</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 10px;">
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${Utils.formatCurrency(reg.total_amount)}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Total Cost</div>
+                        </div>
+                        <div style="text-align: center; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 10px;">
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #a78bfa;">${planLabels[reg.payment_option] || reg.payment_option}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Payment Plan</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Dietary</th>
+                                <th style="text-align: right;">Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>${memberRows}</tbody>
+                        <tfoot>
+                            <tr style="border-top: 2px solid rgba(255,255,255,0.1);">
+                                <td colspan="3" style="padding: 0.75rem 1rem; font-weight: 600;">Total</td>
+                                <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700; font-size: 1.1rem;">${Utils.formatCurrency(reg.total_amount)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('afterend', familyHtml);
     }
 };
 

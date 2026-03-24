@@ -120,6 +120,43 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     // Get relevant announcements for this attendee
     const announcements = await getAttendeeAnnouncements(context.env.DB, ref, attendeeData.group_id, attendeeData.group_name);
 
+    // Get family/registration data if this is a primary attendee (has email)
+    let familyRegistration: {
+      total_amount: number;
+      member_count: number;
+      payment_option: string;
+      family_members: Array<{ name: string; member_type: string; price: number; date_of_birth?: string; dietary_requirements?: string }>;
+      submitted_at: string;
+    } | null = null;
+
+    if (attendeeData.email) {
+      const { results: regRows } = await context.env.DB.prepare(`
+        SELECT family_members, total_amount, member_count, payment_option, submitted_at
+        FROM registrations
+        WHERE email = ? AND status = 'approved'
+        ORDER BY submitted_at DESC
+        LIMIT 1
+      `).bind(attendeeData.email).all();
+
+      if (regRows.length > 0) {
+        const reg = regRows[0] as { family_members: string | null; total_amount: number; member_count: number; payment_option: string; submitted_at: string };
+        let parsedMembers: Array<{ name: string; member_type: string; price: number; date_of_birth?: string; dietary_requirements?: string }> = [];
+        try {
+          if (reg.family_members) {
+            parsedMembers = JSON.parse(reg.family_members);
+          }
+        } catch { /* ignore parse errors */ }
+
+        familyRegistration = {
+          total_amount: reg.total_amount || 0,
+          member_count: reg.member_count || 1,
+          payment_option: reg.payment_option || 'full',
+          family_members: parsedMembers,
+          submitted_at: reg.submitted_at,
+        };
+      }
+    }
+
     // Format response
     const response = {
       name: attendeeData.name,
@@ -135,6 +172,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         members: members,
         financial: groupFinancial
       } : null,
+      family_registration: familyRegistration,
       announcements: announcements
     };
 
