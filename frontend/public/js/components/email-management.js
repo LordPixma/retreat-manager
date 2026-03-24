@@ -68,17 +68,7 @@ window.EmailManagement = {
      */
     async loadGroups() {
         try {
-            const response = await fetch('/api/admin/groups', {
-                headers: {
-                    'Authorization': `Bearer ${Auth.getToken('admin')}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to load groups: ${response.status}`);
-            }
-            
-            const data = await response.json();
+            const data = await API.get('/admin/groups');
             this.availableGroups = data.data || data || [];
             console.log(`Loaded ${this.availableGroups.length} groups`);
         } catch (error) {
@@ -93,17 +83,7 @@ window.EmailManagement = {
      */
     async loadAttendees() {
         try {
-            const response = await fetch('/api/admin/attendees', {
-                headers: {
-                    'Authorization': `Bearer ${Auth.getToken('admin')}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to load attendees: ${response.status}`);
-            }
-            
-            const data = await response.json();
+            const data = await API.get('/admin/attendees');
             const attendees = data.data || data || [];
             this.availableAttendees = attendees.filter(a => a.email);
             console.log(`Loaded ${this.availableAttendees.length} attendees with email`);
@@ -559,26 +539,17 @@ This message will be formatted nicely and include attendee-specific details like
                 throw new Error('Message is required');
             }
             
-            const response = await fetch('/api/admin/email/individual', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Auth.getToken('admin')}`
-                },
-                body: JSON.stringify(formData)
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok && result.success) {
+            const result = await API.post('/admin/email/individual', formData);
+
+            if (result.success) {
                 this.showModalAlert('individual-email-alert', 'Email sent successfully!', 'success');
-                
+
                 // Close modal after 2 seconds
                 setTimeout(() => {
                     this.closeAllModals();
                     Utils.showAlert('Email sent successfully!', 'success');
                 }, 2000);
-                
+
                 // Update stats
                 this.updateEmailStats();
             } else {

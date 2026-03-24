@@ -6,7 +6,7 @@ import type { AdminAuth, AttendeeAuth } from './types.js';
 const PBKDF2_ITERATIONS = 100000; // OWASP recommended minimum
 const SALT_LENGTH = 16; // 128 bits
 const HASH_LENGTH = 32; // 256 bits
-const TOKEN_EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
+const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000; // 8 hours
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_LOGIN_ATTEMPTS = 5;
 
