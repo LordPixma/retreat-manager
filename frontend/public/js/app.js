@@ -1,4 +1,17 @@
-// frontend/public/js/app.js - Complete updated main application controller (FIXED)
+// frontend/public/js/app.js - Main application controller
+
+// Suppress verbose logging in production to prevent information disclosure
+(function() {
+    const isProduction = location.hostname !== 'localhost' && !location.hostname.includes('127.0.0.1');
+    if (isProduction) {
+        const noop = function() {};
+        console.log = noop;
+        console.info = noop;
+        console.warn = noop;
+        console.debug = noop;
+        // console.error is kept for critical error tracking
+    }
+})();
 
 const ComponentChecker = {
     /**

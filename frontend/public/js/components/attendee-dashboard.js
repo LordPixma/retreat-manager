@@ -146,6 +146,14 @@ const AttendeeDashboard = {
 
         // Update family registration summary
         this.updateFamilySummary();
+
+        // New features
+        this.updateCountdown();
+        this.updateQRCode();
+        this.updateActivityTeams();
+        this.updatePackingChecklist();
+        this.bindProfileEdit();
+        this.bindDownloadConfirmation();
     },
 
     /**
@@ -550,18 +558,10 @@ const AttendeeDashboard = {
             banner.style.display = 'block';
             if (bannerAmount) bannerAmount.textContent = Utils.formatCurrency(paymentDue);
             if (bannerButtons) {
-                if (paymentOption === 'installments') {
-                    bannerButtons.innerHTML = `
-                        <button class="btn btn-sm btn-primary pay-installment-btn" data-count="3">3 x ${Utils.formatCurrency(Math.ceil(paymentDue / 3 * 100) / 100)}</button>
-                        <button class="btn btn-sm btn-primary pay-installment-btn" data-count="4">4 x ${Utils.formatCurrency(Math.ceil(paymentDue / 4 * 100) / 100)}</button>
-                        <button class="btn btn-success pay-full-btn"><i class="fas fa-credit-card"></i> Pay Full</button>
-                    `;
-                } else {
-                    bannerButtons.innerHTML = `
-                        <button class="btn btn-success pay-full-btn"><i class="fas fa-credit-card"></i> Pay Now</button>
-                    `;
-                }
-                this.bindPayButtons(bannerButtons);
+                bannerButtons.innerHTML = `
+                    <button class="btn btn-success show-payment-options-btn"><i class="fas fa-sterling-sign"></i> Pay Now</button>
+                `;
+                bannerButtons.querySelector('.show-payment-options-btn').addEventListener('click', () => this.showPaymentOptions());
             }
         } else if (banner) {
             banner.style.display = 'none';
@@ -578,8 +578,8 @@ const AttendeeDashboard = {
             </span>
             ${paymentDue > 0 && paymentOption !== 'sponsorship' ? `
                 <div style="margin-top: 1rem;">
-                    <button class="btn btn-sm btn-success pay-full-btn" style="width: 100%;">
-                        <i class="fas fa-credit-card"></i> Pay Now
+                    <button class="btn btn-sm btn-success show-payment-options-btn" style="width: 100%;">
+                        <i class="fas fa-sterling-sign"></i> Pay Now
                     </button>
                 </div>
             ` : ''}
@@ -587,8 +587,113 @@ const AttendeeDashboard = {
             <div id="payment-history-section" style="margin-top: 0.75rem;"></div>
         `;
 
-        this.bindPayButtons(content);
+        content.querySelectorAll('.show-payment-options-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.showPaymentOptions());
+        });
         this.loadPaymentHistory();
+    },
+
+    showPaymentOptions() {
+        const paymentDue = this.data.payment_due || 0;
+        const paymentOption = this.data.payment_option || 'full';
+
+        // Build installment buttons
+        let installmentBtns = '';
+        if (paymentOption === 'installments') {
+            installmentBtns = `
+                <div style="margin-bottom: 0.75rem;">
+                    <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em;">Installment Plans</div>
+                    <div style="display: flex; gap: 0.4rem;">
+                        <button class="btn btn-sm btn-primary pay-card-installment" data-count="3" style="flex:1;">3 x ${Utils.formatCurrency(Math.ceil(paymentDue / 3 * 100) / 100)}</button>
+                        <button class="btn btn-sm btn-primary pay-card-installment" data-count="4" style="flex:1;">4 x ${Utils.formatCurrency(Math.ceil(paymentDue / 4 * 100) / 100)}</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        const modalHtml = `
+            <div class="modal-overlay" id="payment-options-modal" style="z-index: 500;">
+                <div class="modal" style="max-width: 480px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Choose Payment Method</h3>
+                        <button type="button" class="modal-close" id="close-payment-modal"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body" style="padding: 1.5rem;">
+                        <div style="text-align: center; margin-bottom: 1.5rem;">
+                            <div style="font-size: 0.7rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Amount Due</div>
+                            <div style="font-size: 2rem; font-weight: 700; color: #fff;">${Utils.formatCurrency(paymentDue)}</div>
+                        </div>
+
+                        <!-- Card Payment -->
+                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem; margin-bottom: 0.75rem;">
+                            <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem;"><i class="fas fa-credit-card" style="color: #a78bfa;"></i> Pay by Card</div>
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 1rem;">Secure payment via Stripe. Instant confirmation.</div>
+                            ${installmentBtns}
+                            <button class="btn btn-success pay-card-full" style="width: 100%;">
+                                <i class="fas fa-credit-card"></i> Pay ${Utils.formatCurrency(paymentDue)} by Card
+                            </button>
+                        </div>
+
+                        <!-- Bank Transfer -->
+                        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem;">
+                            <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem;"><i class="fas fa-building-columns" style="color: #6ee7b7;"></i> Pay by Bank Transfer</div>
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 1rem;">No fees. Transfer directly to our account. Admin confirms receipt.</div>
+                            <div style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
+                                <strong style="color: #fff;">Account Name:</strong> Cloverleaf Christian Centre<br>
+                                <strong style="color: #fff;">Sort Code:</strong> <span style="font-family: monospace;">82-12-08</span><br>
+                                <strong style="color: #fff;">Account No:</strong> <span style="font-family: monospace;">50180560</span><br>
+                                <strong style="color: #fff;">Reference:</strong> <span style="font-family: monospace; color: #fbbf24;">${this.data.ref_number || ''}</span>
+                            </div>
+                            <button class="btn btn-primary pay-bank-full" style="width: 100%;">
+                                <i class="fas fa-check"></i> I've Made the Transfer
+                            </button>
+                            ${paymentOption === 'installments' ? `
+                                <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+                                    <button class="btn btn-sm btn-ghost pay-bank-installment" data-count="3" style="flex:1;">I've paid 3-instalment amount</button>
+                                    <button class="btn btn-sm btn-ghost pay-bank-installment" data-count="4" style="flex:1;">I've paid 4-instalment amount</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = document.getElementById('payment-options-modal');
+        const close = () => modal.remove();
+
+        document.getElementById('close-payment-modal').addEventListener('click', close);
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+        // Card payment buttons
+        modal.querySelector('.pay-card-full')?.addEventListener('click', (e) => { close(); this.handlePayment('full', null, e); });
+        modal.querySelectorAll('.pay-card-installment').forEach(btn => {
+            btn.addEventListener('click', (e) => { close(); this.handlePayment('installment', parseInt(btn.dataset.count), e); });
+        });
+
+        // Bank transfer buttons
+        modal.querySelector('.pay-bank-full')?.addEventListener('click', (e) => { close(); this.handleBankTransfer('full', null, e); });
+        modal.querySelectorAll('.pay-bank-installment').forEach(btn => {
+            btn.addEventListener('click', (e) => { close(); this.handleBankTransfer('installment', parseInt(btn.dataset.count), e); });
+        });
+    },
+
+    async handleBankTransfer(type, installmentCount, e) {
+        try {
+            const body = { payment_type: type };
+            if (type === 'installment') body.installment_count = installmentCount;
+
+            await API.post('/payments/bank-transfer', body);
+            Utils.showAlert('Bank transfer recorded! We\'ll confirm once payment is received.', 'success');
+
+            // Reload data
+            this.data = await API.get('/me');
+            this.updatePaymentInfo();
+        } catch (error) {
+            Utils.showAlert(error.message || 'Failed to record bank transfer', 'error');
+        }
     },
 
     bindPayButtons(container) {
@@ -833,99 +938,288 @@ const AttendeeDashboard = {
         const content = document.getElementById('detailed-info-content');
         if (!content) return;
         
+        const d = this.data;
+        const field = (label, value) => value ? `<div class="info-item"><div class="info-label">${label}</div><div class="info-value">${Utils.escapeHtml(value)}</div></div>` : '';
+
         content.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; padding: 1rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; padding: 1rem;">
                 <div>
-                    <h4 style="color: var(--primary); margin-bottom: 1rem;">
-                        <i class="fas fa-user"></i> Personal Information
+                    <h4 style="color: var(--primary-400); margin-bottom: 0.75rem; font-size: 0.85rem;">
+                        <i class="fas fa-user"></i> Personal
                     </h4>
-                    <div class="info-item">
-                        <div class="info-label">Full Name</div>
-                        <div class="info-value">${Utils.escapeHtml(this.data.name)}</div>
-                    </div>
-                    ${this.data.email ? `
-                        <div class="info-item">
-                            <div class="info-label">Email</div>
-                            <div class="info-value">${Utils.escapeHtml(this.data.email)}</div>
-                        </div>
-                    ` : ''}
-                    <div class="info-item">
-                        <div class="info-label">Account Status</div>
-                        <div class="info-value">
-                            <span class="badge badge-success">
-                                <i class="fas fa-check-circle"></i> Active
-                            </span>
-                        </div>
-                    </div>
+                    ${field('Full Name', d.name)}
+                    ${field('Reference', d.ref_number)}
+                    ${field('Email', d.email)}
+                    ${field('Phone', d.phone)}
                 </div>
-                
                 <div>
-                    <h4 style="color: var(--primary); margin-bottom: 1rem;">
+                    <h4 style="color: var(--primary-400); margin-bottom: 0.75rem; font-size: 0.85rem;">
+                        <i class="fas fa-heart"></i> Health & Safety
+                    </h4>
+                    ${field('Emergency Contact', d.emergency_contact)}
+                    ${field('Dietary Requirements', d.dietary_requirements)}
+                    ${field('Special Requests', d.special_requests)}
+                    ${!d.emergency_contact && !d.dietary_requirements && !d.special_requests ? '<div style="font-size: 0.8rem; color: var(--text-tertiary);">No details provided — click Edit to add</div>' : ''}
+                </div>
+                <div>
+                    <h4 style="color: var(--primary-400); margin-bottom: 0.75rem; font-size: 0.85rem;">
                         <i class="fas fa-bed"></i> Accommodation
                     </h4>
-                    ${this.data.room ? `
-                        <div class="info-item">
-                            <div class="info-label">Room Number</div>
-                            <div class="info-value">${Utils.escapeHtml(this.data.room.number)}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Room Type</div>
-                            <div class="info-value">${Utils.escapeHtml(this.data.room.description || 'Standard Room')}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Status</div>
-                            <div class="info-value">
-                                <span class="badge badge-success">
-                                    <i class="fas fa-key"></i> Assigned
-                                </span>
-                            </div>
-                        </div>
-                    ` : `
-                        <div class="info-item">
-                            <div class="info-value" style="color: var(--text-secondary);">
-                                <i class="fas fa-clock"></i> Room assignment pending
-                            </div>
-                            <small style="color: var(--text-secondary); margin-top: 0.5rem; display: block;">
-                                Rooms are typically assigned 1-2 weeks before arrival
-                            </small>
-                        </div>
-                    `}
+                    ${d.room
+                        ? field('Room', d.room.number) + field('Type', d.room.description || 'Standard')
+                        : '<div style="font-size: 0.8rem; color: var(--text-tertiary);"><i class="fas fa-clock"></i> Room assignment pending</div>'}
                 </div>
-                
                 <div>
-                    <h4 style="color: var(--primary); margin-bottom: 1rem;">
-                        <i class="fas fa-users"></i> Group & Activities
+                    <h4 style="color: var(--primary-400); margin-bottom: 0.75rem; font-size: 0.85rem;">
+                        <i class="fas fa-users"></i> Group
                     </h4>
-                    ${this.data.group ? `
-                        <div class="info-item">
-                            <div class="info-label">Group Name</div>
-                            <div class="info-value">${Utils.escapeHtml(this.data.group.name)}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Group Size</div>
-                            <div class="info-value">${this.data.group.members.length + 1} members total</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Status</div>
-                            <div class="info-value">
-                                <span class="badge badge-primary">
-                                    <i class="fas fa-users"></i> Active Member
-                                </span>
-                            </div>
-                        </div>
-                    ` : `
-                        <div class="info-item">
-                            <div class="info-value" style="color: var(--text-secondary);">
-                                <i class="fas fa-clock"></i> No group assigned yet
-                            </div>
-                            <small style="color: var(--text-secondary); margin-top: 0.5rem; display: block;">
-                                Groups help coordinate activities, meals, and excursions
-                            </small>
-                        </div>
-                    `}
+                    ${d.group
+                        ? field('Group', d.group.name) + `<div class="info-item"><div class="info-label">Members</div><div class="info-value">${d.group.members.length + 1}</div></div>`
+                        : '<div style="font-size: 0.8rem; color: var(--text-tertiary);"><i class="fas fa-clock"></i> No group assigned yet</div>'}
                 </div>
             </div>
         `;
+    },
+
+    // ==================== NEW FEATURES ====================
+
+    updateCountdown() {
+        const display = document.getElementById('countdown-display');
+        if (!display) return;
+
+        const retreatDate = new Date('2026-07-31T15:00:00');
+        const update = () => {
+            const now = new Date();
+            const diff = retreatDate - now;
+            if (diff <= 0) {
+                display.innerHTML = '<div style="font-size: 1.25rem; font-weight: 700; color: #6ee7b7;">The retreat is here!</div>';
+                return;
+            }
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            const unit = (val, label) => `
+                <div style="text-align: center;">
+                    <div style="font-size: 1.75rem; font-weight: 700; color: #fff; line-height: 1;">${val}</div>
+                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-top: 0.2rem;">${label}</div>
+                </div>`;
+            display.innerHTML = unit(days, 'Days') + unit(hours, 'Hours') + unit(mins, 'Mins') + unit(secs, 'Secs');
+        };
+        update();
+        setInterval(update, 1000);
+    },
+
+    updateQRCode() {
+        const container = document.getElementById('qr-code-container');
+        const refDisplay = document.getElementById('qr-ref-display');
+        if (!container || !this.data.ref_number) return;
+
+        if (refDisplay) refDisplay.textContent = this.data.ref_number;
+
+        // Generate QR code using a simple SVG-based approach (no library needed)
+        // We'll use an inline canvas QR generator
+        const qrData = JSON.stringify({
+            ref: this.data.ref_number,
+            name: this.data.name,
+            t: Date.now()
+        });
+
+        // Use a lightweight QR code via Google Charts API fallback
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(qrData)}&bgcolor=ffffff&color=1e1e2e`;
+        container.innerHTML = `<img src="${qrUrl}" alt="QR Code" style="width: 140px; height: 140px; display: block;">`;
+    },
+
+    updateActivityTeams() {
+        const container = document.getElementById('activity-teams-content');
+        if (!container) return;
+
+        const teams = this.data.activity_teams || [];
+        if (teams.length === 0) {
+            container.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-tertiary);">No activity teams assigned yet</div>';
+            return;
+        }
+
+        container.innerHTML = teams.map(team => `
+            <div style="margin-bottom: 0.75rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem;">
+                    ${Utils.escapeHtml(team.name)}
+                    ${team.is_leader ? ' <span class="badge badge-primary" style="font-size: 0.55rem;"><i class="fas fa-crown"></i> Leader</span>' : ''}
+                </div>
+                ${team.description ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem;">${Utils.escapeHtml(team.description)}</div>` : ''}
+                <div style="font-size: 0.7rem; color: var(--text-tertiary);">
+                    <i class="fas fa-user-shield"></i> Leader: ${Utils.escapeHtml(team.leader_name || 'TBD')}
+                    &nbsp;&middot;&nbsp; ${team.members.length} members
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.2rem;">
+                    ${team.members.map(n => Utils.escapeHtml(n)).join(', ')}
+                </div>
+            </div>
+        `).join('');
+    },
+
+    updatePackingChecklist() {
+        const container = document.getElementById('packing-list');
+        const progressEl = document.getElementById('packing-progress');
+        if (!container) return;
+
+        const items = [
+            { category: 'Essentials', items: ['Bible', 'Notebook & Pen', 'Phone Charger', 'ID / Driving Licence', 'Cash / Card'] },
+            { category: 'Clothing', items: ['Comfortable day clothes', 'Smart casual evening wear', 'Warm jacket / layers', 'Comfortable shoes', 'Sleepwear'] },
+            { category: 'Toiletries', items: ['Toothbrush & Toothpaste', 'Shower gel / Shampoo', 'Towel', 'Any medications'] },
+            { category: 'Optional', items: ['Snacks to share', 'Musical instrument', 'Board games', 'Walking shoes', 'Umbrella / Raincoat'] },
+        ];
+
+        const storageKey = `packing_${this.data.ref_number || 'guest'}`;
+        let checked = {};
+        try { checked = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch {}
+
+        const allItems = items.flatMap(c => c.items);
+        const checkedCount = allItems.filter(i => checked[i]).length;
+        if (progressEl) progressEl.textContent = `${checkedCount}/${allItems.length} packed`;
+
+        container.innerHTML = items.map(cat => `
+            <div style="margin-bottom: 0.5rem;">
+                <div style="font-size: 0.7rem; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem;">${cat.category}</div>
+                ${cat.items.map(item => `
+                    <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; cursor: pointer; font-size: 0.8rem; color: ${checked[item] ? 'var(--text-tertiary)' : 'var(--text-secondary)'}; ${checked[item] ? 'text-decoration: line-through;' : ''}">
+                        <input type="checkbox" class="packing-item" data-item="${Utils.escapeHtml(item)}" ${checked[item] ? 'checked' : ''} style="accent-color: var(--primary-500);">
+                        ${Utils.escapeHtml(item)}
+                    </label>
+                `).join('')}
+            </div>
+        `).join('');
+
+        // Bind checkbox changes
+        container.querySelectorAll('.packing-item').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const item = e.target.dataset.item;
+                if (e.target.checked) checked[item] = true;
+                else delete checked[item];
+                localStorage.setItem(storageKey, JSON.stringify(checked));
+                this.updatePackingChecklist();
+            });
+        });
+    },
+
+    bindProfileEdit() {
+        const editBtn = document.getElementById('edit-profile-btn');
+        if (!editBtn) return;
+
+        editBtn.addEventListener('click', () => {
+            const content = document.getElementById('detailed-info-content');
+            if (!content) return;
+
+            content.innerHTML = `
+                <form id="profile-edit-form" style="padding: 1rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-input" value="${Utils.escapeHtml(this.data.phone || '')}" placeholder="Your phone number">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Emergency Contact</label>
+                            <input type="text" name="emergency_contact" class="form-input" value="${Utils.escapeHtml(this.data.emergency_contact || '')}" placeholder="Name and number">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dietary Requirements</label>
+                            <input type="text" name="dietary_requirements" class="form-input" value="${Utils.escapeHtml(this.data.dietary_requirements || '')}" placeholder="Any dietary needs">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Special Requests</label>
+                            <input type="text" name="special_requests" class="form-input" value="${Utils.escapeHtml(this.data.special_requests || '')}" placeholder="Any special needs">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Save Changes</button>
+                        <button type="button" class="btn btn-ghost btn-sm" id="cancel-profile-edit"><i class="fas fa-times"></i> Cancel</button>
+                    </div>
+                </form>
+            `;
+
+            document.getElementById('cancel-profile-edit').addEventListener('click', () => {
+                this.updateDetailedInfo();
+            });
+
+            document.getElementById('profile-edit-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData.entries());
+                try {
+                    await API.request('/profile', { method: 'PUT', body: JSON.stringify(data) });
+                    Utils.showAlert('Profile updated successfully', 'success');
+                    // Reload data
+                    this.data = await API.get('/me');
+                    this.updateDetailedInfo();
+                } catch (error) {
+                    Utils.showAlert(error.message || 'Failed to update profile', 'error');
+                }
+            });
+        });
+    },
+
+    bindDownloadConfirmation() {
+        const btn = document.getElementById('download-confirmation-btn');
+        if (!btn) return;
+
+        btn.addEventListener('click', () => {
+            const d = this.data;
+            const reg = d.family_registration;
+            const now = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+            let familyRows = '';
+            if (reg && reg.family_members) {
+                familyRows = reg.family_members.map(m =>
+                    `<tr><td style="padding:8px;border:1px solid #ddd;">${m.name}</td><td style="padding:8px;border:1px solid #ddd;">${m.member_type}</td><td style="padding:8px;border:1px solid #ddd;text-align:right;">£${(m.price || 0).toFixed(2)}</td></tr>`
+                ).join('');
+            }
+
+            const html = `
+                <html><head><title>Booking Confirmation - ${d.ref_number}</title>
+                <style>body{font-family:Arial,sans-serif;padding:40px;color:#333}h1{color:#667eea}table{border-collapse:collapse;width:100%}th{background:#667eea;color:#fff;padding:10px;text-align:left}td{padding:8px;border:1px solid #ddd}.header{text-align:center;margin-bottom:30px}.info{margin:20px 0;padding:15px;background:#f8f9fa;border-radius:8px}.footer{margin-top:40px;text-align:center;color:#999;font-size:12px}</style></head>
+                <body>
+                <div class="header">
+                    <h1>Growth & Wisdom Family Retreat 2026</h1>
+                    <p>Booking Confirmation</p>
+                </div>
+                <div class="info">
+                    <strong>Reference:</strong> ${d.ref_number}<br>
+                    <strong>Name:</strong> ${d.name}<br>
+                    ${d.email ? `<strong>Email:</strong> ${d.email}<br>` : ''}
+                    <strong>Payment Status:</strong> ${d.payment_due > 0 ? '£' + d.payment_due.toFixed(2) + ' outstanding' : 'Paid in Full'}<br>
+                    <strong>Payment Plan:</strong> ${d.payment_option === 'installments' ? 'Installments' : d.payment_option === 'sponsorship' ? 'Sponsorship' : 'Full Payment'}<br>
+                    ${d.room ? `<strong>Room:</strong> ${d.room.number}<br>` : ''}
+                    ${d.group ? `<strong>Group:</strong> ${d.group.name}<br>` : ''}
+                </div>
+                ${familyRows ? `
+                <h3>Family Members</h3>
+                <table><thead><tr><th>Name</th><th>Type</th><th style="text-align:right">Cost</th></tr></thead>
+                <tbody>${familyRows}</tbody>
+                <tfoot><tr><td colspan="2" style="padding:8px;border:1px solid #ddd;font-weight:bold">Total</td><td style="padding:8px;border:1px solid #ddd;text-align:right;font-weight:bold">£${(reg.total_amount || 0).toFixed(2)}</td></tr></tfoot>
+                </table>` : ''}
+                <div class="info" style="margin-top:20px;">
+                    <strong>Venue:</strong> The Hayes Conference Centre, Swanwick, Derbyshire DE55 1AU<br>
+                    <strong>Dates:</strong> July 31 – August 2, 2026<br>
+                    <strong>Check-in:</strong> 3:00 PM on Friday, July 31
+                </div>
+                <div class="footer">
+                    Generated on ${now} | Growth & Wisdom Family Retreat 2026<br>
+                    Hosted by Cloverleaf Christian Centre
+                </div>
+                </body></html>
+            `;
+
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const printWindow = window.open(url, '_blank');
+            if (printWindow) {
+                printWindow.onload = () => {
+                    printWindow.print();
+                    URL.revokeObjectURL(url);
+                };
+            }
+        });
     },
 
     updateFamilySummary() {

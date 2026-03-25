@@ -195,12 +195,13 @@ export async function onRequestDelete(context: PagesContext<IdParams>): Promise<
 
     const attendee = existingResults[0] as { id: number; name: string; ref_number: string };
 
+    // Soft delete — archive instead of permanent delete
     const result = await context.env.DB.prepare(
-      'DELETE FROM attendees WHERE id = ?'
+      'UPDATE attendees SET is_archived = 1 WHERE id = ?'
     ).bind(id).run();
 
     if (!result.success) {
-      throw new Error('Failed to delete attendee');
+      throw new Error('Failed to archive attendee');
     }
 
     return createResponse({

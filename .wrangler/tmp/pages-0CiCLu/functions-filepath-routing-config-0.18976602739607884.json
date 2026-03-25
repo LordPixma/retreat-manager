@@ -1,0 +1,781 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/admin/announcements/:id/email",
+      "mountPath": "/api/admin/announcements/:id",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/announcements/[id]/email.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements/:id/email",
+      "mountPath": "/api/admin/announcements/:id",
+      "method": "POST",
+      "module": [
+        "api/admin/announcements/[id]/email.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/email/individual",
+      "mountPath": "/api/admin/email",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/email/individual.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/email/individual",
+      "mountPath": "/api/admin/email",
+      "method": "POST",
+      "module": [
+        "api/admin/email/individual.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/email/notifications",
+      "mountPath": "/api/admin/email",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/email/notifications.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/email/notifications",
+      "mountPath": "/api/admin/email",
+      "method": "POST",
+      "module": [
+        "api/admin/email/notifications.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/email/send",
+      "mountPath": "/api/admin/email",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/email/send.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/email/send",
+      "mountPath": "/api/admin/email",
+      "method": "POST",
+      "module": [
+        "api/admin/email/send.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/send-installment-reminders",
+      "mountPath": "/api/admin/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/payments/send-installment-reminders.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/send-installment-reminders",
+      "mountPath": "/api/admin/payments",
+      "method": "POST",
+      "module": [
+        "api/admin/payments/send-installment-reminders.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/send-payment-reminders",
+      "mountPath": "/api/admin/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/payments/send-payment-reminders.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/send-payment-reminders",
+      "mountPath": "/api/admin/payments",
+      "method": "POST",
+      "module": [
+        "api/admin/payments/send-payment-reminders.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/summary",
+      "mountPath": "/api/admin/payments",
+      "method": "GET",
+      "module": [
+        "api/admin/payments/summary.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/summary",
+      "mountPath": "/api/admin/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/payments/summary.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/reports/login-history",
+      "mountPath": "/api/admin/reports",
+      "method": "GET",
+      "module": [
+        "api/admin/reports/login-history.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/reports/login-history",
+      "mountPath": "/api/admin/reports",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/reports/login-history.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/activity-teams/:id",
+      "mountPath": "/api/admin/activity-teams",
+      "method": "DELETE",
+      "module": [
+        "api/admin/activity-teams/[id].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/admin/activity-teams/:id",
+      "mountPath": "/api/admin/activity-teams",
+      "method": "GET",
+      "module": [
+        "api/admin/activity-teams/[id].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/activity-teams/:id",
+      "mountPath": "/api/admin/activity-teams",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/activity-teams/[id].ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/activity-teams/:id",
+      "mountPath": "/api/admin/activity-teams",
+      "method": "PUT",
+      "module": [
+        "api/admin/activity-teams/[id].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements/:id",
+      "mountPath": "/api/admin/announcements",
+      "method": "DELETE",
+      "module": [
+        "api/admin/announcements/[id].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements/:id",
+      "mountPath": "/api/admin/announcements",
+      "method": "GET",
+      "module": [
+        "api/admin/announcements/[id].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements/:id",
+      "mountPath": "/api/admin/announcements",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/announcements/[id].ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements/:id",
+      "mountPath": "/api/admin/announcements",
+      "method": "PUT",
+      "module": [
+        "api/admin/announcements/[id].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/admin/attendees/:id",
+      "mountPath": "/api/admin/attendees",
+      "method": "DELETE",
+      "module": [
+        "api/admin/attendees/[id].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/admin/attendees/:id",
+      "mountPath": "/api/admin/attendees",
+      "method": "GET",
+      "module": [
+        "api/admin/attendees/[id].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/attendees/:id",
+      "mountPath": "/api/admin/attendees",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/attendees/[id].ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/attendees/:id",
+      "mountPath": "/api/admin/attendees",
+      "method": "PUT",
+      "module": [
+        "api/admin/attendees/[id].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/admin/groups/:id",
+      "mountPath": "/api/admin/groups",
+      "method": "DELETE",
+      "module": [
+        "api/admin/groups/[id].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/admin/groups/:id",
+      "mountPath": "/api/admin/groups",
+      "method": "GET",
+      "module": [
+        "api/admin/groups/[id].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/groups/:id",
+      "mountPath": "/api/admin/groups",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/groups/[id].ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/groups/:id",
+      "mountPath": "/api/admin/groups",
+      "method": "PUT",
+      "module": [
+        "api/admin/groups/[id].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/:id",
+      "mountPath": "/api/admin/payments",
+      "method": "GET",
+      "module": [
+        "api/admin/payments/[id].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/:id",
+      "mountPath": "/api/admin/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/payments/[id].ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments/:id",
+      "mountPath": "/api/admin/payments",
+      "method": "PUT",
+      "module": [
+        "api/admin/payments/[id].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/admin/registrations/:id",
+      "mountPath": "/api/admin/registrations",
+      "method": "DELETE",
+      "module": [
+        "api/admin/registrations/[id].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/admin/registrations/:id",
+      "mountPath": "/api/admin/registrations",
+      "method": "GET",
+      "module": [
+        "api/admin/registrations/[id].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/registrations/:id",
+      "mountPath": "/api/admin/registrations",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/registrations/[id].ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/registrations/:id",
+      "mountPath": "/api/admin/registrations",
+      "method": "PUT",
+      "module": [
+        "api/admin/registrations/[id].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/admin/rooms/:id",
+      "mountPath": "/api/admin/rooms",
+      "method": "DELETE",
+      "module": [
+        "api/admin/rooms/[id].ts:onRequestDelete"
+      ]
+    },
+    {
+      "routePath": "/api/admin/rooms/:id",
+      "mountPath": "/api/admin/rooms",
+      "method": "GET",
+      "module": [
+        "api/admin/rooms/[id].ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/rooms/:id",
+      "mountPath": "/api/admin/rooms",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/rooms/[id].ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/rooms/:id",
+      "mountPath": "/api/admin/rooms",
+      "method": "PUT",
+      "module": [
+        "api/admin/rooms/[id].ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/admin/activity-teams",
+      "mountPath": "/api/admin/activity-teams",
+      "method": "GET",
+      "module": [
+        "api/admin/activity-teams/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/activity-teams",
+      "mountPath": "/api/admin/activity-teams",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/activity-teams/index.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/activity-teams",
+      "mountPath": "/api/admin/activity-teams",
+      "method": "POST",
+      "module": [
+        "api/admin/activity-teams/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements",
+      "mountPath": "/api/admin/announcements",
+      "method": "GET",
+      "module": [
+        "api/admin/announcements/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements",
+      "mountPath": "/api/admin/announcements",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/announcements/index.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/announcements",
+      "mountPath": "/api/admin/announcements",
+      "method": "POST",
+      "module": [
+        "api/admin/announcements/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/attendees",
+      "mountPath": "/api/admin/attendees",
+      "method": "GET",
+      "module": [
+        "api/admin/attendees/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/attendees",
+      "mountPath": "/api/admin/attendees",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/attendees/index.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/attendees",
+      "mountPath": "/api/admin/attendees",
+      "method": "POST",
+      "module": [
+        "api/admin/attendees/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/audit-log",
+      "mountPath": "/api/admin",
+      "method": "GET",
+      "module": [
+        "api/admin/audit-log.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/audit-log",
+      "mountPath": "/api/admin",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/audit-log.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/bulk-actions",
+      "mountPath": "/api/admin",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/bulk-actions.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/bulk-actions",
+      "mountPath": "/api/admin",
+      "method": "POST",
+      "module": [
+        "api/admin/bulk-actions.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/check-in",
+      "mountPath": "/api/admin",
+      "method": "GET",
+      "module": [
+        "api/admin/check-in.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/check-in",
+      "mountPath": "/api/admin",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/check-in.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/check-in",
+      "mountPath": "/api/admin",
+      "method": "POST",
+      "module": [
+        "api/admin/check-in.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/export",
+      "mountPath": "/api/admin",
+      "method": "GET",
+      "module": [
+        "api/admin/export.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/export",
+      "mountPath": "/api/admin",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/export.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/groups",
+      "mountPath": "/api/admin/groups",
+      "method": "GET",
+      "module": [
+        "api/admin/groups/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/groups",
+      "mountPath": "/api/admin/groups",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/groups/index.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/groups",
+      "mountPath": "/api/admin/groups",
+      "method": "POST",
+      "module": [
+        "api/admin/groups/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/login",
+      "mountPath": "/api/admin",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/login.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/login",
+      "mountPath": "/api/admin",
+      "method": "POST",
+      "module": [
+        "api/admin/login.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments",
+      "mountPath": "/api/admin/payments",
+      "method": "GET",
+      "module": [
+        "api/admin/payments/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/payments",
+      "mountPath": "/api/admin/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/payments/index.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/registrations",
+      "mountPath": "/api/admin/registrations",
+      "method": "GET",
+      "module": [
+        "api/admin/registrations/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/registrations",
+      "mountPath": "/api/admin/registrations",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/registrations/index.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/rooms",
+      "mountPath": "/api/admin/rooms",
+      "method": "GET",
+      "module": [
+        "api/admin/rooms/index.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin/rooms",
+      "mountPath": "/api/admin/rooms",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin/rooms/index.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin/rooms",
+      "mountPath": "/api/admin/rooms",
+      "method": "POST",
+      "module": [
+        "api/admin/rooms/index.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/email/test",
+      "mountPath": "/api/email",
+      "method": "OPTIONS",
+      "module": [
+        "api/email/test.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/email/test",
+      "mountPath": "/api/email",
+      "method": "POST",
+      "module": [
+        "api/email/test.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/payments/bank-transfer",
+      "mountPath": "/api/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/payments/bank-transfer.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/payments/bank-transfer",
+      "mountPath": "/api/payments",
+      "method": "POST",
+      "module": [
+        "api/payments/bank-transfer.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/payments/checkout",
+      "mountPath": "/api/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/payments/checkout.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/payments/checkout",
+      "mountPath": "/api/payments",
+      "method": "POST",
+      "module": [
+        "api/payments/checkout.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/payments/history",
+      "mountPath": "/api/payments",
+      "method": "GET",
+      "module": [
+        "api/payments/history.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/payments/history",
+      "mountPath": "/api/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/payments/history.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/payments/status",
+      "mountPath": "/api/payments",
+      "method": "GET",
+      "module": [
+        "api/payments/status.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/payments/status",
+      "mountPath": "/api/payments",
+      "method": "OPTIONS",
+      "module": [
+        "api/payments/status.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/webhooks/stripe",
+      "mountPath": "/api/webhooks",
+      "method": "OPTIONS",
+      "module": [
+        "api/webhooks/stripe.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/webhooks/stripe",
+      "mountPath": "/api/webhooks",
+      "method": "POST",
+      "module": [
+        "api/webhooks/stripe.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/announcements",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/announcements.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/announcements",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/announcements.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/login",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/login.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/login",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/login.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/me",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/me.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/me",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/me.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/profile",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/profile.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/profile",
+      "mountPath": "/api",
+      "method": "PUT",
+      "module": [
+        "api/profile.ts:onRequestPut"
+      ]
+    },
+    {
+      "routePath": "/api/register",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/register.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/register",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/register.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/register",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/register.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/",
+      "mountPath": "/",
+      "method": "",
+      "middleware": [
+        "_middleware.ts:onRequest"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}

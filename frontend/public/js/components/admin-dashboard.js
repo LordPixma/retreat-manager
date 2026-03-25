@@ -23,6 +23,7 @@ const AdminDashboard = {
             await this.loadAllData();
             this.bindEvents();
             this.setupTabNavigation();
+            this.bindEnhancedFeatures();
             
             // Initialize email management with better error handling
             if (window.EmailManagement) {
@@ -1003,7 +1004,7 @@ const AdminDashboard = {
         if (this.data.payments.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
                         <i class="fas fa-credit-card" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                         No payments recorded yet
                     </td>
@@ -1015,16 +1016,27 @@ const AdminDashboard = {
             const amount = `£${(p.amount / 100).toFixed(2)}`;
             const date = new Date(p.paid_at || p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
             const statusBadges = {
-                'succeeded': '<span class="badge badge-success">Succeeded</span>',
-                'pending': '<span class="badge badge-warning">Pending</span>',
-                'failed': '<span class="badge badge-danger">Failed</span>',
+                'succeeded': '<span class="badge badge-success">Confirmed</span>',
+                'pending': '<span class="badge badge-warning">Awaiting</span>',
+                'failed': '<span class="badge badge-danger">Rejected</span>',
                 'cancelled': '<span class="badge badge-secondary">Cancelled</span>',
                 'refunded': '<span class="badge badge-info">Refunded</span>',
             };
             const typeBadges = {
                 'full': '<span class="badge badge-primary">Full</span>',
-                'installment': '<span class="badge badge-info">Installment ' + (p.installment_number || '') + '/' + (p.installment_total || '') + '</span>',
+                'installment': '<span class="badge badge-info">Inst. ' + (p.installment_number || '') + '/' + (p.installment_total || '') + '</span>',
             };
+            const isStripe = !!p.stripe_checkout_session_id;
+            const methodBadge = isStripe
+                ? '<span class="badge badge-primary"><i class="fas fa-credit-card"></i> Card</span>'
+                : '<span class="badge badge-success"><i class="fas fa-building-columns"></i> Bank</span>';
+
+            const actions = p.status === 'pending' && !isStripe
+                ? `<div class="action-buttons">
+                    <button class="btn btn-sm btn-success confirm-payment" data-id="${p.id}" title="Confirm Payment"><i class="fas fa-check"></i></button>
+                    <button class="btn btn-sm btn-danger reject-payment" data-id="${p.id}" title="Reject"><i class="fas fa-times"></i></button>
+                   </div>`
+                : '';
 
             return `
                 <tr>
@@ -1032,9 +1044,39 @@ const AdminDashboard = {
                     <td><strong>${Utils.escapeHtml(p.attendee_name || 'Unknown')}</strong><br><small style="color: var(--text-tertiary);">${Utils.escapeHtml(p.attendee_ref || '')}</small></td>
                     <td><strong>${amount}</strong></td>
                     <td>${typeBadges[p.payment_type] || p.payment_type}</td>
+                    <td>${methodBadge}</td>
                     <td>${statusBadges[p.status] || p.status}</td>
+                    <td>${actions}</td>
                 </tr>`;
         }).join('');
+
+        // Bind confirm/reject buttons
+        tbody.querySelectorAll('.confirm-payment').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Confirm this bank transfer payment has been received?')) return;
+                btn.disabled = true;
+                try {
+                    await API.put(`/admin/payments/${btn.dataset.id}`, { action: 'confirm' });
+                    Utils.showAlert('Payment confirmed', 'success');
+                    await Promise.all([this.loadPayments(), this.loadPaymentSummary(), this.loadAttendees()]);
+                    this.updatePaymentsDisplay();
+                    this.calculateStats();
+                    this.updateStatsDisplay();
+                } catch (err) { Utils.showAlert(err.message, 'error'); btn.disabled = false; }
+            });
+        });
+        tbody.querySelectorAll('.reject-payment').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Reject this payment?')) return;
+                btn.disabled = true;
+                try {
+                    await API.put(`/admin/payments/${btn.dataset.id}`, { action: 'reject' });
+                    Utils.showAlert('Payment rejected', 'success');
+                    await this.loadPayments();
+                    this.updatePaymentsDisplay();
+                } catch (err) { Utils.showAlert(err.message, 'error'); btn.disabled = false; }
+            });
+        });
     },
 
     /**
@@ -1128,6 +1170,16 @@ const AdminDashboard = {
                 // Lazy-load activity teams on first visit
                 if (tabName === 'activity-teams' && this.data.activityTeams.length === 0) {
                     this.loadActivityTeams().then(() => this.updateActivityTeamsDisplay());
+                }
+
+                // Lazy-load check-in data
+                if (tabName === 'checkin') {
+                    this.loadCheckInData();
+                }
+
+                // Lazy-load audit log
+                if (tabName === 'reports') {
+                    this.loadAuditLog();
                 }
             });
         });
@@ -2115,6 +2167,247 @@ const AdminDashboard = {
         } else {
             Utils.showAlert(`${this.failedLoads.size} section(s) still failed to load`, 'warning');
         }
+    },
+
+    // ==================== ENHANCEMENT FEATURES ====================
+
+    bindEnhancedFeatures() {
+        // Export dropdown
+        const exportBtn = document.getElementById('export-menu-btn');
+        const exportDropdown = document.getElementById('export-dropdown');
+        if (exportBtn && exportDropdown) {
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportDropdown.style.display = exportDropdown.style.display === 'none' ? 'block' : 'none';
+            });
+            document.addEventListener('click', () => { if (exportDropdown) exportDropdown.style.display = 'none'; });
+
+            document.querySelectorAll('.export-csv-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const type = btn.dataset.type;
+                    exportDropdown.style.display = 'none';
+                    try {
+                        const response = await fetch(`/api/admin/export?type=${type}`, {
+                            headers: { 'Authorization': `Bearer ${Auth.getToken('admin')}` }
+                        });
+                        if (!response.ok) throw new Error('Export failed');
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${type}-${new Date().toISOString().split('T')[0]}.csv`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        Utils.showAlert(`${type} exported successfully`, 'success');
+                    } catch (err) { Utils.showAlert('Export failed: ' + err.message, 'error'); }
+                });
+            });
+        }
+
+        // Payment reminders button
+        const reminderBtn = document.getElementById('send-payment-reminders-btn');
+        if (reminderBtn) {
+            reminderBtn.addEventListener('click', async () => {
+                if (!confirm('Send payment reminder emails to all attendees with outstanding balances?')) return;
+                reminderBtn.disabled = true;
+                reminderBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                try {
+                    const result = await API.post('/admin/payments/send-payment-reminders', {});
+                    Utils.showAlert(result.message, 'success');
+                } catch (err) { Utils.showAlert(err.message, 'error'); }
+                finally {
+                    reminderBtn.disabled = false;
+                    reminderBtn.innerHTML = '<i class="fas fa-bell"></i> Payment Reminders';
+                }
+            });
+        }
+
+        // Bulk actions
+        this.bindBulkActions();
+
+        // Check-in
+        this.bindCheckIn();
+
+        // Session timeout warning
+        this.startSessionTimer();
+    },
+
+    bindBulkActions() {
+        const bar = document.getElementById('bulk-actions-bar');
+        const selectedText = document.getElementById('bulk-selected-text');
+        if (!bar) return;
+
+        // Populate bulk dropdowns
+        const groupSelect = document.getElementById('bulk-group-select');
+        const roomSelect = document.getElementById('bulk-room-select');
+
+        if (groupSelect) {
+            groupSelect.innerHTML = '<option value="">Assign Group...</option>';
+            this.data.groups.forEach(g => {
+                groupSelect.innerHTML += `<option value="${g.id}">${Utils.escapeHtml(g.name)}</option>`;
+            });
+        }
+        if (roomSelect) {
+            roomSelect.innerHTML = '<option value="">Assign Room...</option>';
+            this.data.rooms.forEach(r => {
+                roomSelect.innerHTML += `<option value="${r.id}">${Utils.escapeHtml(r.number || r.name)}</option>`;
+            });
+        }
+
+        // Show/hide bar based on checkbox selection
+        const updateBar = () => {
+            const checked = document.querySelectorAll('input[name="attendee-select"]:checked');
+            if (checked.length > 0) {
+                bar.style.display = 'flex';
+                if (selectedText) selectedText.textContent = `${checked.length} selected`;
+            } else {
+                bar.style.display = 'none';
+            }
+        };
+
+        document.addEventListener('change', (e) => {
+            if (e.target.name === 'attendee-select' || e.target.id === 'select-all-attendees') {
+                updateBar();
+            }
+        });
+
+        const getSelectedIds = () => Array.from(document.querySelectorAll('input[name="attendee-select"]:checked')).map(cb => parseInt(cb.value));
+
+        const doBulk = async (action, extra = {}) => {
+            const ids = getSelectedIds();
+            if (ids.length === 0) return;
+            try {
+                await API.post('/admin/bulk-actions', { action, attendee_ids: ids, ...extra });
+                Utils.showAlert(`${ids.length} attendees updated`, 'success');
+                await this.loadAttendees();
+                this.updateAttendeesDisplay();
+                this.calculateStats();
+                this.updateStatsDisplay();
+                bar.style.display = 'none';
+            } catch (err) { Utils.showAlert(err.message, 'error'); }
+        };
+
+        document.getElementById('bulk-assign-group')?.addEventListener('click', () => {
+            const gid = parseInt(document.getElementById('bulk-group-select').value);
+            if (!gid) return Utils.showAlert('Select a group first', 'warning');
+            doBulk('assign_group', { group_id: gid });
+        });
+        document.getElementById('bulk-assign-room')?.addEventListener('click', () => {
+            const rid = parseInt(document.getElementById('bulk-room-select').value);
+            if (!rid) return Utils.showAlert('Select a room first', 'warning');
+            doBulk('assign_room', { room_id: rid });
+        });
+        document.getElementById('bulk-archive')?.addEventListener('click', () => {
+            if (confirm('Archive selected attendees? They will be hidden from the list.')) doBulk('archive');
+        });
+    },
+
+    bindCheckIn() {
+        const input = document.getElementById('checkin-ref-input');
+        const submitBtn = document.getElementById('checkin-submit-btn');
+        const resultDiv = document.getElementById('checkin-result');
+
+        if (!submitBtn) return;
+
+        const doCheckIn = async () => {
+            let ref = input.value.trim();
+            if (!ref) return;
+
+            // Try to parse QR code JSON
+            try {
+                const parsed = JSON.parse(ref);
+                if (parsed.ref) ref = parsed.ref;
+            } catch {}
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const result = await API.post('/admin/check-in', { ref_number: ref });
+                if (result.already_checked_in) {
+                    resultDiv.innerHTML = `<div style="padding:1rem; background:rgba(245,158,11,0.1); border-radius:10px; color:#fbbf24;">
+                        <i class="fas fa-exclamation-triangle"></i> ${Utils.escapeHtml(result.attendee.name)} is already checked in</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div style="padding:1rem; background:rgba(16,185,129,0.1); border-radius:10px; color:#6ee7b7;">
+                        <i class="fas fa-check-circle"></i> <strong>${Utils.escapeHtml(result.attendee.name)}</strong> checked in successfully!</div>`;
+                }
+                input.value = '';
+                this.loadCheckInData();
+            } catch (err) {
+                resultDiv.innerHTML = `<div style="padding:1rem; background:rgba(239,68,68,0.1); border-radius:10px; color:#fca5a5;">
+                    <i class="fas fa-times-circle"></i> ${err.message}</div>`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Check In';
+                input.focus();
+            }
+        };
+
+        submitBtn.addEventListener('click', doCheckIn);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doCheckIn(); });
+    },
+
+    async loadCheckInData() {
+        try {
+            const data = await API.get('/admin/check-in');
+            const stats = data.stats || {};
+
+            const countEl = document.getElementById('checkin-count');
+            const remainEl = document.getElementById('checkin-remaining');
+            const totalEl = document.getElementById('checkin-total');
+
+            if (countEl) countEl.textContent = stats.checked_in || 0;
+            if (remainEl) remainEl.textContent = stats.not_checked_in || 0;
+            if (totalEl) totalEl.textContent = stats.total || 0;
+
+            const tbody = document.getElementById('checkin-history-body');
+            if (tbody && data.recent_checkins) {
+                if (data.recent_checkins.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-tertiary); padding:1.5rem;">No check-ins yet</td></tr>';
+                } else {
+                    tbody.innerHTML = data.recent_checkins.map(r => {
+                        const time = new Date(r.checked_in_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                        return `<tr><td>${Utils.escapeHtml(r.name)}</td><td>${Utils.escapeHtml(r.ref_number)}</td><td>${time}</td></tr>`;
+                    }).join('');
+                }
+            }
+        } catch (err) {
+            console.error('Failed to load check-in data:', err);
+        }
+    },
+
+    async loadAuditLog() {
+        try {
+            const response = await API.get('/admin/audit-log?limit=50');
+            const logs = response.data || [];
+            const tbody = document.getElementById('audit-log-body');
+            if (!tbody) return;
+
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-tertiary); padding:1.5rem;">No audit entries yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = logs.map(log => {
+                const time = new Date(log.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                return `<tr>
+                    <td style="font-size:0.75rem; color:var(--text-tertiary);">${time}</td>
+                    <td>${Utils.escapeHtml(log.admin_user)}</td>
+                    <td><span class="badge badge-secondary">${Utils.escapeHtml(log.action)}</span></td>
+                    <td style="font-size:0.8rem; color:var(--text-secondary);">${Utils.escapeHtml(log.details || '')}</td>
+                </tr>`;
+            }).join('');
+        } catch (err) {
+            console.error('Failed to load audit log:', err);
+        }
+    },
+
+    startSessionTimer() {
+        // Warn 5 minutes before 8-hour token expires
+        const warnAt = 7 * 60 + 55; // 7h 55m in minutes
+        setTimeout(() => {
+            Utils.showAlert('Your session will expire in 5 minutes. Please save your work and log in again.', 'warning');
+        }, warnAt * 60 * 1000);
     }
 };
 

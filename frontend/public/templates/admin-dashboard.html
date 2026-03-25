@@ -15,6 +15,14 @@
             <button class="btn btn-primary" id="add-attendee-btn">
                 <i class="fas fa-plus"></i> Add Attendee
             </button>
+            <div style="position: relative; display: inline-block;">
+                <button class="btn btn-ghost" id="export-menu-btn"><i class="fas fa-download"></i> Export</button>
+                <div id="export-dropdown" style="display:none; position:absolute; right:0; top:100%; margin-top:0.25rem; background: #1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.25rem; z-index:100; min-width:160px;">
+                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees" style="width:100%; justify-content:flex-start;"><i class="fas fa-users"></i> Attendees CSV</button>
+                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="payments" style="width:100%; justify-content:flex-start;"><i class="fas fa-credit-card"></i> Payments CSV</button>
+                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="registrations" style="width:100%; justify-content:flex-start;"><i class="fas fa-clipboard"></i> Registrations CSV</button>
+                </div>
+            </div>
             <button class="btn btn-ghost" id="admin-logout">
                 <i class="fas fa-sign-out-alt"></i>
             </button>
@@ -93,6 +101,9 @@
         <button class="tab-btn" data-tab="activity-teams">
             <i class="fas fa-people-group"></i> Activity Teams
         </button>
+        <button class="tab-btn" data-tab="checkin">
+            <i class="fas fa-qrcode"></i> Check-in
+        </button>
         <button class="tab-btn" data-tab="reports">
             <i class="fas fa-chart-bar"></i> Reports
         </button>
@@ -144,6 +155,23 @@
                 <button class="btn btn-sm btn-ghost" id="clear-filters" title="Clear all filters" style="font-size: 0.7rem;">
                     <i class="fas fa-times"></i> Clear
                 </button>
+                <button class="btn btn-sm btn-warning" id="send-payment-reminders-btn" style="font-size: 0.7rem;">
+                    <i class="fas fa-bell"></i> Payment Reminders
+                </button>
+            </div>
+
+            <!-- Bulk Actions Bar (hidden until selection) -->
+            <div id="bulk-actions-bar" style="display:none; padding: 0.6rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(139,92,246,0.08); display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <span id="bulk-selected-text" style="font-size: 0.75rem; color: #a78bfa; font-weight: 600;">0 selected</span>
+                <select class="search-box" id="bulk-group-select" style="width: auto; font-size: 0.7rem; padding: 0.3rem 0.5rem;">
+                    <option value="">Assign Group...</option>
+                </select>
+                <button class="btn btn-sm btn-primary" id="bulk-assign-group"><i class="fas fa-users"></i> Assign</button>
+                <select class="search-box" id="bulk-room-select" style="width: auto; font-size: 0.7rem; padding: 0.3rem 0.5rem;">
+                    <option value="">Assign Room...</option>
+                </select>
+                <button class="btn btn-sm btn-primary" id="bulk-assign-room"><i class="fas fa-bed"></i> Assign</button>
+                <button class="btn btn-sm btn-danger" id="bulk-archive"><i class="fas fa-archive"></i> Archive</button>
             </div>
 
             <div class="table-container">
@@ -437,12 +465,14 @@
                             <th>Attendee</th>
                             <th>Amount</th>
                             <th>Type</th>
+                            <th>Method</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="payments-table-body">
                         <tr>
-                            <td colspan="5" class="loading-placeholder">
+                            <td colspan="7" class="loading-placeholder">
                                 <i class="fas fa-spinner fa-spin"></i> Loading payments...
                             </td>
                         </tr>
@@ -558,6 +588,60 @@
         </div>
     </div>
 
+    <!-- Check-in Tab -->
+    <div class="tab-content" id="checkin-tab">
+        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 1.5rem;">
+            <div class="stat-card stat-accent-green">
+                <div class="stat-icon-modern"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-body">
+                    <div class="stat-value" id="checkin-count">0</div>
+                    <div class="stat-label">Checked In</div>
+                </div>
+            </div>
+            <div class="stat-card stat-accent-amber">
+                <div class="stat-icon-modern"><i class="fas fa-clock"></i></div>
+                <div class="stat-body">
+                    <div class="stat-value" id="checkin-remaining">0</div>
+                    <div class="stat-label">Remaining</div>
+                </div>
+            </div>
+            <div class="stat-card stat-accent-purple">
+                <div class="stat-icon-modern"><i class="fas fa-users"></i></div>
+                <div class="stat-body">
+                    <div class="stat-value" id="checkin-total">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-qrcode"></i> Quick Check-in</h3>
+            </div>
+            <div class="table-content" style="padding: 1.5rem;">
+                <div style="display: flex; gap: 0.75rem; max-width: 500px; margin: 0 auto;">
+                    <input type="text" class="form-input" id="checkin-ref-input" placeholder="Scan QR or enter Reference Number..." style="flex: 1;">
+                    <button class="btn btn-success" id="checkin-submit-btn"><i class="fas fa-check"></i> Check In</button>
+                </div>
+                <div id="checkin-result" style="margin-top: 1rem; text-align: center;"></div>
+            </div>
+        </div>
+
+        <div class="data-table" style="margin-top: 1.5rem;">
+            <div class="table-header">
+                <h3 class="table-title">Recent Check-ins</h3>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead><tr><th>Name</th><th>Reference</th><th>Time</th></tr></thead>
+                    <tbody id="checkin-history-body">
+                        <tr><td colspan="3" class="loading-placeholder">Click tab to load...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Reports Tab -->
     <div class="tab-content" id="reports-tab">
         <div class="data-table">
@@ -579,6 +663,21 @@
                                 <i class="fas fa-spinner fa-spin"></i> Loading history...
                             </td>
                         </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Audit Log -->
+        <div class="data-table" style="margin-top: 1.5rem;">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-clipboard-list"></i> Audit Log</h3>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Details</th></tr></thead>
+                    <tbody id="audit-log-body">
+                        <tr><td colspan="4" class="loading-placeholder">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>

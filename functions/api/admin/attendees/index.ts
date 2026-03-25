@@ -46,7 +46,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
 
     // Get total count
     const { results: countResult } = await context.env.DB.prepare(
-      'SELECT COUNT(*) as total FROM attendees'
+      'SELECT COUNT(*) as total FROM attendees WHERE is_archived = 0 OR is_archived IS NULL'
     ).all();
     const total = (countResult[0] as unknown as CountResult).total;
 
@@ -68,6 +68,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       FROM attendees a
       LEFT JOIN rooms r ON a.room_id = r.id
       LEFT JOIN groups g ON a.group_id = g.id
+      WHERE a.is_archived = 0 OR a.is_archived IS NULL
       ORDER BY a.name
       LIMIT ? OFFSET ?
     `).bind(limit, offset).all();

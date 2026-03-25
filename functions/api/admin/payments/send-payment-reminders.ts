@@ -1,0 +1,75 @@
+import type { PagesContext } from '../../../_shared/types.js';
+import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
+import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+
+export async function onRequestOptions(): Promise<Response> {
+  return handleCORS();
+}
+
+// POST /api/admin/payments/send-payment-reminders — email all attendees with outstanding balances
+export async function onRequestPost(context: PagesContext): Promise<Response> {
+  const requestId = generateRequestId();
+
+  try {
+    const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
+    if (!admin) return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
+
+    if (!context.env.RESEND_API_KEY || !context.env.FROM_EMAIL) {
+      return createErrorResponse(errors.badRequest('Email service not configured', requestId));
+    }
+
+    const retreatName = context.env.RETREAT_NAME || 'Growth and Wisdom Retreat';
+    const portalUrl = context.env.PORTAL_URL || 'https://retreat.cloverleafchristiancentre.org';
+
+    const { results } = await context.env.DB.prepare(`
+      SELECT id, name, email, ref_number, payment_due, payment_option
+      FROM attendees
+      WHERE payment_due > 0 AND email IS NOT NULL AND email != '' AND (is_archived = 0 OR is_archived IS NULL)
+    `).all();
+
+    let sent = 0;
+    for (const row of results as { id: number; name: string; email: string; ref_number: string; payment_due: number; payment_option: string }[]) {
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${context.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: context.env.FROM_EMAIL,
+            to: [row.email],
+            subject: `Payment Reminder - £${row.payment_due.toFixed(2)} Outstanding - ${retreatName}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:12px 12px 0 0;">
+                <h1 style="color:white;margin:0;">Payment Reminder</h1></div>
+              <div style="padding:30px;background:#f8fafc;border-radius:0 0 12px 12px;">
+                <p>Dear ${row.name},</p>
+                <p>This is a friendly reminder that you have an outstanding balance for the <strong>${retreatName}</strong>.</p>
+                <div style="background:white;padding:20px;border-radius:8px;border-left:4px solid #f59e0b;margin:20px 0;">
+                  <p style="margin:0 0 8px;"><strong>Amount Due:</strong> £${row.payment_due.toFixed(2)}</p>
+                  <p style="margin:0;"><strong>Reference:</strong> ${row.ref_number}</p>
+                </div>
+                <div style="text-align:center;margin:25px 0;">
+                  <a href="${portalUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;text-decoration:none;border-radius:8px;font-weight:600;">Pay Now</a>
+                </div>
+                <p style="color:#6b7280;font-size:0.85rem;">If you have already made payment, please disregard this reminder.</p>
+                <p style="color:#6b7280;font-size:0.85rem;">— The ${retreatName} Team</p>
+              </div></div>`,
+          }),
+        });
+        sent++;
+      } catch (err) {
+        console.error(`[${requestId}] Failed to send reminder to ${row.email}:`, err);
+      }
+    }
+
+    // Audit
+    await context.env.DB.prepare(
+      'INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)'
+    ).bind(admin.user, 'send_payment_reminders', 'system', 0, `Sent ${sent} payment reminders`).run();
+
+    return createResponse({ message: `Sent ${sent} payment reminders`, sent, total: results.length });
+
+  } catch (error) {
+    console.error(`[${requestId}] Payment reminder error:`, error);
+    return createErrorResponse(handleError(error, requestId));
+  }
+}
