@@ -400,9 +400,11 @@ const AttendeeDashboard = {
             });
         }
 
-        // Auto-refresh announcements every 5 minutes
-        setInterval(() => {
-            this.refreshAnnouncementsQuietly();
+        // Auto-refresh announcements every 5 minutes (only if still on attendee view)
+        this._refreshInterval = setInterval(() => {
+            if (Auth.isAuthenticated('attendee') && document.getElementById('attendee-name-display')) {
+                this.refreshAnnouncementsQuietly();
+            }
         }, 5 * 60 * 1000);
     },
 
@@ -471,19 +473,29 @@ const AttendeeDashboard = {
      * Refresh announcements quietly (no user feedback) - for auto-refresh
      */
     async refreshAnnouncementsQuietly() {
+        // Skip if no longer authenticated as attendee
+        if (!Auth.isAuthenticated('attendee')) return;
+
         try {
             const oldCount = this.data?.announcements?.length || 0;
-            await this.loadData();
+
+            // Direct fetch to avoid triggering global 401 handler
+            const response = await fetch('/api/me', {
+                headers: { 'Authorization': `Bearer ${Auth.getToken('attendee')}` }
+            });
+            if (!response.ok) return; // Silently fail
+
+            const newData = await response.json();
+            this.data = newData;
+            this.updateAnnouncementsDisplay();
+
             const newCount = this.data?.announcements?.length || 0;
-            
-            // Show notification if new announcements appeared
             if (newCount > oldCount) {
                 const diff = newCount - oldCount;
                 Utils.showAlert(`${diff} new announcement${diff > 1 ? 's' : ''} received`, 'success');
             }
-        } catch (error) {
-            console.error('Quiet refresh failed:', error);
-            // Don't show error to user for background refresh
+        } catch {
+            // Silently fail for background refresh
         }
     },
 
