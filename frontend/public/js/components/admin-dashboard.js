@@ -877,6 +877,15 @@ const AdminDashboard = {
         const tbody = document.getElementById('groups-table-body');
         if (!tbody) return;
 
+        // Enrich groups with financial data from loaded attendees
+        const attendees = this.data.attendees || [];
+        for (const group of this.data.groups) {
+            const groupMembers = attendees.filter(a => a.group_id === group.id);
+            const totalOutstanding = groupMembers.reduce((sum, a) => sum + (a.payment_due || 0), 0);
+            const membersWithPayments = groupMembers.filter(a => (a.payment_due || 0) > 0).length;
+            group.financial = { totalOutstanding, membersWithPayments };
+        }
+
         if (this.data.groups.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -1317,6 +1326,12 @@ const AdminDashboard = {
             addGroupBtn.addEventListener('click', () => this.showAddGroupModal());
         }
 
+        // Auto-group by last name button
+        const autoGroupBtn = document.getElementById('auto-group-btn');
+        if (autoGroupBtn) {
+            autoGroupBtn.addEventListener('click', () => this.autoGroupByLastName());
+        }
+
         // Add activity team button
         const addActivityTeamBtn = document.getElementById('add-activity-team-btn');
         if (addActivityTeamBtn) {
@@ -1568,6 +1583,31 @@ const AdminDashboard = {
             await window.GroupManagement.showModal();
         } else {
             Utils.showAlert('Group management component not loaded', 'error');
+        }
+    },
+
+    async autoGroupByLastName() {
+        if (!confirm('This will auto-create family groups based on shared last names and assign ungrouped attendees. Continue?')) return;
+
+        const btn = document.getElementById('auto-group-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Grouping...';
+        }
+
+        try {
+            const result = await API.post('/admin/groups/auto-create', {});
+            Utils.showAlert(result.message, 'success');
+            await this.loadGroups();
+            this.updateGroupsDisplay();
+        } catch (error) {
+            console.error('Auto-group failed:', error);
+            Utils.showAlert('Failed to auto-create groups: ' + (error.message || 'Unknown error'), 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-magic"></i> Auto-Group by Last Name';
+            }
         }
     },
 

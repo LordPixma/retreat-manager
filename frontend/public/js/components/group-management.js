@@ -76,7 +76,8 @@ const GroupManagement = {
                 <ul class="member-list">
                     ${members.map(member => `
                         <li>
-                            <span>${Utils.escapeHtml(member)}</span>
+                            <span>${Utils.escapeHtml(typeof member === 'string' ? member : member.name || '')}</span>
+                            ${member.ref_number ? `<small style="color: var(--text-secondary); margin-left: 0.5rem;">(${Utils.escapeHtml(member.ref_number)})</small>` : ''}
                         </li>
                     `).join('')}
                 </ul>
