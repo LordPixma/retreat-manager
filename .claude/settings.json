@@ -7,7 +7,11 @@
       "Bash(xargs grep:*)",
       "Bash(find /c/Users/sodekunle/retreat-manager -name *.env* -o -name .env*)",
       "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
-      "Bash(grep -E \"\\\\.sql$\")"
+      "Bash(grep -E \"\\\\.sql$\")",
+      "Bash(find /c/Users/sodekunle/retreat-manager -type f \\\\\\(-name *.js -o -name *.ts -o -name *.tsx -o -name *.jsx \\\\\\))",
+      "Bash(grep -r \"booking.*confirmation\\\\|Booking.*Confirmation\\\\|pdf\\\\|PDF\" /c/Users/sodekunle/retreat-manager/functions --include=*.ts --include=*.js)",
+      "Bash(grep -E \"\\\\.\\(js|html|css\\)$\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

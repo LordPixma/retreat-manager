@@ -104,6 +104,9 @@
         <button class="tab-btn" data-tab="checkin">
             <i class="fas fa-qrcode"></i> Check-in
         </button>
+        <button class="tab-btn" data-tab="analytics">
+            <i class="fas fa-chart-pie"></i> Analytics
+        </button>
         <button class="tab-btn" data-tab="reports">
             <i class="fas fa-chart-bar"></i> Reports
         </button>
@@ -638,6 +641,106 @@
                         <tr><td colspan="3" class="loading-placeholder">Click tab to load...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div class="tab-content" id="analytics-tab">
+        <div id="analytics-loading" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+            <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem;"></i>
+            <p style="margin-top: 0.75rem;">Loading analytics...</p>
+        </div>
+        <div id="analytics-content" style="display: none;">
+            <!-- People Summary Cards -->
+            <div class="stats-grid" style="margin-bottom: 1.5rem;">
+                <div class="stat-card stat-accent-purple">
+                    <div class="stat-icon-modern"><i class="fas fa-users"></i></div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="analytics-total-people">0</div>
+                        <div class="stat-label">Total People</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-accent-blue">
+                    <div class="stat-icon-modern"><i class="fas fa-user"></i></div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="analytics-adults">0</div>
+                        <div class="stat-label">Adults</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-accent-teal">
+                    <div class="stat-icon-modern"><i class="fas fa-child"></i></div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="analytics-children">0</div>
+                        <div class="stat-label">Children (6-16)</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-accent-amber">
+                    <div class="stat-icon-modern"><i class="fas fa-baby"></i></div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="analytics-infants">0</div>
+                        <div class="stat-label">Infants (Under 6)</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-accent-green">
+                    <div class="stat-icon-modern"><i class="fas fa-sterling-sign"></i></div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="analytics-collected">£0</div>
+                        <div class="stat-label">Collected</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-accent-rose">
+                    <div class="stat-icon-modern"><i class="fas fa-clock"></i></div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="analytics-outstanding">£0</div>
+                        <div class="stat-label">Outstanding</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Breakdown Charts Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+                <!-- Payment Plans -->
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-credit-card"></i> Payment Plans</h3></div>
+                    <div style="padding: 1rem;" id="analytics-payment-plans"></div>
+                </div>
+
+                <!-- Payment Status -->
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-check-circle"></i> Payment Status</h3></div>
+                    <div style="padding: 1rem;" id="analytics-payment-status"></div>
+                </div>
+
+                <!-- Registration Status -->
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-clipboard-list"></i> Registration Status</h3></div>
+                    <div style="padding: 1rem;" id="analytics-reg-status"></div>
+                </div>
+
+                <!-- Groups -->
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-layer-group"></i> Groups</h3></div>
+                    <div style="padding: 1rem;" id="analytics-groups"></div>
+                </div>
+
+                <!-- Room Types -->
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-bed"></i> Room Types</h3></div>
+                    <div style="padding: 1rem;" id="analytics-room-types"></div>
+                </div>
+
+                <!-- Dietary Requirements -->
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-utensils"></i> Dietary Requirements</h3></div>
+                    <div style="padding: 1rem;" id="analytics-dietary"></div>
+                </div>
+
+                <!-- Registrations Over Time -->
+                <div class="data-table" style="grid-column: 1 / -1;">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-chart-line"></i> Registrations Over Time</h3></div>
+                    <div style="padding: 1rem;" id="analytics-reg-timeline"></div>
+                </div>
             </div>
         </div>
     </div>

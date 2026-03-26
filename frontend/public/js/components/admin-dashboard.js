@@ -1177,6 +1177,11 @@ const AdminDashboard = {
                     this.loadCheckInData();
                 }
 
+                // Lazy-load analytics
+                if (tabName === 'analytics' && !this.data.analytics) {
+                    this.loadAnalytics();
+                }
+
                 // Lazy-load audit log
                 if (tabName === 'reports') {
                     this.loadAuditLog();
@@ -2408,6 +2413,170 @@ const AdminDashboard = {
         setTimeout(() => {
             Utils.showAlert('Your session will expire in 5 minutes. Please save your work and log in again.', 'warning');
         }, warnAt * 60 * 1000);
+    },
+
+    /**
+     * Load analytics data from API
+     */
+    async loadAnalytics() {
+        const loading = document.getElementById('analytics-loading');
+        const content = document.getElementById('analytics-content');
+        if (loading) loading.style.display = '';
+        if (content) content.style.display = 'none';
+
+        try {
+            const response = await API.get('/admin/reports/analytics');
+            this.data.analytics = response;
+            this.renderAnalytics(response);
+        } catch (error) {
+            console.error('Failed to load analytics:', error);
+            if (loading) {
+                loading.innerHTML = `
+                    <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; color: var(--danger);"></i>
+                    <p style="margin-top: 0.75rem;">Failed to load analytics</p>
+                    <button class="btn btn-sm btn-primary" style="margin-top: 0.5rem;" onclick="AdminDashboard.loadAnalytics()">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                `;
+            }
+        }
+    },
+
+    /**
+     * Render analytics data into the tab
+     */
+    renderAnalytics(data) {
+        const loading = document.getElementById('analytics-loading');
+        const content = document.getElementById('analytics-content');
+        if (loading) loading.style.display = 'none';
+        if (content) content.style.display = '';
+
+        const { summary, financial, registrations, breakdowns } = data;
+
+        // Summary cards
+        this.setAnalyticsValue('analytics-total-people', summary.total_people);
+        this.setAnalyticsValue('analytics-adults', summary.adults);
+        this.setAnalyticsValue('analytics-children', summary.children);
+        this.setAnalyticsValue('analytics-infants', summary.infants);
+        this.setAnalyticsValue('analytics-collected', '£' + (financial.total_collected_pence / 100).toFixed(2));
+        this.setAnalyticsValue('analytics-outstanding', '£' + parseFloat(financial.total_outstanding_pounds || 0).toFixed(2));
+
+        // Breakdown sections
+        this.renderBarBreakdown('analytics-payment-plans', breakdowns.by_payment_plan, this.formatPlanLabel);
+        this.renderBarBreakdown('analytics-payment-status', breakdowns.by_payment_status, this.formatStatusLabel);
+        this.renderBarBreakdown('analytics-groups', breakdowns.by_group);
+        this.renderBarBreakdown('analytics-room-types', breakdowns.by_room_type, this.formatRoomLabel);
+        this.renderBarBreakdown('analytics-dietary', breakdowns.dietary_requirements);
+
+        // Registration status
+        const regStatusItems = Object.entries(registrations.by_status).map(([label, count]) => ({
+            label: this.formatStatusLabel(label),
+            count
+        }));
+        this.renderBarBreakdown('analytics-reg-status', regStatusItems);
+
+        // Registration timeline
+        this.renderTimeline('analytics-reg-timeline', registrations.by_month);
+    },
+
+    setAnalyticsValue(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    },
+
+    /**
+     * Render a horizontal bar chart breakdown
+     */
+    renderBarBreakdown(containerId, items, formatLabel) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (!items || items.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.85rem;">No data available</p>';
+            return;
+        }
+
+        const maxCount = Math.max(...items.map(i => i.count));
+        const total = items.reduce((s, i) => s + i.count, 0);
+
+        const colors = ['#8b5cf6', '#3b82f6', '#14b8a6', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#10b981'];
+
+        container.innerHTML = items.map((item, idx) => {
+            const pct = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+            const sharePct = total > 0 ? ((item.count / total) * 100).toFixed(1) : '0';
+            const label = formatLabel ? formatLabel(item.label) : item.label;
+            const color = colors[idx % colors.length];
+            return `
+                <div style="margin-bottom: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.8rem;">
+                        <span style="color: var(--text-primary);">${this.escapeHtml(label)}</span>
+                        <span style="color: var(--text-tertiary);">${item.count} (${sharePct}%)</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 4px; height: 22px; overflow: hidden;">
+                        <div style="width: ${pct}%; height: 100%; background: ${color}; border-radius: 4px; transition: width 0.5s ease;"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Render registration timeline as simple bar chart
+     */
+    renderTimeline(containerId, months) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (!months || months.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-tertiary); font-size: 0.85rem;">No registration data yet</p>';
+            return;
+        }
+
+        const maxCount = Math.max(...months.map(m => m.count));
+
+        container.innerHTML = `
+            <div style="display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 0.5rem 0;">
+                ${months.map(m => {
+                    const height = maxCount > 0 ? (m.count / maxCount) * 100 : 0;
+                    const monthLabel = this.formatMonthLabel(m.month);
+                    return `
+                        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end;">
+                            <span style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 4px;">${m.count}</span>
+                            <div style="width: 100%; max-width: 48px; height: ${height}%; min-height: 4px; background: #8b5cf6; border-radius: 4px 4px 0 0; transition: height 0.5s ease;"></div>
+                            <span style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px; white-space: nowrap;">${monthLabel}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    },
+
+    formatPlanLabel(label) {
+        const map = { full: 'Full Payment', installments: 'Installments', sponsorship: 'Sponsorship', unknown: 'Not Set' };
+        return map[label] || label;
+    },
+
+    formatStatusLabel(label) {
+        const map = { paid: 'Paid', outstanding: 'Outstanding', pending: 'Pending', approved: 'Approved', rejected: 'Rejected', waitlist: 'Waitlist' };
+        return map[label] || label.charAt(0).toUpperCase() + label.slice(1);
+    },
+
+    formatRoomLabel(label) {
+        const map = { single: 'Single', double: 'Double', suite: 'Suite', family: 'Family', standard: 'Standard', unassigned: 'Unassigned' };
+        return map[label] || label.charAt(0).toUpperCase() + label.slice(1);
+    },
+
+    formatMonthLabel(ym) {
+        if (!ym) return '';
+        const [year, month] = ym.split('-');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return months[parseInt(month, 10) - 1] + ' ' + year.slice(2);
+    },
+
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str || '';
+        return div.innerHTML;
     }
 };
 

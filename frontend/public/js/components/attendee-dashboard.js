@@ -1176,7 +1176,7 @@ const AttendeeDashboard = {
             }
 
             const html = `
-                <html><head><title>Booking Confirmation - ${d.ref_number}</title>
+                <html><head><meta charset="UTF-8"><title>Booking Confirmation - ${d.ref_number}</title>
                 <style>body{font-family:Arial,sans-serif;padding:40px;color:#333}h1{color:#667eea}table{border-collapse:collapse;width:100%}th{background:#667eea;color:#fff;padding:10px;text-align:left}td{padding:8px;border:1px solid #ddd}.header{text-align:center;margin-bottom:30px}.info{margin:20px 0;padding:15px;background:#f8f9fa;border-radius:8px}.footer{margin-top:40px;text-align:center;color:#999;font-size:12px}</style></head>
                 <body>
                 <div class="header">
