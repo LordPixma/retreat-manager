@@ -877,15 +877,6 @@ const AdminDashboard = {
         const tbody = document.getElementById('groups-table-body');
         if (!tbody) return;
 
-        // Enrich groups with financial data from loaded attendees
-        const attendees = this.data.attendees || [];
-        for (const group of this.data.groups) {
-            const groupMembers = attendees.filter(a => a.group_id === group.id);
-            const totalOutstanding = groupMembers.reduce((sum, a) => sum + (a.payment_due || 0), 0);
-            const membersWithPayments = groupMembers.filter(a => (a.payment_due || 0) > 0).length;
-            group.financial = { totalOutstanding, membersWithPayments };
-        }
-
         if (this.data.groups.length === 0) {
             tbody.innerHTML = `
                 <tr>

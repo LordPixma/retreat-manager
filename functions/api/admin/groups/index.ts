@@ -12,6 +12,8 @@ interface GroupRow {
   member_count: number;
   members: string | null;
   member_refs: string | null;
+  total_outstanding: number;
+  members_with_payments: number;
 }
 
 interface CountResult {
@@ -42,16 +44,18 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     ).all();
     const total = (countResult[0] as unknown as CountResult).total;
 
-    // Get groups with member information and pagination
+    // Get groups with member information, financials, and pagination
     const { results } = await context.env.DB.prepare(`
       SELECT
         g.id,
         g.name,
         COUNT(a.id) as member_count,
         GROUP_CONCAT(a.name, ', ') as members,
-        GROUP_CONCAT(a.ref_number, ', ') as member_refs
+        GROUP_CONCAT(a.ref_number, ', ') as member_refs,
+        COALESCE(SUM(a.payment_due), 0) as total_outstanding,
+        SUM(CASE WHEN a.payment_due > 0 THEN 1 ELSE 0 END) as members_with_payments
       FROM groups g
-      LEFT JOIN attendees a ON g.id = a.group_id
+      LEFT JOIN attendees a ON g.id = a.group_id AND (a.is_archived = 0 OR a.is_archived IS NULL)
       GROUP BY g.id, g.name
       ORDER BY g.name
       LIMIT ? OFFSET ?
@@ -70,7 +74,11 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         id: group.id,
         name: group.name,
         member_count: group.member_count || 0,
-        members
+        members,
+        financial: {
+          totalOutstanding: group.total_outstanding || 0,
+          membersWithPayments: group.members_with_payments || 0,
+        }
       };
     });
 

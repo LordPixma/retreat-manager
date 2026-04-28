@@ -1,5 +1,5 @@
 <div class="modal-overlay" id="group-modal">
-    <div class="modal">
+    <div class="modal" style="max-width: 600px;">
         <div class="modal-header">
             <h3 class="modal-title" id="group-modal-title">Add New Group</h3>
             <button type="button" class="modal-close" id="close-group-modal">
@@ -11,14 +11,26 @@
             <form id="group-form">
                 <div class="form-group">
                     <label for="group-name" class="form-label">Group Name</label>
-                    <input type="text" id="group-name" name="name" class="form-input" required 
+                    <input type="text" id="group-name" name="name" class="form-input" required
                            placeholder="e.g., VIP Group, Family Group, Workshop A">
                 </div>
-                
-                <div class="form-group">
+
+                <div class="form-group" id="members-section">
                     <label class="form-label">Current Members</label>
                     <div id="group-members-list" class="member-preview">
                         <p class="text-secondary">No members assigned yet</p>
+                    </div>
+                </div>
+
+                <div class="form-group" id="add-member-section" style="display: none;">
+                    <label class="form-label">Add Member</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <select id="add-member-select" class="form-input" style="flex: 1;">
+                            <option value="">Select an attendee...</option>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-primary" id="add-member-btn">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
                     </div>
                 </div>
             </form>
