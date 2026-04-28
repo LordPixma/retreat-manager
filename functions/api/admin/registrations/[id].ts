@@ -4,6 +4,7 @@
 import type { PagesContext, Env } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { splitFullName } from '../../../_shared/names.js';
 
 interface IdParams {
   id: string;
@@ -158,15 +159,21 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
         const isPrimary = i === 0;
 
         // Insert attendee
+        const memberName = member.name.trim();
+        const { first: firstName, last: lastName } = splitFullName(memberName);
         const attendeeResult = await context.env.DB.prepare(`
           INSERT INTO attendees (
-            ref_number, name, email, password_hash, phone,
+            ref_number, name, first_name, last_name, date_of_birth,
+            email, password_hash, phone,
             emergency_contact, dietary_requirements, special_requests,
             room_id, group_id, payment_due, payment_status, payment_option
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
         `).bind(
           refNumber,
-          member.name.trim(),
+          memberName,
+          firstName,
+          lastName,
+          member.date_of_birth?.trim() || null,
           isPrimary ? registration.email : null, // Only primary gets email
           passwordHash,
           isPrimary ? registration.phone : null, // Only primary gets phone

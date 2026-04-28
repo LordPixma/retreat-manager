@@ -1,6 +1,7 @@
 import type { PagesContext } from '../../_shared/types.js';
 import { checkAdminAuth, handleCORS } from '../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../_shared/errors.js';
+import { splitFullName, ageFromDateOfBirth } from '../../_shared/names.js';
 
 export async function onRequestOptions(): Promise<Response> {
   return handleCORS();
@@ -41,6 +42,32 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
           .join(',') + '\n';
       }
       filename = `attendees-${new Date().toISOString().split('T')[0]}.csv`;
+
+    } else if (type === 'attendees-basic') {
+      const { results } = await context.env.DB.prepare(`
+        SELECT first_name, last_name, name, date_of_birth
+        FROM attendees
+        WHERE is_archived = 0 OR is_archived IS NULL
+        ORDER BY last_name, first_name, name
+      `).all();
+
+      csv = 'First Name,Last Name,Age\n';
+      for (const r of results as Record<string, unknown>[]) {
+        // Prefer the dedicated columns; fall back to splitting `name` for any
+        // legacy rows the migration backfill missed.
+        let first = (r.first_name as string | null) ?? null;
+        let last = (r.last_name as string | null) ?? null;
+        if (!first && !last) {
+          const split = splitFullName(r.name as string | null);
+          first = split.first;
+          last = split.last;
+        }
+        const age = ageFromDateOfBirth(r.date_of_birth as string | null);
+        csv += [first || '', last || '', age ?? '']
+          .map(v => `"${String(v).replace(/"/g, '""')}"`)
+          .join(',') + '\n';
+      }
+      filename = `attendees-basic-${new Date().toISOString().split('T')[0]}.csv`;
 
     } else if (type === 'payments') {
       const { results } = await context.env.DB.prepare(`

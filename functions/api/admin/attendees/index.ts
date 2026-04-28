@@ -5,6 +5,7 @@ import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../
 import { validate, attendeeCreateSchema } from '../../../_shared/validation.js';
 import { parsePaginationParams, createPaginatedResponse } from '../../../_shared/pagination.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { splitFullName } from '../../../_shared/names.js';
 
 interface AttendeeRow {
   id: number;
@@ -116,7 +117,8 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       return createErrorResponse(errors.validation(validation.errors, requestId));
     }
 
-    const { name, email, ref_number, password, room_id, group_id, payment_due } = body as {
+    const { name, email, ref_number, password, room_id, group_id, payment_due,
+            first_name, last_name, date_of_birth } = body as {
       name: string;
       email?: string;
       ref_number: string;
@@ -124,6 +126,9 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       room_id?: number | null;
       group_id?: number | null;
       payment_due?: number;
+      first_name?: string;
+      last_name?: string;
+      date_of_birth?: string;
     };
 
     // Check if reference number already exists
@@ -138,12 +143,22 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     // Hash password
     const password_hash = await hashPassword(password as string);
 
+    // Derive first/last from `name` when caller did not supply them, so the
+    // basic-export columns are always populated for new rows.
+    const trimmedName = (name as string).trim();
+    const split = splitFullName(trimmedName);
+    const firstName = (first_name?.trim() || split.first) || null;
+    const lastName = (last_name?.trim() || split.last) || null;
+
     // Insert new attendee
     const result = await context.env.DB.prepare(`
-      INSERT INTO attendees (name, email, ref_number, password_hash, room_id, group_id, payment_due)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO attendees (name, first_name, last_name, date_of_birth, email, ref_number, password_hash, room_id, group_id, payment_due)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      (name as string).trim(),
+      trimmedName,
+      firstName,
+      lastName,
+      date_of_birth?.trim() || null,
       email ? (email as string).trim() : null,
       (ref_number as string).trim(),
       password_hash,

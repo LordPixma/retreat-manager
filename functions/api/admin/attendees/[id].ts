@@ -125,7 +125,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     }
 
     // Build dynamic UPDATE query
-    const allowedFields = ['name', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'payment_option', 'password'];
+    const allowedFields = ['name', 'first_name', 'last_name', 'date_of_birth', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'payment_option', 'password'];
     const updateFields: string[] = [];
     const updateValues: (string | number | null)[] = [];
 

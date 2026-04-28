@@ -189,6 +189,9 @@ export const attendeeCreateSchema: ValidationSchema = {
   password: { validators: [validators.required, validators.minLength(6)] },
   email: { validators: [validators.email], optional: true },
   phone: { validators: [validators.maxLength(50)], optional: true },
+  first_name: { validators: [validators.maxLength(255)], optional: true },
+  last_name: { validators: [validators.maxLength(255)], optional: true },
+  date_of_birth: { validators: [validators.date], optional: true },
   payment_due: { validators: [validators.positiveNumber], optional: true },
   payment_status: {
     validators: [validators.enum(['pending', 'partial', 'paid', 'overdue'] as const)],
@@ -203,6 +206,9 @@ export const attendeeUpdateSchema: ValidationSchema = {
   ref_number: { validators: [validators.maxLength(50)], optional: true },
   email: { validators: [validators.email], optional: true },
   phone: { validators: [validators.maxLength(50)], optional: true },
+  first_name: { validators: [validators.maxLength(255)], optional: true },
+  last_name: { validators: [validators.maxLength(255)], optional: true },
+  date_of_birth: { validators: [validators.date], optional: true },
   payment_due: { validators: [validators.positiveNumber], optional: true },
   payment_status: {
     validators: [validators.enum(['pending', 'partial', 'paid', 'overdue'] as const)],
