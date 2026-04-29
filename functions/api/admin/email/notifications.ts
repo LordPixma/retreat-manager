@@ -253,7 +253,7 @@ function generatePaymentReminderEmail(attendee: AttendeeRow | null, customData?:
     subject: 'Payment Reminder - Growth and Wisdom Retreat',
     message: `This is a friendly reminder about your outstanding payment for the Growth and Wisdom Retreat.
 
-Amount Due: $${dueAmount.toFixed(2)}
+Amount Due: £${dueAmount.toFixed(2)}
 Due Date: ${(customData?.due_date as string) || 'As soon as possible'}
 
 ${(customData?.payment_instructions as string) || `To make your payment, please contact us at growthandwisdom@cloverleafworld.org or call us during business hours.

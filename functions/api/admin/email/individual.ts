@@ -150,7 +150,7 @@ function generateEmailContent(options: {
           <ul style="margin: 0; padding-left: 1.2rem; color: #374151;">
             ${attendee.room_number ? `<li>Room: ${attendee.room_number}</li>` : ''}
             ${attendee.group_name ? `<li>Group: ${attendee.group_name}</li>` : ''}
-            ${attendee.payment_due > 0 ? `<li>Outstanding Balance: $${attendee.payment_due.toFixed(2)}</li>` : '<li>Payment: Fully Paid</li>'}
+            ${attendee.payment_due > 0 ? `<li>Outstanding Balance: £${attendee.payment_due.toFixed(2)}</li>` : '<li>Payment: Fully Paid</li>'}
           </ul>
         </div>
 

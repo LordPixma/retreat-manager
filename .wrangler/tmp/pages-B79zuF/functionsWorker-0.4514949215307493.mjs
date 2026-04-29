@@ -14,14 +14,14 @@ var __publicField = (obj, key, value) => {
   return value;
 };
 
-// ../.wrangler/tmp/bundle-kiG2rO/strip-cf-connecting-ip-header.js
+// ../.wrangler/tmp/bundle-g37eeB/strip-cf-connecting-ip-header.js
 function stripCfConnectingIPHeader(input, init) {
   const request = new Request(input, init);
   request.headers.delete("CF-Connecting-IP");
   return request;
 }
 var init_strip_cf_connecting_ip_header = __esm({
-  "../.wrangler/tmp/bundle-kiG2rO/strip-cf-connecting-ip-header.js"() {
+  "../.wrangler/tmp/bundle-g37eeB/strip-cf-connecting-ip-header.js"() {
     "use strict";
     __name(stripCfConnectingIPHeader, "stripCfConnectingIPHeader");
     globalThis.fetch = new Proxy(globalThis.fetch, {
@@ -2107,7 +2107,7 @@ function generateEmailContent(options) {
           <ul style="margin: 0; padding-left: 1.2rem; color: #374151;">
             ${attendee.room_number ? `<li>Room: ${attendee.room_number}</li>` : ""}
             ${attendee.group_name ? `<li>Group: ${attendee.group_name}</li>` : ""}
-            ${attendee.payment_due > 0 ? `<li>Outstanding Balance: $${attendee.payment_due.toFixed(2)}</li>` : "<li>Payment: Fully Paid</li>"}
+            ${attendee.payment_due > 0 ? `<li>Outstanding Balance: \xA3${attendee.payment_due.toFixed(2)}</li>` : "<li>Payment: Fully Paid</li>"}
           </ul>
         </div>
 
@@ -2342,7 +2342,7 @@ function generatePaymentReminderEmail(attendee, customData) {
     subject: "Payment Reminder - Growth and Wisdom Retreat",
     message: `This is a friendly reminder about your outstanding payment for the Growth and Wisdom Retreat.
 
-Amount Due: $${dueAmount.toFixed(2)}
+Amount Due: \xA3${dueAmount.toFixed(2)}
 Due Date: ${customData?.due_date || "As soon as possible"}
 
 ${customData?.payment_instructions || `To make your payment, please contact us at growthandwisdom@cloverleafworld.org or call us during business hours.
@@ -15470,14 +15470,14 @@ var init_functionsRoutes_0_7445773257736559 = __esm({
   }
 });
 
-// ../.wrangler/tmp/bundle-kiG2rO/middleware-loader.entry.ts
+// ../.wrangler/tmp/bundle-g37eeB/middleware-loader.entry.ts
 init_functionsRoutes_0_7445773257736559();
 init_strip_cf_connecting_ip_header();
 init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_process();
 init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_console();
 init_performance2();
 
-// ../.wrangler/tmp/bundle-kiG2rO/middleware-insertion-facade.js
+// ../.wrangler/tmp/bundle-g37eeB/middleware-insertion-facade.js
 init_functionsRoutes_0_7445773257736559();
 init_strip_cf_connecting_ip_header();
 init_virtual_unenv_global_polyfill_cloudflare_unenv_preset_node_process();
@@ -15993,7 +15993,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env2, _ctx, middlewareCtx
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// ../.wrangler/tmp/bundle-kiG2rO/middleware-insertion-facade.js
+// ../.wrangler/tmp/bundle-g37eeB/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -16030,7 +16030,7 @@ function __facade_invoke__(request, env2, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// ../.wrangler/tmp/bundle-kiG2rO/middleware-loader.entry.ts
+// ../.wrangler/tmp/bundle-g37eeB/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
