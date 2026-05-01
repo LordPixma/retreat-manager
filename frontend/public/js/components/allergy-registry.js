@@ -7,6 +7,7 @@ const AllergyRegistry = {
 
     init() {
         document.getElementById('allergy-send-all-btn')?.addEventListener('click', () => this.sendToPending());
+        document.getElementById('allergy-send-everyone-btn')?.addEventListener('click', () => this.sendToEveryone());
 
         const search = document.getElementById('allergy-search');
         let t;
@@ -175,20 +176,36 @@ const AllergyRegistry = {
 
     async sendToPending() {
         if (!confirm('Send the allergy form to every attendee who hasn\'t responded yet?')) return;
-        const btn = document.getElementById('allergy-send-all-btn');
+        await this._bulkSend({ only_pending: true }, 'allergy-send-all-btn',
+            '<i class="fas fa-paper-plane"></i> Send to pending');
+    },
+
+    async sendToEveryone() {
+        const total = this._records.length;
+        const submitted = this._records.filter(r => r.status === 'submitted' || r.status === 'none').length;
+        const msg = submitted > 0
+            ? `Send the allergy form to ALL ${total} attendees? This will re-email ${submitted} people who already responded — their previous answers stay on record (this only resets the form_sent_at timestamp).`
+            : `Send the allergy form to all ${total} attendees?`;
+        if (!confirm(msg)) return;
+        await this._bulkSend({ only_pending: false }, 'allergy-send-everyone-btn',
+            '<i class="fas fa-bullhorn"></i> Send to ALL attendees');
+    },
+
+    async _bulkSend(body, btnId, restoreLabel) {
+        const btn = document.getElementById(btnId);
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
         try {
             const data = await API.request('/admin/allergy/send-forms', {
                 method: 'POST',
-                body: JSON.stringify({ only_pending: true }),
+                body: JSON.stringify(body),
             });
-            const msg = `Sent: ${data.sent} · Skipped: ${data.skipped}`;
-            Utils.showAlert(msg, data.skipped ? 'warning' : 'success');
+            const summary = `Sent: ${data.sent} · Skipped: ${data.skipped}`;
+            Utils.showAlert(summary, data.skipped ? 'warning' : 'success');
             await this.load();
         } catch (err) {
             Utils.showAlert('Bulk send failed: ' + (err.message || err), 'error');
         } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send forms to pending'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = restoreLabel; }
         }
     },
 };

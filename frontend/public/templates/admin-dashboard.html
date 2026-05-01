@@ -604,7 +604,10 @@
         <div class="data-table" style="margin-bottom: 1.5rem;">
             <div class="table-header">
                 <h3 class="table-title"><i class="fas fa-notes-medical"></i> Allergy &amp; Medical Registry</h3>
-                <button class="btn btn-primary" id="allergy-send-all-btn"><i class="fas fa-paper-plane"></i> Send forms to pending</button>
+                <div style="display:flex; gap: 0.5rem;">
+                    <button class="btn btn-ghost" id="allergy-send-all-btn" title="Email only attendees who haven't responded yet"><i class="fas fa-paper-plane"></i> Send to pending</button>
+                    <button class="btn btn-primary" id="allergy-send-everyone-btn" title="Email every attendee — including those who already responded"><i class="fas fa-bullhorn"></i> Send to ALL attendees</button>
+                </div>
             </div>
             <div class="table-content" style="padding: 1.25rem;">
                 <div style="display:flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
