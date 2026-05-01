@@ -5,6 +5,7 @@ import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/aut
 import { validate, emailSendSchema } from '../../../_shared/validation.js';
 import { headerStyles, typeIcons } from '../../../_shared/email-helpers.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { escapeHtml } from '../../../_shared/sanitize.js';
 
 interface AttendeeRow {
   id: number;
@@ -226,7 +227,7 @@ function generateEmailTemplate(options: {
     <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 2rem;">
       <!-- Header -->
       <div style="${headerStyle} color: white; padding: 2rem; text-align: center; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 1.8rem;">${icon} ${subject}</h1>
+        <h1 style="margin: 0; font-size: 1.8rem;">${icon} ${escapeHtml(subject)}</h1>
         <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Growth and Wisdom Retreat Portal</p>
       </div>
 
@@ -234,21 +235,21 @@ function generateEmailTemplate(options: {
       <div style="background: white; padding: 2rem; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
         <!-- Greeting -->
         <div style="margin-bottom: 1.5rem;">
-          <h3 style="color: #1f2937; margin: 0 0 0.5rem 0;">Hello ${attendee.name}!</h3>
-          <p style="color: #6b7280; margin: 0; font-size: 0.9rem;">Reference: ${attendee.ref_number}</p>
+          <h3 style="color: #1f2937; margin: 0 0 0.5rem 0;">Hello ${escapeHtml(attendee.name)}!</h3>
+          <p style="color: #6b7280; margin: 0; font-size: 0.9rem;">Reference: ${escapeHtml(attendee.ref_number)}</p>
         </div>
 
         <!-- Message Content -->
         <div style="background: #f9fafb; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #667eea; margin: 1.5rem 0;">
-          <div style="color: #374151; line-height: 1.6; white-space: pre-wrap;">${message}</div>
+          <div style="color: #374151; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(message)}</div>
         </div>
 
         ${attendee.room_number || attendee.group_name ? `
         <div style="background: #fef3c7; padding: 1rem; border-radius: 6px; margin: 1.5rem 0;">
           <h4 style="margin: 0 0 0.5rem 0; color: #92400e;">Your Details</h4>
           <div style="color: #d97706; font-size: 0.9rem;">
-            ${attendee.room_number ? `<div>Room: ${attendee.room_number}</div>` : ''}
-            ${attendee.group_name ? `<div>Group: ${attendee.group_name}</div>` : ''}
+            ${attendee.room_number ? `<div>Room: ${escapeHtml(attendee.room_number)}</div>` : ''}
+            ${attendee.group_name ? `<div>Group: ${escapeHtml(attendee.group_name)}</div>` : ''}
           </div>
         </div>
         ` : ''}
@@ -256,8 +257,8 @@ function generateEmailTemplate(options: {
         <!-- Footer -->
         <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 2rem;">
           <div style="padding: 1rem; background: #f3f4f6; border-radius: 6px; text-align: center;">
-            <div><strong>Sent by:</strong> ${sender}</div>
-            <div><strong>Date:</strong> ${currentDate}</div>
+            <div><strong>Sent by:</strong> ${escapeHtml(sender)}</div>
+            <div><strong>Date:</strong> ${escapeHtml(currentDate)}</div>
             <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #9ca3af;">
               Growth and Wisdom Retreat Portal
             </div>

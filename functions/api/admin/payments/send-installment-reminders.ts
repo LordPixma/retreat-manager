@@ -2,6 +2,7 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { getStripe, createCheckoutSession } from '../../../_shared/stripe.js';
+import { escapeHtml } from '../../../_shared/sanitize.js';
 
 interface ScheduleRow {
   id: number;
@@ -11,14 +12,6 @@ interface ScheduleRow {
   installment_amount: number;
   installments_paid: number;
   next_due_date: string;
-  stripe_customer_id: string | null;
-}
-
-interface AttendeeRow {
-  id: number;
-  name: string;
-  email: string | null;
-  ref_number: string;
   stripe_customer_id: string | null;
 }
 
@@ -124,8 +117,8 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
                     <h1 style="color: white; margin: 0;">Installment Payment Due</h1>
                   </div>
                   <div style="padding: 30px; background: #f8fafc; border-radius: 0 0 12px 12px;">
-                    <p>Dear ${schedule.name},</p>
-                    <p>Your installment payment for the ${retreatName} is now due.</p>
+                    <p>Dear ${escapeHtml(schedule.name)},</p>
+                    <p>Your installment payment for the ${escapeHtml(retreatName)} is now due.</p>
                     <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
                       <p style="margin: 0;"><strong>Amount Due:</strong> £${amount}</p>
                       <p style="margin: 5px 0 0;"><strong>Installment:</strong> ${nextInstallment} of ${schedule.installment_count}</p>

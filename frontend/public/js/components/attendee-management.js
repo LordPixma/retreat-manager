@@ -61,17 +61,20 @@ const AttendeeManagement = {
         if (editData) {
             document.getElementById('attendee-name').value = editData.name || '';
             document.getElementById('attendee-email').value = editData.email || '';
+            document.getElementById('attendee-first-name').value = editData.first_name || '';
+            document.getElementById('attendee-last-name').value = editData.last_name || '';
+            document.getElementById('attendee-dob').value = editData.date_of_birth || '';
             document.getElementById('attendee-ref').value = editData.ref_number || '';
             document.getElementById('attendee-payment').value = editData.payment_due || 0;
             document.getElementById('attendee-payment-option').value = editData.payment_option || 'full';
             document.getElementById('attendee-room').value = editData.room_id || '';
             document.getElementById('attendee-group').value = editData.group_id || '';
-            
+
             // Password not required when editing
             const passwordInput = document.getElementById('attendee-password');
             passwordInput.required = false;
             passwordInput.placeholder = 'Leave blank to keep current password';
-            
+
             // Show password help text
             document.getElementById('password-help').style.display = 'block';
         } else {
@@ -130,8 +133,10 @@ const AttendeeManagement = {
             }
         });
 
-        // Escape key to close
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+        // Escape key to close — bind once and keep the reference so the
+        // matching removeEventListener actually finds and removes it.
+        this._boundHandleKeyDown = this._boundHandleKeyDown || this.handleKeyDown.bind(this);
+        document.addEventListener('keydown', this._boundHandleKeyDown);
     },
 
     /**
@@ -153,7 +158,7 @@ const AttendeeManagement = {
         }
         
         // Convert empty strings to null for optional fields
-        ['room_id', 'group_id', 'email'].forEach(field => {
+        ['room_id', 'group_id', 'email', 'first_name', 'last_name', 'date_of_birth'].forEach(field => {
             if (data[field] === '') {
                 data[field] = null;
             }
@@ -332,7 +337,8 @@ const AttendeeManagement = {
         const alert = document.getElementById('attendee-modal-alert');
         if (alert) {
             alert.className = `alert alert-${type}`;
-            alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> ${message}`;
+            alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> <span class="alert-msg"></span>`;
+            alert.querySelector('.alert-msg').textContent = message;
             alert.classList.remove('hidden');
         }
     },
@@ -384,8 +390,10 @@ const AttendeeManagement = {
             modal.remove();
         }
         
-        // Remove keyboard listener
-        document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+        // Remove keyboard listener using the stored reference.
+        if (this._boundHandleKeyDown) {
+            document.removeEventListener('keydown', this._boundHandleKeyDown);
+        }
         
         // Reset state
         this.isEditing = false;

@@ -174,7 +174,8 @@ const ActivityTeamManagement = {
         const alert = document.getElementById('activity-team-modal-alert');
         if (alert) {
             alert.className = `alert alert-${type}`;
-            alert.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+            alert.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span class="alert-msg"></span>';
+            alert.querySelector('.alert-msg').textContent = message;
             alert.classList.remove('hidden');
         }
     },

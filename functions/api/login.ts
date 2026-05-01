@@ -8,9 +8,7 @@ import {
   generateAttendeeToken,
   checkRateLimit,
   recordLoginAttempt,
-  clearRateLimit,
-  needsPasswordUpgrade,
-  hashPassword
+  clearRateLimit
 } from '../_shared/auth.js';
 import { validate, loginSchema } from '../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../_shared/errors.js';
@@ -20,6 +18,7 @@ interface AttendeeRow {
   ref_number: string;
   password_hash: string;
   name: string;
+  must_reset_password?: number | null;
 }
 
 // Handle CORS preflight
@@ -48,15 +47,15 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
                      context.request.headers.get('X-Forwarded-For') ||
                      'unknown';
 
-    // Check rate limit
-    const rateLimit = await checkRateLimit(context.env.DB, trimmedRef, 'attendee');
+    // Check rate limit (per-identifier + per-IP, fails closed on DB error)
+    const rateLimit = await checkRateLimit(context.env.DB, trimmedRef, 'attendee', clientIP);
     if (!rateLimit.allowed) {
       return createErrorResponse(errors.rateLimited(Math.ceil((rateLimit.resetTime - Date.now()) / 1000), requestId));
     }
 
     // Query attendee from database
     const { results } = await context.env.DB.prepare(`
-      SELECT id, ref_number, password_hash, name
+      SELECT id, ref_number, password_hash, name, must_reset_password
       FROM attendees
       WHERE ref_number = ?
     `).bind(trimmedRef).all();
@@ -82,12 +81,14 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     await recordLoginAttempt(context.env.DB, trimmedRef, 'attendee', true, clientIP);
     await clearRateLimit(context.env.DB, trimmedRef, 'attendee');
 
-    // Upgrade password hash if using legacy format
-    if (needsPasswordUpgrade(attendee.password_hash)) {
-      const newHash = await hashPassword(password);
-      await context.env.DB.prepare(`
-        UPDATE attendees SET password_hash = ? WHERE id = ?
-      `).bind(newHash, attendee.id).run();
+    // Block token issuance for legacy ($retreat$) accounts that haven't reset
+    // their password yet. Frontend should redirect to a "set new password"
+    // form that POSTs to /api/change-password.
+    if (attendee.must_reset_password) {
+      return createResponse(
+        { reset_required: true, message: 'You must set a new password to continue.' },
+        403
+      );
     }
 
     // Record login history and update last_login

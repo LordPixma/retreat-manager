@@ -4,9 +4,7 @@
 import type { PagesContext, Env } from '../_shared/types.js';
 import { createResponse, handleCORS } from '../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../_shared/errors.js';
-
-// Admin notification email address
-const ADMIN_NOTIFICATION_EMAIL = 'samuel.odekunle@cloverleafworld.org';
+import { escapeHtml } from '../_shared/sanitize.js';
 
 // Pricing constants
 const PRICING = {
@@ -46,7 +44,7 @@ export async function onRequestOptions(): Promise<Response> {
 }
 
 // GET /api/register - Get registration form info (pricing, etc.)
-export async function onRequestGet(context: PagesContext): Promise<Response> {
+export async function onRequestGet(_context: PagesContext): Promise<Response> {
   const requestId = generateRequestId();
 
   try {
@@ -68,16 +66,59 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
   }
 }
 
+// IP-based throttle for the public registration form. Each submission emits
+// an admin email, so without this an attacker could flood the inbox.
+const REGISTER_WINDOW_MS = 60 * 60 * 1000;  // 1 hour
+const REGISTER_MAX_PER_IP = 5;
+
+async function checkRegisterRateLimit(db: D1Database, ip: string): Promise<boolean> {
+  try {
+    const since = Date.now() - REGISTER_WINDOW_MS;
+    const { results } = await db.prepare(
+      'SELECT COUNT(*) as count FROM register_attempts WHERE ip_address = ? AND attempt_time > ?'
+    ).bind(ip, since).all();
+    const count = (results[0] as unknown as { count: number }).count;
+    return count < REGISTER_MAX_PER_IP;
+  } catch (err) {
+    console.error('[register] rate-limit check failed; failing closed', err);
+    return false;
+  }
+}
+
+async function recordRegisterAttempt(db: D1Database, ip: string, email: string | null): Promise<void> {
+  try {
+    await db.prepare(
+      'INSERT INTO register_attempts (ip_address, email, attempt_time) VALUES (?, ?, ?)'
+    ).bind(ip, email, Date.now()).run();
+    // Opportunistic cleanup of rows older than the window.
+    await db.prepare(
+      'DELETE FROM register_attempts WHERE attempt_time < ?'
+    ).bind(Date.now() - REGISTER_WINDOW_MS * 24).run();
+  } catch (err) {
+    console.warn('[register] could not record attempt', err);
+  }
+}
+
 // POST /api/register - Submit a new family registration
 export async function onRequestPost(context: PagesContext): Promise<Response> {
   const requestId = generateRequestId();
 
   try {
+    const clientIP = context.request.headers.get('CF-Connecting-IP') ||
+                     context.request.headers.get('X-Forwarded-For') ||
+                     'unknown';
+
+    if (!await checkRegisterRateLimit(context.env.DB, clientIP)) {
+      return createErrorResponse(errors.rateLimited(REGISTER_WINDOW_MS / 1000, requestId));
+    }
+
     const body = await context.request.json() as Record<string, unknown>;
 
     // Validate input
     const validationErrors = validateRegistration(body);
     if (validationErrors.length > 0) {
+      // Record attempt even when invalid so attackers can't spam validation.
+      await recordRegisterAttempt(context.env.DB, clientIP, null);
       return createErrorResponse(errors.validation(
         validationErrors.reduce((acc, err) => ({ ...acc, [err.field]: err.message }), {}),
         requestId
@@ -85,6 +126,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     const data = body as unknown as RegistrationInput;
+    await recordRegisterAttempt(context.env.DB, clientIP, data.email?.trim().toLowerCase() || null);
 
     // Check if email already has a pending or approved registration
     const { results: existing } = await context.env.DB.prepare(`
@@ -284,13 +326,15 @@ async function sendRegistrationNotification(
     : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
   const subjectPrefix = isSponsorshipRequest ? '🔔 [SPONSORSHIP] ' : '👨‍👩‍👧‍👦 ';
 
-  // Generate family members table
+  // Generate family members table — every user-supplied field MUST be
+  // HTML-escaped before interpolation, since this email lands in the admin's
+  // inbox and a registrant could otherwise inject phishing HTML.
   const membersTableRows = data.members.map((member, index) => `
     <tr>
       <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6; color: #1f2937; font-weight: ${index === 0 ? 'bold' : 'normal'};">
-        ${member.name}${index === 0 ? ' <span style="color: #f59e0b; font-size: 0.8rem;">(Primary)</span>' : ''}
+        ${escapeHtml(member.name)}${index === 0 ? ' <span style="color: #f59e0b; font-size: 0.8rem;">(Primary)</span>' : ''}
       </td>
-      <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6; color: #6b7280;">${getMemberTypeLabel(member.member_type, member.date_of_birth)}</td>
+      <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6; color: #6b7280;">${escapeHtml(getMemberTypeLabel(member.member_type, member.date_of_birth))}</td>
       <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6; color: #1f2937; text-align: right;">
         ${member.price === 0 ? '<span style="color: #10b981;">FREE</span>' : `£${member.price}`}
       </td>
@@ -298,9 +342,9 @@ async function sendRegistrationNotification(
     ${member.dietary_requirements || member.special_needs ? `
     <tr>
       <td colspan="3" style="padding: 0.5rem 0.75rem 0.75rem; border-bottom: 1px solid #f3f4f6; background: #f9fafb;">
-        ${member.dietary_requirements ? `<span style="font-size: 0.85rem; color: #6b7280;"><strong>Diet:</strong> ${member.dietary_requirements}</span>` : ''}
+        ${member.dietary_requirements ? `<span style="font-size: 0.85rem; color: #6b7280;"><strong>Diet:</strong> ${escapeHtml(member.dietary_requirements)}</span>` : ''}
         ${member.dietary_requirements && member.special_needs ? ' | ' : ''}
-        ${member.special_needs ? `<span style="font-size: 0.85rem; color: #6b7280;"><strong>Special:</strong> ${member.special_needs}</span>` : ''}
+        ${member.special_needs ? `<span style="font-size: 0.85rem; color: #6b7280;"><strong>Special:</strong> ${escapeHtml(member.special_needs)}</span>` : ''}
       </td>
     </tr>
     ` : ''}
@@ -385,28 +429,28 @@ async function sendRegistrationNotification(
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;">
           <tr>
             <td style="padding: 0.5rem 0; color: #6b7280; width: 35%;">Email</td>
-            <td style="padding: 0.5rem 0; color: #1f2937;">${data.email}</td>
+            <td style="padding: 0.5rem 0; color: #1f2937;">${escapeHtml(data.email)}</td>
           </tr>
           <tr>
             <td style="padding: 0.5rem 0; color: #6b7280;">Phone</td>
-            <td style="padding: 0.5rem 0; color: #1f2937;">${data.phone}</td>
+            <td style="padding: 0.5rem 0; color: #1f2937;">${escapeHtml(data.phone)}</td>
           </tr>
           <tr>
             <td style="padding: 0.5rem 0; color: #6b7280;">Emergency Contact</td>
-            <td style="padding: 0.5rem 0; color: #1f2937;">${data.emergency_contact || 'Not provided'}</td>
+            <td style="padding: 0.5rem 0; color: #1f2937;">${escapeHtml(data.emergency_contact || 'Not provided')}</td>
           </tr>
           <tr>
             <td style="padding: 0.5rem 0; color: #6b7280;">Room Preference</td>
-            <td style="padding: 0.5rem 0; color: #1f2937;">${roomLabel}</td>
+            <td style="padding: 0.5rem 0; color: #1f2937;">${escapeHtml(roomLabel)}</td>
           </tr>
           <tr>
             <td style="padding: 0.5rem 0; color: #6b7280;">Payment Option</td>
-            <td style="padding: 0.5rem 0; color: ${isSponsorshipRequest ? '#d97706' : '#1f2937'}; font-weight: ${isSponsorshipRequest ? 'bold' : 'normal'};">${paymentLabel}</td>
+            <td style="padding: 0.5rem 0; color: ${isSponsorshipRequest ? '#d97706' : '#1f2937'}; font-weight: ${isSponsorshipRequest ? 'bold' : 'normal'};">${escapeHtml(paymentLabel)}</td>
           </tr>
           ${data.special_requests ? `
           <tr>
             <td style="padding: 0.5rem 0; color: #6b7280; vertical-align: top;">Special Requests</td>
-            <td style="padding: 0.5rem 0; color: #1f2937;">${data.special_requests}</td>
+            <td style="padding: 0.5rem 0; color: #1f2937;">${escapeHtml(data.special_requests)}</td>
           </tr>
           ` : ''}
         </table>
@@ -430,8 +474,10 @@ async function sendRegistrationNotification(
     },
     body: JSON.stringify({
       from: env.FROM_EMAIL,
-      to: [ADMIN_NOTIFICATION_EMAIL],
-      subject: `${subjectPrefix}Family Registration: ${primaryMember.name} (${data.members.length} members, £${totalAmount})`,
+      to: [env.ADMIN_NOTIFICATION_EMAIL || env.FROM_EMAIL].filter(Boolean),
+      // Subject is plain text — Resend handles header encoding for us, but we
+      // still strip newlines so a registrant can't inject extra headers.
+      subject: `${subjectPrefix}Family Registration: ${primaryMember.name.replace(/[\r\n]/g, ' ')} (${data.members.length} members, £${totalAmount})`,
       html: emailHtml
     })
   });

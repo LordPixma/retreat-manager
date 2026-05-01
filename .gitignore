@@ -1,1 +1,25 @@
+# Wrangler / Cloudflare local state — contains real D1 sqlite, build bundles
+.wrangler/
+dist/
+
+# Test / build outputs
+coverage/
+*.log
+
+# Environment
+.env
+.env.local
+.dev.vars
+
+# OS
+.DS_Store
+Thumbs.db
 nul
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Backups
+*.bak

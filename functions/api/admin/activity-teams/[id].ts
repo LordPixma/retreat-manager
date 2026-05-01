@@ -145,7 +145,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
         const { sendTeamNotificationEmails } = await import('./index.js');
         const emailPromise = sendTeamNotificationEmails(
-          context.env, parseInt(id), name, body.description?.trim() || '', addedIds, body.leader_id || null, requestId
+          context.env, name, body.description?.trim() || '', addedIds, body.leader_id || null, requestId
         ).catch(err => console.error(`[${requestId}] Email error:`, err));
 
         context.waitUntil(emailPromise);

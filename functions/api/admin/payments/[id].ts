@@ -100,6 +100,15 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       // Send confirmation email
       context.waitUntil(sendConfirmation(context.env, payment.attendee_id, payment.amount, requestId));
 
+      try {
+        await context.env.DB.prepare(
+          `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+           VALUES (?, 'confirm', 'payment', ?, ?)`
+        ).bind(admin.user, payment.id, JSON.stringify({ amount_pence: payment.amount, attendee_id: payment.attendee_id })).run();
+      } catch (err) {
+        console.warn(`[${requestId}] audit_log write failed`, err);
+      }
+
       return createResponse({ message: 'Payment confirmed successfully' });
 
     } else {
@@ -107,6 +116,15 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       await context.env.DB.prepare(
         'UPDATE payments SET status = ? WHERE id = ?'
       ).bind('failed', id).run();
+
+      try {
+        await context.env.DB.prepare(
+          `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+           VALUES (?, 'reject', 'payment', ?, ?)`
+        ).bind(admin.user, payment.id, JSON.stringify({ amount_pence: payment.amount, attendee_id: payment.attendee_id })).run();
+      } catch (err) {
+        console.warn(`[${requestId}] audit_log write failed`, err);
+      }
 
       return createResponse({ message: 'Payment rejected' });
     }

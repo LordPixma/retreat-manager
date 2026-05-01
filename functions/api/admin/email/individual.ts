@@ -4,6 +4,7 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { validate, individualEmailSchema } from '../../../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { escapeHtml } from '../../../_shared/sanitize.js';
 
 interface AttendeeRow {
   id: number;
@@ -135,21 +136,21 @@ function generateEmailContent(options: {
       <div style="background: white; padding: 2rem; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
         <!-- Personal Greeting -->
         <div style="margin-bottom: 1.5rem;">
-          <h2 style="color: #1f2937; margin: 0 0 0.5rem 0;">Dear ${attendee.name},</h2>
-          <p style="color: #6b7280; margin: 0;">Reference: ${attendee.ref_number}</p>
+          <h2 style="color: #1f2937; margin: 0 0 0.5rem 0;">Dear ${escapeHtml(attendee.name)},</h2>
+          <p style="color: #6b7280; margin: 0;">Reference: ${escapeHtml(attendee.ref_number)}</p>
         </div>
 
         <!-- Message Content -->
         <div style="color: #374151; line-height: 1.6; margin-bottom: 2rem;">
-          ${message.split('\n').map(paragraph => `<p style="margin: 0 0 1rem 0;">${paragraph}</p>`).join('')}
+          ${message.split('\n').map(paragraph => `<p style="margin: 0 0 1rem 0;">${escapeHtml(paragraph)}</p>`).join('')}
         </div>
 
         <!-- Attendee Info Box -->
         <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
           <h3 style="color: #1f2937; margin: 0 0 0.5rem 0; font-size: 1rem;">Your Retreat Information:</h3>
           <ul style="margin: 0; padding-left: 1.2rem; color: #374151;">
-            ${attendee.room_number ? `<li>Room: ${attendee.room_number}</li>` : ''}
-            ${attendee.group_name ? `<li>Group: ${attendee.group_name}</li>` : ''}
+            ${attendee.room_number ? `<li>Room: ${escapeHtml(attendee.room_number)}</li>` : ''}
+            ${attendee.group_name ? `<li>Group: ${escapeHtml(attendee.group_name)}</li>` : ''}
             ${attendee.payment_due > 0 ? `<li>Outstanding Balance: £${attendee.payment_due.toFixed(2)}</li>` : '<li>Payment: Fully Paid</li>'}
           </ul>
         </div>
@@ -157,7 +158,7 @@ function generateEmailContent(options: {
         <!-- Footer -->
         <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 2rem;">
           <p style="color: #6b7280; font-size: 0.875rem; margin: 0;">
-            This message was sent by ${adminUser || 'Retreat Administration'}.
+            This message was sent by ${escapeHtml(adminUser || 'Retreat Administration')}.
             If you have any questions, please contact the retreat coordinators.
           </p>
         </div>

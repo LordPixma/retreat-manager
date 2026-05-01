@@ -169,7 +169,9 @@ const GroupManagement = {
             if (e.target.id === 'group-modal') this.hideModal();
         });
 
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+        // Bind once so removeEventListener can match the same reference.
+        this._boundHandleKeyDown = this._boundHandleKeyDown || this.handleKeyDown.bind(this);
+        document.addEventListener('keydown', this._boundHandleKeyDown);
 
         // Add member button
         const addBtn = document.getElementById('add-member-btn');
@@ -296,7 +298,8 @@ const GroupManagement = {
         const alert = document.getElementById('group-modal-alert');
         if (alert) {
             alert.className = `alert alert-${type}`;
-            alert.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+            alert.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span class="alert-msg"></span>';
+            alert.querySelector('.alert-msg').textContent = message;
             alert.classList.remove('hidden');
         }
     },
@@ -313,7 +316,9 @@ const GroupManagement = {
     hideModal() {
         const modal = document.getElementById('group-modal');
         if (modal) modal.remove();
-        document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+        if (this._boundHandleKeyDown) {
+            document.removeEventListener('keydown', this._boundHandleKeyDown);
+        }
         this.isEditing = false;
         this.editingId = null;
         this.currentMembers = [];

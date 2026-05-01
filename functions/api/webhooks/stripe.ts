@@ -2,6 +2,7 @@ import type { PagesContext } from '../../_shared/types.js';
 import { createResponse } from '../../_shared/auth.js';
 import { generateRequestId } from '../../_shared/errors.js';
 import { getStripe, verifyWebhookEvent, penceToPounds } from '../../_shared/stripe.js';
+import { escapeHtml } from '../../_shared/sanitize.js';
 import type Stripe from 'stripe';
 
 // CORS not needed for webhooks but Cloudflare may send OPTIONS
@@ -74,6 +75,26 @@ async function handleCheckoutCompleted(
 
   if (!attendeeId) {
     console.error(`[${requestId}] No attendee_id in session metadata`);
+    return;
+  }
+
+  // Only credit fully-paid sessions. Stripe can fire `checkout.session.completed`
+  // for sessions that ended in `payment_status === 'unpaid'` or `'no_payment_required'`
+  // (e.g. async bank-redirect that later fails). Without this guard a manipulated
+  // session-metadata pair could zero out an attendee's balance for free.
+  if (session.payment_status !== 'paid') {
+    console.warn(`[${requestId}] Ignoring session ${session.id} with payment_status=${session.payment_status}`);
+    return;
+  }
+
+  // Confirm the session/PI was created against our attendee — defends against
+  // a tampered metadata.attendee_id by re-deriving from the checkout session
+  // we previously inserted into the payments table.
+  const { results: ownership } = await context.env.DB.prepare(
+    'SELECT attendee_id FROM payments WHERE stripe_checkout_session_id = ?'
+  ).bind(session.id).all();
+  if (ownership.length > 0 && (ownership[0] as { attendee_id: number }).attendee_id !== attendeeId) {
+    console.error(`[${requestId}] attendee_id metadata ${attendeeId} does not match session ${session.id} owner; refusing to credit`);
     return;
   }
 
@@ -182,22 +203,22 @@ async function sendPaymentConfirmationEmail(
       body: JSON.stringify({
         from: env.FROM_EMAIL,
         to: [attendee.email],
-        subject: `Payment Confirmation - £${amount} - ${retreatName}`,
+        subject: `Payment Confirmation - £${amount} - ${retreatName.replace(/[\r\n]/g, ' ')}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
               <h1 style="color: white; margin: 0;">Payment Confirmed</h1>
             </div>
             <div style="padding: 30px; background: #f8fafc; border-radius: 0 0 12px 12px;">
-              <p>Dear ${attendee.name},</p>
-              <p>We have received your payment of <strong>£${amount}</strong> for the ${retreatName}.</p>
+              <p>Dear ${escapeHtml(attendee.name)},</p>
+              <p>We have received your payment of <strong>£${amount}</strong> for the ${escapeHtml(retreatName)}.</p>
               <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981; margin: 20px 0;">
                 <p style="margin: 0;"><strong>Amount Paid:</strong> £${amount}</p>
                 <p style="margin: 5px 0 0;"><strong>Payment Type:</strong> ${paymentType === 'installment' ? 'Installment Payment' : 'Full Payment'}</p>
               </div>
               ${paymentType === 'installment' ? '<p>Your remaining installments will be due according to your payment schedule. You will receive a reminder before each payment is due.</p>' : ''}
               <p>Thank you for your payment!</p>
-              <p style="color: #6b7280; font-size: 0.85rem;">— The ${retreatName} Team</p>
+              <p style="color: #6b7280; font-size: 0.85rem;">— The ${escapeHtml(retreatName)} Team</p>
             </div>
           </div>
         `,

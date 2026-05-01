@@ -9,16 +9,54 @@
         <div class="modal-body">
             <div id="room-modal-alert" class="alert alert-error hidden"></div>
             <form id="room-form">
-                <div class="form-group">
-                    <label for="room-number" class="form-label">Room Number</label>
-                    <input type="text" id="room-number" name="number" class="form-input" required 
-                           placeholder="e.g., 101, A-205, Suite 1">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="room-number" class="form-label">Room Number</label>
+                        <input type="text" id="room-number" name="number" class="form-input" required
+                               placeholder="e.g., 101, A-205, Suite 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="room-type" class="form-label">Room Type</label>
+                        <select id="room-type" name="room_type" class="form-input">
+                            <option value="standard">Standard</option>
+                            <option value="single">Single</option>
+                            <option value="double">Double</option>
+                            <option value="suite">Suite</option>
+                            <option value="family">Family</option>
+                        </select>
+                    </div>
                 </div>
-                
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="room-capacity" class="form-label">Bed Capacity (Max Occupants)</label>
+                        <input type="number" id="room-capacity" name="capacity" class="form-input"
+                               min="1" max="100" value="1" required>
+                        <small class="form-help">Number of real beds in the room</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="room-cot-capacity" class="form-label">Extra Cot/Camp Beds</label>
+                        <input type="number" id="room-cot-capacity" name="cot_capacity" class="form-input"
+                               min="0" max="10" value="0">
+                        <small class="form-help">Additional sleep slots for under-3s (cot or camp bed)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="room-floor" class="form-label">Floor</label>
+                        <input type="text" id="room-floor" name="floor" class="form-input"
+                               placeholder="e.g., Ground, 1, 2">
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="room-description" class="form-label">Description</label>
-                    <textarea id="room-description" name="description" class="form-input" rows="3" 
-                              placeholder="e.g., Single bed with mountain view, Twin beds with balcony"></textarea>
+                    <textarea id="room-description" name="description" class="form-input" rows="2"
+                              placeholder="e.g., Twin beds with mountain view"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="room-amenities" class="form-label">Amenities</label>
+                    <input type="text" id="room-amenities" name="amenities" class="form-input"
+                           placeholder="e.g., en-suite, wheelchair-accessible, kettle">
                 </div>
             </form>
         </div>

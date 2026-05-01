@@ -840,18 +840,34 @@ const AdminDashboard = {
 
         tbody.innerHTML = this.data.rooms.map(room => {
             const occupancy = room.occupant_count || 0;
-            const occupancyBadge = occupancy === 0 
-                ? `<span class="badge badge-secondary">Empty</span>`
-                : `<span class="badge badge-success">${occupancy} occupied</span>`;
-                
+            const capacity = room.capacity || 1;
+            const cotCapacity = room.cot_capacity || 0;
+            const totalCap = capacity + cotCapacity;
+
+            // Show occupancy as "n / capacity (+cots)" with colour cues:
+            // empty=grey, partial=green, full=amber, over=red.
+            let badgeClass = 'badge-secondary';
+            if (occupancy > totalCap) badgeClass = 'badge-danger';
+            else if (occupancy >= capacity && cotCapacity === 0) badgeClass = 'badge-warning';
+            else if (occupancy > 0) badgeClass = 'badge-success';
+
+            const capLabel = cotCapacity > 0
+                ? `${occupancy} / ${capacity} +${cotCapacity} cot${cotCapacity === 1 ? '' : 's'}`
+                : `${occupancy} / ${capacity}`;
+            const occupancyBadge = `<span class="badge ${badgeClass}">${capLabel}</span>`;
+
+            const typeBadge = room.room_type
+                ? `<span class="badge badge-info" style="text-transform: capitalize;">${Utils.escapeHtml(room.room_type)}</span>`
+                : '';
+
             const occupantsList = room.occupants && room.occupants.length > 0
-                ? room.occupants.slice(0, 3).map(name => Utils.escapeHtml(name)).join(', ') + 
+                ? room.occupants.slice(0, 3).map(name => Utils.escapeHtml(name)).join(', ') +
                   (room.occupants.length > 3 ? ` +${room.occupants.length - 3} more` : '')
                 : '<span class="text-secondary">No occupants</span>';
-                
+
             return `
                 <tr data-room-id="${room.id}">
-                    <td><strong>${Utils.escapeHtml(room.number)}</strong></td>
+                    <td><strong>${Utils.escapeHtml(room.number)}</strong> ${typeBadge}</td>
                     <td>${room.description ? Utils.escapeHtml(room.description) : '<span class="text-secondary">—</span>'}</td>
                     <td>${occupancyBadge}</td>
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${occupantsList}</td>
@@ -1175,6 +1191,15 @@ const AdminDashboard = {
                 // Lazy-load check-in data
                 if (tabName === 'checkin') {
                     this.loadCheckInData();
+                }
+
+                // Lazy-load allergy registry
+                if (tabName === 'allergies' && window.AllergyRegistry) {
+                    if (!window.AllergyRegistry._initialised) {
+                        window.AllergyRegistry.init();
+                        window.AllergyRegistry._initialised = true;
+                    }
+                    window.AllergyRegistry.load();
                 }
 
                 // Lazy-load analytics
@@ -2339,51 +2364,18 @@ const AdminDashboard = {
     },
 
     bindCheckIn() {
-        const input = document.getElementById('checkin-ref-input');
-        const submitBtn = document.getElementById('checkin-submit-btn');
-        const resultDiv = document.getElementById('checkin-result');
-
-        if (!submitBtn) return;
-
-        const doCheckIn = async () => {
-            let ref = input.value.trim();
-            if (!ref) return;
-
-            // Try to parse QR code JSON
-            try {
-                const parsed = JSON.parse(ref);
-                if (parsed.ref) ref = parsed.ref;
-            } catch {}
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-            try {
-                const result = await API.post('/admin/check-in', { ref_number: ref });
-                if (result.already_checked_in) {
-                    resultDiv.innerHTML = `<div style="padding:1rem; background:rgba(245,158,11,0.1); border-radius:10px; color:#fbbf24;">
-                        <i class="fas fa-exclamation-triangle"></i> ${Utils.escapeHtml(result.attendee.name)} is already checked in</div>`;
-                } else {
-                    resultDiv.innerHTML = `<div style="padding:1rem; background:rgba(16,185,129,0.1); border-radius:10px; color:#6ee7b7;">
-                        <i class="fas fa-check-circle"></i> <strong>${Utils.escapeHtml(result.attendee.name)}</strong> checked in successfully!</div>`;
-                }
-                input.value = '';
-                this.loadCheckInData();
-            } catch (err) {
-                resultDiv.innerHTML = `<div style="padding:1rem; background:rgba(239,68,68,0.1); border-radius:10px; color:#fca5a5;">
-                    <i class="fas fa-times-circle"></i> ${err.message}</div>`;
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-check"></i> Check In';
-                input.focus();
-            }
-        };
-
-        submitBtn.addEventListener('click', doCheckIn);
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doCheckIn(); });
+        // Check-in tab logic moved to CheckInManagement (handles window
+        // controls, scanner, roster, and undo). Delegate.
+        if (window.CheckInManagement) {
+            window.CheckInManagement.init();
+        }
     },
 
     async loadCheckInData() {
+        if (window.CheckInManagement) {
+            await window.CheckInManagement.loadAll();
+            return;
+        }
         try {
             const data = await API.get('/admin/check-in');
             const stats = data.stats || {};

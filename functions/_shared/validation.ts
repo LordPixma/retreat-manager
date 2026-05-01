@@ -223,22 +223,26 @@ export const roomCreateSchema: ValidationSchema = {
   number: { validators: [validators.required, validators.maxLength(50)] },
   description: { validators: [validators.maxLength(500)], optional: true },
   capacity: { validators: [validators.integer, validators.range(1, 100)], optional: true },
+  cot_capacity: { validators: [validators.integer, validators.range(0, 10)], optional: true },
   floor: { validators: [validators.maxLength(50)], optional: true },
   room_type: {
     validators: [validators.enum(['single', 'double', 'suite', 'family', 'standard'] as const)],
     optional: true
-  }
+  },
+  amenities: { validators: [validators.maxLength(1000)], optional: true }
 };
 
 export const roomUpdateSchema: ValidationSchema = {
   number: { validators: [validators.maxLength(50)], optional: true },
   description: { validators: [validators.maxLength(500)], optional: true },
   capacity: { validators: [validators.integer, validators.range(1, 100)], optional: true },
+  cot_capacity: { validators: [validators.integer, validators.range(0, 10)], optional: true },
   floor: { validators: [validators.maxLength(50)], optional: true },
   room_type: {
     validators: [validators.enum(['single', 'double', 'suite', 'family', 'standard'] as const)],
     optional: true
-  }
+  },
+  amenities: { validators: [validators.maxLength(1000)], optional: true }
 };
 
 export const groupCreateSchema: ValidationSchema = {

@@ -51,9 +51,17 @@ const RoomManagement = {
         if (editData) {
             document.getElementById('room-number').value = editData.number || '';
             document.getElementById('room-description').value = editData.description || '';
+            document.getElementById('room-type').value = editData.room_type || 'standard';
+            document.getElementById('room-capacity').value = editData.capacity ?? 1;
+            document.getElementById('room-cot-capacity').value = editData.cot_capacity ?? 0;
+            document.getElementById('room-floor').value = editData.floor || '';
+            document.getElementById('room-amenities').value = editData.amenities || '';
         } else {
             // Reset form for new room
             document.getElementById('room-form').reset();
+            document.getElementById('room-type').value = 'standard';
+            document.getElementById('room-capacity').value = 1;
+            document.getElementById('room-cot-capacity').value = 0;
         }
 
         // Focus on room number field
@@ -80,8 +88,9 @@ const RoomManagement = {
             }
         });
 
-        // Escape key to close
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+        // Escape key to close — keep the bound reference so removeEventListener works.
+        this._boundHandleKeyDown = this._boundHandleKeyDown || this.handleKeyDown.bind(this);
+        document.addEventListener('keydown', this._boundHandleKeyDown);
     },
 
     /**
@@ -96,11 +105,17 @@ const RoomManagement = {
 
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
-        
-        // Convert empty description to null
-        if (!data.description.trim()) {
-            data.description = null;
-        }
+
+        // Coerce numeric fields back to numbers (FormData gives us strings).
+        data.capacity = parseInt(data.capacity, 10) || 1;
+        data.cot_capacity = parseInt(data.cot_capacity, 10) || 0;
+
+        // Empty strings → null for optional text fields.
+        ['description', 'floor', 'amenities'].forEach(field => {
+            if (typeof data[field] === 'string' && !data[field].trim()) {
+                data[field] = null;
+            }
+        });
 
         const submitBtn = document.getElementById('save-room');
         
@@ -214,7 +229,8 @@ const RoomManagement = {
         const alert = document.getElementById('room-modal-alert');
         if (alert) {
             alert.className = `alert alert-${type}`;
-            alert.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+            alert.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span class="alert-msg"></span>';
+            alert.querySelector('.alert-msg').textContent = message;
             alert.classList.remove('hidden');
         }
     },
@@ -247,7 +263,9 @@ const RoomManagement = {
             modal.remove();
         }
         
-        document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+        if (this._boundHandleKeyDown) {
+            document.removeEventListener('keydown', this._boundHandleKeyDown);
+        }
         
         this.isEditing = false;
         this.editingId = null;

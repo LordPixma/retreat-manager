@@ -210,7 +210,8 @@ const Login = {
         // Add new error message
         const errorDiv = document.createElement('div');
         errorDiv.className = 'form-validation-message error';
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+        errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span class="err-msg"></span>';
+        errorDiv.querySelector('.err-msg').textContent = message;
         formGroup.appendChild(errorDiv);
     },
 
@@ -415,7 +416,8 @@ const Login = {
         const alert = document.getElementById(alertId);
         if (alert) {
             alert.className = `alert alert-${type}`;
-            alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> ${message}`;
+            alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> <span class="alert-msg"></span>`;
+            alert.querySelector('.alert-msg').textContent = message;
             alert.classList.remove('hidden');
             
             // Auto-hide success messages

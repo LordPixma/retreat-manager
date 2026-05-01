@@ -38,15 +38,20 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
                      context.request.headers.get('X-Forwarded-For') ||
                      'unknown';
 
-    // Check rate limit
-    const rateLimit = await checkRateLimit(context.env.DB, trimmedUser, 'admin');
+    // Check rate limit (per-identifier + per-IP, fails closed on DB error)
+    const rateLimit = await checkRateLimit(context.env.DB, trimmedUser, 'admin', clientIP);
     if (!rateLimit.allowed) {
       return createErrorResponse(errors.rateLimited(Math.ceil((rateLimit.resetTime - Date.now()) / 1000), requestId));
     }
 
-    // Check credentials against environment variables
-    const adminUser = context.env.ADMIN_USER || 'admin';
-    const adminPass = context.env.ADMIN_PASS || 'admin123';
+    // Reject startup if admin creds aren't configured — no `admin/admin123`
+    // fallback. An attacker who knows the default would otherwise be admin.
+    const adminUser = context.env.ADMIN_USER;
+    const adminPass = context.env.ADMIN_PASS;
+    if (!adminUser || !adminPass) {
+      console.error(`[${requestId}] ADMIN_USER/ADMIN_PASS not set in environment`);
+      return createErrorResponse(errors.internal('Admin auth not configured', requestId));
+    }
 
     // Verify credentials using constant-time comparison
     const userMatch = timingSafeEqual(trimmedUser, adminUser);
@@ -62,11 +67,20 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     await recordLoginAttempt(context.env.DB, trimmedUser, 'admin', true, clientIP);
     await clearRateLimit(context.env.DB, trimmedUser, 'admin');
 
-    // Record login history
+    // Record login history + audit
     await context.env.DB.prepare(`
       INSERT INTO login_history (user_type, user_id, login_time)
       VALUES ('admin', ?, CURRENT_TIMESTAMP)
     `).bind(trimmedUser).run();
+
+    try {
+      await context.env.DB.prepare(
+        `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+         VALUES (?, 'login', 'admin', 0, ?)`
+      ).bind(trimmedUser, JSON.stringify({ ip: clientIP })).run();
+    } catch (err) {
+      console.warn(`[${requestId}] audit_log write failed`, err);
+    }
 
     // Create admin token with JWT secret from environment
     const token = await generateAdminToken(trimmedUser, 'admin', context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);

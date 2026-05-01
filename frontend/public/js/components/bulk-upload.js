@@ -827,7 +827,8 @@
             const alert = document.getElementById('bulk-upload-alert');
             if (alert) {
                 alert.className = `alert alert-${type}`;
-                alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> ${message}`;
+                alert.innerHTML = `<i class="fas fa-${this.getAlertIcon(type)}"></i> <span class="alert-msg"></span>`;
+                alert.querySelector('.alert-msg').textContent = message;
                 alert.classList.remove('hidden');
                 
                 if (type === 'success') {

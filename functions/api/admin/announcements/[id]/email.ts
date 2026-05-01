@@ -3,6 +3,7 @@
 import type { PagesContext } from '../../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../../_shared/errors.js';
+import { escapeHtml } from '../../../../_shared/sanitize.js';
 
 interface AnnouncementRow {
   id: number;
@@ -172,7 +173,8 @@ async function sendAnnouncementEmails(
           body: JSON.stringify({
             from: env.FROM_EMAIL,
             to: [attendee.email],
-            subject: `${announcement.title}`,
+            // Strip CR/LF from subject so an admin can't inject SMTP headers.
+            subject: announcement.title.replace(/[\r\n]/g, ' '),
             html: emailHtml
           })
         });
@@ -245,15 +247,15 @@ function generateAnnouncementEmailTemplate(options: {
   };
 
   const attendeeDetails = [
-    attendee.room_number ? `<div>Room: ${attendee.room_number}</div>` : '',
-    attendee.group_name ? `<div>Group: ${attendee.group_name}</div>` : ''
+    attendee.room_number ? `<div>Room: ${escapeHtml(attendee.room_number)}</div>` : '',
+    attendee.group_name ? `<div>Group: ${escapeHtml(attendee.group_name)}</div>` : ''
   ].filter(Boolean).join('');
 
   return `
     <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 2rem;">
       <!-- Header -->
       <div style="${getHeaderStyle(announcement.type)} color: white; padding: 2rem; text-align: center; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 1.8rem;">${announcement.title}</h1>
+        <h1 style="margin: 0; font-size: 1.8rem;">${escapeHtml(announcement.title)}</h1>
         <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Growth and Wisdom Retreat Portal</p>
         ${getPriorityBadge(announcement.priority)}
       </div>
@@ -262,21 +264,21 @@ function generateAnnouncementEmailTemplate(options: {
       <div style="background: white; padding: 2rem; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
         <!-- Greeting -->
         <div style="margin-bottom: 1.5rem;">
-          <h3 style="color: #1f2937; margin: 0 0 0.5rem 0;">Hello ${attendee.name},</h3>
-          <p style="color: #6b7280; margin: 0; font-size: 0.9rem;">Reference: ${attendee.ref_number}</p>
+          <h3 style="color: #1f2937; margin: 0 0 0.5rem 0;">Hello ${escapeHtml(attendee.name)},</h3>
+          <p style="color: #6b7280; margin: 0; font-size: 0.9rem;">Reference: ${escapeHtml(attendee.ref_number)}</p>
         </div>
 
         <!-- Announcement Badge -->
         <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; margin: 1.5rem 0;">
           <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
             <span style="background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; margin-right: 0.5rem;">${getIcon(announcement.type)}</span>
-            <span style="color: #6b7280; font-size: 0.85rem;">${announcement.type.toUpperCase()}</span>
+            <span style="color: #6b7280; font-size: 0.85rem;">${escapeHtml(announcement.type.toUpperCase())}</span>
           </div>
         </div>
 
         <!-- Message Content -->
         <div style="background: #f9fafb; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #667eea; margin: 1.5rem 0;">
-          <div style="color: #374151; line-height: 1.6; white-space: pre-wrap;">${announcement.content}</div>
+          <div style="color: #374151; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(announcement.content)}</div>
         </div>
 
         <!-- Attendee Info -->
@@ -309,8 +311,8 @@ function generateAnnouncementEmailTemplate(options: {
             </div>
 
             <div style="padding: 1rem; background: #f3f4f6; border-radius: 6px; text-align: center;">
-              <div><strong>Announcement by:</strong> ${adminUser}</div>
-              <div><strong>Date:</strong> ${currentDate}</div>
+              <div><strong>Announcement by:</strong> ${escapeHtml(adminUser)}</div>
+              <div><strong>Date:</strong> ${escapeHtml(currentDate)}</div>
               <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #9ca3af;">
                 Growth and Wisdom Retreat Portal
               </div>

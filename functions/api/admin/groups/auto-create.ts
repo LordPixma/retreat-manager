@@ -83,14 +83,14 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
         groupsCreated++;
       }
 
-      // Assign attendees who are not already in a group
-      for (const attendee of members) {
-        if (!attendee.group_id) {
-          await db.prepare(
-            'UPDATE attendees SET group_id = ? WHERE id = ?'
-          ).bind(groupId, attendee.id).run();
-          attendeesAssigned++;
-        }
+      // Assign attendees in a single statement — previously this was N+1.
+      const ungroupedIds = members.filter(a => !a.group_id).map(a => a.id);
+      if (ungroupedIds.length > 0) {
+        const placeholders = ungroupedIds.map(() => '?').join(',');
+        const result = await db.prepare(
+          `UPDATE attendees SET group_id = ? WHERE id IN (${placeholders})`
+        ).bind(groupId, ...ungroupedIds).run();
+        attendeesAssigned += result.meta.changes ?? ungroupedIds.length;
       }
     }
 

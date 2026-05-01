@@ -9,6 +9,11 @@ interface RoomRow {
   id: number;
   number: string;
   description: string | null;
+  capacity: number;
+  cot_capacity: number;
+  floor: string | null;
+  room_type: string | null;
+  amenities: string | null;
   occupant_count: number;
   occupants: string | null;
 }
@@ -39,12 +44,18 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
         r.id,
         r.number,
         r.description,
-        COUNT(a.id) as occupant_count,
-        GROUP_CONCAT(a.name, ', ') as occupants
+        COALESCE(r.capacity, 1) AS capacity,
+        COALESCE(r.cot_capacity, 0) AS cot_capacity,
+        r.floor,
+        r.room_type,
+        r.amenities,
+        COUNT(a.id) AS occupant_count,
+        GROUP_CONCAT(a.name, ', ') AS occupants
       FROM rooms r
-      LEFT JOIN attendees a ON r.id = a.room_id
+      LEFT JOIN attendees a
+        ON r.id = a.room_id AND (a.is_archived = 0 OR a.is_archived IS NULL)
       WHERE r.id = ?
-      GROUP BY r.id, r.number, r.description
+      GROUP BY r.id
     `).bind(id).all();
 
     if (!results.length) {
@@ -56,6 +67,11 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
       id: room.id,
       number: room.number,
       description: room.description || '',
+      capacity: room.capacity || 1,
+      cot_capacity: room.cot_capacity || 0,
+      floor: room.floor || '',
+      room_type: room.room_type || 'standard',
+      amenities: room.amenities || '',
       occupant_count: room.occupant_count || 0,
       occupants: room.occupants ? room.occupants.split(', ').filter(Boolean) : []
     };
@@ -87,7 +103,15 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       return createErrorResponse(errors.validation(validation.errors, requestId));
     }
 
-    const { number, description } = body as { number?: string; description?: string };
+    const { number, description, capacity, cot_capacity, floor, room_type, amenities } = body as {
+      number?: string;
+      description?: string;
+      capacity?: number;
+      cot_capacity?: number;
+      floor?: string;
+      room_type?: string;
+      amenities?: string;
+    };
 
     if (!number || !number.trim()) {
       return createErrorResponse(errors.badRequest('Room number is required', requestId));
@@ -111,10 +135,23 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       return createErrorResponse(errors.conflict('Room number already exists', requestId));
     }
 
-    // Update room
+    // Build dynamic UPDATE so callers can patch a subset of fields rather than
+    // having to resend everything on every save.
+    const fields: string[] = ['number = ?'];
+    const values: (string | number | null)[] = [number.trim()];
+
+    if (description !== undefined) { fields.push('description = ?'); values.push(description?.trim() || null); }
+    if (capacity !== undefined) { fields.push('capacity = ?'); values.push(capacity); }
+    if (cot_capacity !== undefined) { fields.push('cot_capacity = ?'); values.push(cot_capacity); }
+    if (floor !== undefined) { fields.push('floor = ?'); values.push(floor?.trim() || null); }
+    if (room_type !== undefined) { fields.push('room_type = ?'); values.push(room_type); }
+    if (amenities !== undefined) { fields.push('amenities = ?'); values.push(amenities?.trim() || null); }
+
+    values.push(id);
+
     const result = await context.env.DB.prepare(
-      'UPDATE rooms SET number = ?, description = ? WHERE id = ?'
-    ).bind(number.trim(), description?.trim() || null, id).run();
+      `UPDATE rooms SET ${fields.join(', ')} WHERE id = ?`
+    ).bind(...values).run();
 
     if (!result.success) {
       throw new Error('Failed to update room');

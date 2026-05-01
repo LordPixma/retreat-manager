@@ -240,8 +240,9 @@ const AnnouncementManagement = {
             }
         });
 
-        // Escape key to close
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+        // Escape key to close — keep the bound reference so removeEventListener works.
+        this._boundHandleKeyDown = this._boundHandleKeyDown || this.handleKeyDown.bind(this);
+        document.addEventListener('keydown', this._boundHandleKeyDown);
     },
 
     /**
@@ -460,7 +461,8 @@ const AnnouncementManagement = {
         const alert = document.getElementById('announcement-modal-alert');
         if (alert) {
             alert.className = `alert alert-${type}`;
-            alert.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+            alert.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span class="alert-msg"></span>';
+            alert.querySelector('.alert-msg').textContent = message;
             alert.classList.remove('hidden');
         }
     },
@@ -484,7 +486,9 @@ const AnnouncementManagement = {
             modal.remove();
         }
         
-        document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+        if (this._boundHandleKeyDown) {
+            document.removeEventListener('keydown', this._boundHandleKeyDown);
+        }
         
         this.isEditing = false;
         this.editingId = null;

@@ -1,6 +1,7 @@
 import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { escapeHtml } from '../../../_shared/sanitize.js';
 
 export async function onRequestOptions(): Promise<Response> {
   return handleCORS();
@@ -41,17 +42,17 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
               <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:12px 12px 0 0;">
                 <h1 style="color:white;margin:0;">Payment Reminder</h1></div>
               <div style="padding:30px;background:#f8fafc;border-radius:0 0 12px 12px;">
-                <p>Dear ${row.name},</p>
-                <p>This is a friendly reminder that you have an outstanding balance for the <strong>${retreatName}</strong>.</p>
+                <p>Dear ${escapeHtml(row.name)},</p>
+                <p>This is a friendly reminder that you have an outstanding balance for the <strong>${escapeHtml(retreatName)}</strong>.</p>
                 <div style="background:white;padding:20px;border-radius:8px;border-left:4px solid #f59e0b;margin:20px 0;">
                   <p style="margin:0 0 8px;"><strong>Amount Due:</strong> £${row.payment_due.toFixed(2)}</p>
-                  <p style="margin:0;"><strong>Reference:</strong> ${row.ref_number}</p>
+                  <p style="margin:0;"><strong>Reference:</strong> ${escapeHtml(row.ref_number)}</p>
                 </div>
                 <div style="text-align:center;margin:25px 0;">
-                  <a href="${portalUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;text-decoration:none;border-radius:8px;font-weight:600;">Pay Now</a>
+                  <a href="${escapeHtml(portalUrl)}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;text-decoration:none;border-radius:8px;font-weight:600;">Pay Now</a>
                 </div>
                 <p style="color:#6b7280;font-size:0.85rem;">If you have already made payment, please disregard this reminder.</p>
-                <p style="color:#6b7280;font-size:0.85rem;">— The ${retreatName} Team</p>
+                <p style="color:#6b7280;font-size:0.85rem;">— The ${escapeHtml(retreatName)} Team</p>
               </div></div>`,
           }),
         });

@@ -25,3 +25,14 @@ export function ageFromDateOfBirth(dob: string | null | undefined, asOf: Date = 
   if (m < 0 || (m === 0 && asOf.getDate() < d.getDate())) age--;
   return age >= 0 ? age : null;
 }
+
+// Threshold for "cot/camp-bed eligible" — under-3 covers true babies and
+// young toddlers. Older children need a real bed slot in the room. Attendees
+// without a date_of_birth are conservatively treated as adults (not cot
+// eligible) so we never accidentally over-fill a room.
+export const COT_ELIGIBLE_AGE_YEARS = 3;
+
+export function isCotEligible(dob: string | null | undefined, asOf: Date = new Date()): boolean {
+  const age = ageFromDateOfBirth(dob, asOf);
+  return age !== null && age < COT_ELIGIBLE_AGE_YEARS;
+}

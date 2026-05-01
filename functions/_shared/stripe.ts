@@ -9,7 +9,10 @@ export function getStripe(env: Env): Stripe {
   }
   if (!stripeInstance) {
     stripeInstance = new Stripe(env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-04-30.basil',
+      // Pinned intentionally — bumping the API version is a deploy-coordinated
+      // change. The SDK's types lag behind so we cast to satisfy TS without
+      // losing the lock.
+      apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
       httpClient: Stripe.createFetchHttpClient(),
     });
   }

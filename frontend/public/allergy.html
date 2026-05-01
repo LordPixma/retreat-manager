@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Allergy &amp; Medical Form — Growth and Wisdom Retreat</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #667eea; --primary-dark: #5568d3; --error: #dc2626; --success: #059669; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; padding: 2rem 1rem;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: #1f2937;
+        }
+        .container { max-width: 540px; margin: 0 auto; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 2rem; }
+        h1 { font-size: 1.5rem; margin: 0 0 0.5rem 0; color: #111827; }
+        .subtitle { color: #6b7280; margin: 0 0 1.5rem 0; font-size: 0.95rem; }
+        .attendee-pill { background: #f3f4f6; padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; font-weight: 600; color: #374151; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        input[type="text"], input[type="email"], textarea, select {
+            width: 100%; padding: 0.65rem 0.85rem; border: 1px solid #d1d5db; border-radius: 8px;
+            font-family: inherit; font-size: 0.95rem; background: #fff; color: #111827;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
+        textarea { resize: vertical; min-height: 80px; }
+        .radio-group, .checkbox-group { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .radio-group label, .checkbox-group label { font-weight: 500; display: inline-flex; gap: 0.4rem; cursor: pointer; align-items: center; }
+        .help { color: #6b7280; font-size: 0.8rem; margin-top: 0.35rem; }
+        .conditional { display: none; padding-left: 1rem; border-left: 3px solid var(--primary); margin-top: 1rem; }
+        .conditional.shown { display: block; }
+        .submit-btn {
+            width: 100%; padding: 0.85rem; background: var(--primary); color: #fff; border: 0;
+            border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        .submit-btn:hover { background: var(--primary-dark); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .alert { padding: 1rem; border-radius: 10px; margin-bottom: 1.25rem; font-size: 0.9rem; }
+        .alert-error { background: #fef2f2; color: var(--error); border: 1px solid #fecaca; }
+        .alert-success { background: #ecfdf5; color: var(--success); border: 1px solid #a7f3d0; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Allergy &amp; Medical Information</h1>
+            <p class="subtitle">Help our team keep everyone safe at the retreat. This information is shared only with retreat staff.</p>
+
+            <div id="loading" style="text-align:center; padding: 2rem 0;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; color: var(--primary);"></i>
+                <p>Loading form...</p>
+            </div>
+
+            <div id="error" class="alert alert-error hidden"></div>
+
+            <div id="form-wrapper" class="hidden">
+                <div class="attendee-pill">
+                    Filling this form for <strong id="attendee-name"></strong>
+                    (<span id="attendee-ref"></span>)
+                </div>
+
+                <div id="success-msg" class="alert alert-success hidden"></div>
+
+                <form id="allergy-form">
+                    <div class="form-group">
+                        <label>Does this person have any allergies or medical conditions our team should know about?</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="has_allergies" value="no" required> No</label>
+                            <label><input type="radio" name="has_allergies" value="yes" required> Yes</label>
+                        </div>
+                    </div>
+
+                    <div id="allergy-details" class="conditional">
+                        <div class="form-group">
+                            <label for="allergens">Allergens / conditions <span style="color:var(--error)">*</span></label>
+                            <textarea id="allergens" name="allergens" placeholder="e.g. peanuts, shellfish, asthma, hayfever"></textarea>
+                            <div class="help">List everything we should be aware of, separated by commas.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="severity">Severity</label>
+                            <select id="severity" name="severity">
+                                <option value="">— select —</option>
+                                <option value="mild">Mild (discomfort only)</option>
+                                <option value="moderate">Moderate (needs medication / removal from trigger)</option>
+                                <option value="severe">Severe (anaphylaxis / hospital risk)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="epipen_required" name="epipen_required"> EpiPen / emergency medication is required on-site</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="emergency_notes">Emergency notes (optional)</label>
+                            <textarea id="emergency_notes" name="emergency_notes" placeholder="What should staff do in an emergency? Any reaction triggers, where medication is kept, etc."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="submitted_by_email">Your email (optional)</label>
+                        <input type="email" id="submitted_by_email" name="submitted_by_email" placeholder="So we can confirm this submission">
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submit-btn">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token') || '';
+            const $loading = document.getElementById('loading');
+            const $error = document.getElementById('error');
+            const $wrapper = document.getElementById('form-wrapper');
+            const $allergyDetails = document.getElementById('allergy-details');
+            const $form = document.getElementById('allergy-form');
+            const $success = document.getElementById('success-msg');
+            const $submitBtn = document.getElementById('submit-btn');
+
+            function showError(msg) {
+                $loading.classList.add('hidden');
+                $error.textContent = msg;
+                $error.classList.remove('hidden');
+            }
+
+            // Reveal the conditional details section when user picks "yes".
+            $form.addEventListener('change', (e) => {
+                if (e.target.name === 'has_allergies') {
+                    if (e.target.value === 'yes') $allergyDetails.classList.add('shown');
+                    else $allergyDetails.classList.remove('shown');
+                }
+            });
+
+            if (!token) { showError('This link is invalid or missing its token.'); return; }
+
+            fetch('/api/allergy/load?token=' + encodeURIComponent(token))
+                .then(r => r.json().then(b => ({ ok: r.ok, body: b })))
+                .then(({ ok, body }) => {
+                    if (!ok) { showError(body.error || 'This link is invalid or has expired.'); return; }
+                    document.getElementById('attendee-name').textContent = body.attendee.name;
+                    document.getElementById('attendee-ref').textContent = body.attendee.ref_number;
+
+                    // Pre-populate from a prior submission so the user can edit.
+                    if (body.record) {
+                        const r = body.record;
+                        const has = r.has_allergies ? 'yes' : 'no';
+                        const radio = $form.querySelector('input[name="has_allergies"][value="' + has + '"]');
+                        if (radio) {
+                            radio.checked = true;
+                            if (has === 'yes') $allergyDetails.classList.add('shown');
+                        }
+                        if (r.allergens) document.getElementById('allergens').value = r.allergens;
+                        if (r.severity) document.getElementById('severity').value = r.severity;
+                        if (r.epipen_required) document.getElementById('epipen_required').checked = true;
+                        if (r.emergency_notes) document.getElementById('emergency_notes').value = r.emergency_notes;
+                    }
+
+                    $loading.classList.add('hidden');
+                    $wrapper.classList.remove('hidden');
+                })
+                .catch(() => showError('Could not reach the server. Try again in a moment.'));
+
+            $form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                $submitBtn.disabled = true;
+                $submitBtn.textContent = 'Submitting...';
+                $error.classList.add('hidden');
+
+                const data = new FormData($form);
+                const has = data.get('has_allergies') === 'yes';
+
+                if (has && !data.get('allergens')) {
+                    showError('Please list the allergens or conditions.');
+                    $submitBtn.disabled = false;
+                    $submitBtn.textContent = 'Submit';
+                    return;
+                }
+
+                fetch('/api/allergy/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token,
+                        has_allergies: has,
+                        allergens: data.get('allergens') || '',
+                        severity: data.get('severity') || '',
+                        epipen_required: !!data.get('epipen_required'),
+                        emergency_notes: data.get('emergency_notes') || '',
+                        submitted_by_email: data.get('submitted_by_email') || '',
+                    }),
+                })
+                    .then(r => r.json().then(b => ({ ok: r.ok, body: b })))
+                    .then(({ ok, body }) => {
+                        $submitBtn.disabled = false;
+                        $submitBtn.textContent = 'Submit';
+                        if (!ok) { showError(body.error || 'Submission failed.'); return; }
+                        $success.textContent = has
+                            ? 'Thanks — the retreat team has the details and will reach out if anything is unclear.'
+                            : 'Thanks — recorded that no allergies / conditions need flagging.';
+                        $success.classList.remove('hidden');
+                        // Disable the form after a successful submit; user can refresh to edit again.
+                        $submitBtn.disabled = true;
+                        $submitBtn.textContent = 'Submitted ✓';
+                    })
+                    .catch(() => {
+                        $submitBtn.disabled = false;
+                        $submitBtn.textContent = 'Submit';
+                        showError('Could not reach the server. Try again in a moment.');
+                    });
+            });
+        })();
+    </script>
+</body>
+</html>

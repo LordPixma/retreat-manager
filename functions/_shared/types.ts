@@ -5,10 +5,12 @@ export interface Env {
   DB: D1Database;
   RESEND_API_KEY?: string;
   FROM_EMAIL?: string;
+  ADMIN_NOTIFICATION_EMAIL?: string;
   ADMIN_USER?: string;
   ADMIN_PASS?: string;
   PORTAL_URL?: string;
   RETREAT_NAME?: string;
+  ALLOWED_ORIGINS?: string;
   JWT_SECRET?: string;
   ADMIN_JWT_SECRET?: string;
   STRIPE_SECRET_KEY?: string;

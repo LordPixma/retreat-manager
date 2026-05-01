@@ -171,6 +171,15 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       throw new Error('Failed to create attendee');
     }
 
+    try {
+      await context.env.DB.prepare(
+        `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+         VALUES (?, 'create', 'attendee', ?, ?)`
+      ).bind(admin.user, result.meta.last_row_id, JSON.stringify({ ref_number, name: trimmedName })).run();
+    } catch (err) {
+      console.warn(`[${requestId}] audit_log write failed`, err);
+    }
+
     return createResponse({
       id: result.meta.last_row_id,
       message: 'Attendee created successfully'

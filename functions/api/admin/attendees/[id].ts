@@ -4,12 +4,17 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../../_shared/auth.js';
 import { validate, attendeeUpdateSchema } from '../../../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { sendRoomAssignedEmail } from '../../../_shared/notifications.js';
+import { canAccommodate } from '../../../_shared/room-allocation.js';
 
 interface AttendeeRow {
   id: number;
   ref_number: string;
   name: string;
   email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  date_of_birth: string | null;
   payment_due: number;
   payment_option: string | null;
   room_id: number | null;
@@ -49,6 +54,9 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
         a.ref_number,
         a.name,
         a.email,
+        a.first_name,
+        a.last_name,
+        a.date_of_birth,
         a.payment_due,
         a.payment_option,
         a.room_id,
@@ -73,6 +81,9 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
       ref_number: attendee.ref_number,
       name: attendee.name,
       email: attendee.email,
+      first_name: attendee.first_name,
+      last_name: attendee.last_name,
+      date_of_birth: attendee.date_of_birth,
       payment_due: attendee.payment_due || 0,
       payment_option: attendee.payment_option || 'full',
       room_id: attendee.room_id,
@@ -115,13 +126,58 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       return createErrorResponse(errors.validation(validation.errors, requestId));
     }
 
-    // Check if attendee exists
+    // Read the existing row so we can detect a room-id transition after the
+    // UPDATE and only email when the assignment actually changed. We also
+    // need date_of_birth for the cot-eligibility check.
     const { results: existingResults } = await context.env.DB.prepare(
-      'SELECT id FROM attendees WHERE id = ?'
+      'SELECT id, name, email, ref_number, room_id, group_id, date_of_birth FROM attendees WHERE id = ?'
     ).bind(id).all();
 
     if (!existingResults.length) {
       return createErrorResponse(errors.notFound('Attendee', requestId));
+    }
+
+    const existing = existingResults[0] as {
+      id: number; name: string; email: string | null; ref_number: string;
+      room_id: number | null; group_id: number | null; date_of_birth: string | null;
+    };
+
+    // If the request is moving this attendee to a different (non-null) room,
+    // check that the target room can fit them under its bed/cot rules.
+    const requestedRoomId = updateData.room_id;
+    const movingToNewRoom =
+      requestedRoomId !== undefined &&
+      requestedRoomId !== null &&
+      requestedRoomId !== '' &&
+      Number(requestedRoomId) !== existing.room_id;
+
+    if (movingToNewRoom) {
+      const { results: roomCheck } = await context.env.DB.prepare(
+        'SELECT COALESCE(capacity, 1) AS capacity, COALESCE(cot_capacity, 0) AS cot_capacity, number FROM rooms WHERE id = ?'
+      ).bind(requestedRoomId).all();
+      if (!roomCheck.length) {
+        return createErrorResponse(errors.badRequest(`Target room ${requestedRoomId} not found`, requestId));
+      }
+      const targetRoom = roomCheck[0] as { capacity: number; cot_capacity: number; number: string };
+
+      const { results: currentOccupants } = await context.env.DB.prepare(
+        `SELECT date_of_birth FROM attendees
+         WHERE room_id = ? AND id != ? AND (is_archived = 0 OR is_archived IS NULL)`
+      ).bind(requestedRoomId, existing.id).all();
+
+      const proposed = [
+        ...(currentOccupants as { date_of_birth: string | null }[]),
+        { date_of_birth: existing.date_of_birth },
+      ];
+
+      const fit = canAccommodate(proposed, targetRoom);
+      if (!fit.ok) {
+        return createErrorResponse(errors.badRequest(
+          `Room ${targetRoom.number} cannot accept this attendee — ${fit.message}. ` +
+          `Beds: ${fit.bedsUsed}/${fit.bedsAvailable}, cots: ${fit.cotsUsed}/${fit.cotsAvailable}.`,
+          requestId
+        ));
+      }
     }
 
     // Build dynamic UPDATE query
@@ -155,6 +211,49 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
     if (!result.success) {
       throw new Error('Failed to update attendee');
+    }
+
+    try {
+      await context.env.DB.prepare(
+        `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+         VALUES (?, 'update', 'attendee', ?, ?)`
+      ).bind(admin.user, parseInt(id), JSON.stringify({ fields: updateFields })).run();
+    } catch (err) {
+      console.warn(`[${requestId}] audit_log write failed`, err);
+    }
+
+    // Notify the attendee if their room assignment transitioned to a new
+    // non-null value. We compare against the snapshot taken before the UPDATE.
+    const newRoomId = updateData.room_id;
+    const roomChanged =
+      newRoomId !== undefined &&
+      newRoomId !== null &&
+      newRoomId !== '' &&
+      Number(newRoomId) !== existing.room_id;
+
+    if (roomChanged) {
+      const { results: roomRows } = await context.env.DB.prepare(
+        `SELECT r.number, r.description, r.floor, g.name AS group_name
+         FROM rooms r
+         LEFT JOIN attendees a ON a.id = ?
+         LEFT JOIN groups g ON g.id = a.group_id
+         WHERE r.id = ?`
+      ).bind(parseInt(id), newRoomId).all();
+
+      if (roomRows.length > 0) {
+        const room = roomRows[0] as { number: string; description: string | null; floor: string | null; group_name: string | null };
+        // Fire-and-forget — don't block the admin's save on Resend latency.
+        context.waitUntil(
+          sendRoomAssignedEmail(
+            context.env,
+            { name: existing.name, email: existing.email, ref_number: existing.ref_number },
+            { number: room.number, description: room.description, floor: room.floor },
+            room.group_name,
+          ).then(sent => {
+            if (!sent) console.warn(`[${requestId}] room-assigned email not sent for attendee ${id}`);
+          })
+        );
+      }
     }
 
     return createResponse({
@@ -202,6 +301,15 @@ export async function onRequestDelete(context: PagesContext<IdParams>): Promise<
 
     if (!result.success) {
       throw new Error('Failed to archive attendee');
+    }
+
+    try {
+      await context.env.DB.prepare(
+        `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+         VALUES (?, 'archive', 'attendee', ?, ?)`
+      ).bind(admin.user, parseInt(id), JSON.stringify({ ref_number: attendee.ref_number, name: attendee.name })).run();
+    } catch (err) {
+      console.warn(`[${requestId}] audit_log write failed`, err);
     }
 
     return createResponse({

@@ -1,18 +1,6 @@
 import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
-import { validate } from '../../../_shared/validation.js';
-import { parsePaginationParams, createPaginatedResponse } from '../../../_shared/pagination.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
-
-const activityTeamCreateSchema = {
-  name: { validators: [
-    (v: unknown) => (!v || String(v).trim() === '') ? 'Name is required' : null,
-    (v: unknown) => (typeof v === 'string' && v.length > 255) ? 'Name must be 255 characters or less' : null,
-  ]},
-  description: { validators: [
-    (v: unknown) => (typeof v === 'string' && v.length > 1000) ? 'Description must be 1000 characters or less' : null,
-  ], optional: true },
-};
 
 interface TeamRow {
   id: number;
@@ -132,7 +120,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
 
     // Send notification emails to all members
     const emailPromise = sendTeamNotificationEmails(
-      context.env, teamId, body.name.trim(), body.description?.trim() || '', memberIds, body.leader_id || null, requestId
+      context.env, body.name.trim(), body.description?.trim() || '', memberIds, body.leader_id || null, requestId
     ).catch(err => console.error(`[${requestId}] Email notification error:`, err));
 
     context.waitUntil(emailPromise);
@@ -147,7 +135,6 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
 
 async function sendTeamNotificationEmails(
   env: PagesContext['env'],
-  teamId: number,
   teamName: string,
   description: string,
   memberIds: number[],

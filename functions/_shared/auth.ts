@@ -10,8 +10,17 @@ const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000; // 8 hours
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_LOGIN_ATTEMPTS = 5;
 
-// Default secret for development (should be overridden in production)
-const DEFAULT_SECRET = 'dev-secret-change-in-production-abc123';
+// No default secret — auth fails closed if JWT_SECRET / ADMIN_JWT_SECRET are
+// not set in the Cloudflare Pages environment. Hardcoded fallbacks would let
+// anyone with repo access mint admin tokens.
+function requireSecret(secret: string | undefined): string {
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      'Auth secret missing or too short — set JWT_SECRET (>=32 chars) in Cloudflare Pages env vars'
+    );
+  }
+  return secret;
+}
 
 /**
  * Convert ArrayBuffer or Uint8Array to hex string
@@ -76,65 +85,51 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 /**
- * Verify password against stored hash
- * Supports both new PBKDF2 format and legacy SHA-256 format for migration
+ * Verify a password against a stored PBKDF2 hash.
+ *
+ * The legacy `$retreat$` (SHA256 + global static salt) branch was retired on
+ * 2026-05-01 after a prod audit confirmed zero remaining legacy hashes (lazy
+ * upgrade-on-login had migrated the entire base over time, and migration 014
+ * found nothing to flag). If a `$retreat$` hash ever reappears via a future
+ * data import, this function will return false and the user will need to be
+ * reset by an admin via `must_reset_password`.
  */
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
-  // Check if it's the new PBKDF2 format
-  if (storedHash.startsWith('$pbkdf2$')) {
-    const parts = storedHash.split('$');
-    if (parts.length !== 5) return false;
+  if (!storedHash.startsWith('$pbkdf2$')) return false;
 
-    const iterations = parseInt(parts[2]);
-    const salt = hexToBuffer(parts[3]);
-    const storedHashBytes = parts[4];
+  const parts = storedHash.split('$');
+  if (parts.length !== 5) return false;
 
-    const encoder = new TextEncoder();
-    const passwordBuffer = encoder.encode(password);
+  const iterations = parseInt(parts[2]);
+  const salt = hexToBuffer(parts[3]);
+  const storedHashBytes = parts[4];
 
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      passwordBuffer,
-      'PBKDF2',
-      false,
-      ['deriveBits']
-    );
-
-    const derivedBits = await crypto.subtle.deriveBits(
-      {
-        name: 'PBKDF2',
-        salt: salt,
-        iterations: iterations,
-        hash: 'SHA-256'
-      },
-      keyMaterial,
-      HASH_LENGTH * 8
-    );
-
-    const computedHash = bufferToHex(derivedBits);
-
-    // Constant-time comparison to prevent timing attacks
-    return timingSafeEqual(computedHash, storedHashBytes);
-  }
-
-  // Legacy format support for migration ($retreat$...)
-  if (storedHash.startsWith('$retreat$')) {
-    const legacyHash = await legacyHashPassword(password);
-    return timingSafeEqual(legacyHash, storedHash);
-  }
-
-  return false;
-}
-
-/**
- * Legacy password hashing for migration support
- */
-async function legacyHashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'retreat_portal_salt_2024');
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashHex = bufferToHex(hashBuffer);
-  return '$retreat$' + hashHex;
+  const passwordBuffer = encoder.encode(password);
+
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    passwordBuffer,
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: iterations,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    HASH_LENGTH * 8
+  );
+
+  const computedHash = bufferToHex(derivedBits);
+
+  // Constant-time comparison to prevent timing attacks
+  return timingSafeEqual(computedHash, storedHashBytes);
 }
 
 /**
@@ -151,11 +146,14 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Create HMAC-signed token
+ * Create HMAC-signed token. Default expiry is the session window
+ * (TOKEN_EXPIRY_MS); pass `ttlMs` to override (e.g. long-lived tokens for
+ * email-link flows).
  */
 async function createSignedToken(
   payload: Record<string, unknown>,
-  secret: string
+  secret: string,
+  ttlMs: number = TOKEN_EXPIRY_MS,
 ): Promise<string> {
   const encoder = new TextEncoder();
 
@@ -163,7 +161,7 @@ async function createSignedToken(
   const tokenPayload = {
     ...payload,
     iat: Date.now(),
-    exp: Date.now() + TOKEN_EXPIRY_MS
+    exp: Date.now() + ttlMs
   };
 
   const payloadStr = JSON.stringify(tokenPayload);
@@ -250,22 +248,14 @@ async function verifySignedToken<T extends Record<string, unknown>>(
  * Generate admin token
  */
 export async function generateAdminToken(user: string, role: string = 'admin', secret?: string): Promise<string> {
-  const token = await createSignedToken(
-    { type: 'admin', user, role },
-    secret || DEFAULT_SECRET
-  );
-  return token;
+  return createSignedToken({ type: 'admin', user, role }, requireSecret(secret));
 }
 
 /**
  * Generate attendee token
  */
 export async function generateAttendeeToken(ref: string, secret?: string): Promise<string> {
-  const token = await createSignedToken(
-    { type: 'attendee', ref },
-    secret || DEFAULT_SECRET
-  );
-  return token;
+  return createSignedToken({ type: 'attendee', ref }, requireSecret(secret));
 }
 
 /**
@@ -279,12 +269,35 @@ export async function checkAdminAuth(request: Request, secret?: string): Promise
 
   const payload = await verifySignedToken<{ type: string; user: string; role: string }>(
     token,
-    secret || DEFAULT_SECRET
+    requireSecret(secret)
   );
 
   if (!payload || payload.type !== 'admin') return null;
 
   return { user: payload.user, role: payload.role };
+}
+
+// 30-day expiry for tokens that authenticate the public allergy form via
+// email link. Long enough that legitimate recipients can come back to it but
+// short enough to limit the window if a hash leaks.
+const ALLERGY_FORM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+export async function generateAllergyFormToken(attendeeId: number, secret?: string): Promise<string> {
+  return createSignedToken(
+    { type: 'allergy_form', attendee_id: attendeeId },
+    requireSecret(secret),
+    ALLERGY_FORM_TTL_MS,
+  );
+}
+
+export async function verifyAllergyFormToken(token: string, secret?: string): Promise<{ attendee_id: number } | null> {
+  const payload = await verifySignedToken<{ type: string; attendee_id: number }>(
+    token,
+    requireSecret(secret),
+  );
+  if (!payload || payload.type !== 'allergy_form') return null;
+  if (typeof payload.attendee_id !== 'number') return null;
+  return { attendee_id: payload.attendee_id };
 }
 
 /**
@@ -298,7 +311,7 @@ export async function checkAttendeeAuth(request: Request, secret?: string): Prom
 
   const payload = await verifySignedToken<{ type: string; ref: string }>(
     token,
-    secret || DEFAULT_SECRET
+    requireSecret(secret)
   );
 
   if (!payload || payload.type !== 'attendee') return null;
@@ -306,35 +319,61 @@ export async function checkAttendeeAuth(request: Request, secret?: string): Prom
   return { ref: payload.ref };
 }
 
+// Per-IP cap is intentionally higher than per-identifier so a shared NAT
+// (office, school) doesn't block a legitimate user when one teammate fails.
+const MAX_LOGIN_ATTEMPTS_PER_IP = 20;
+
 /**
- * Rate limiting - check if login is allowed
+ * Rate limiting — check if login is allowed.
+ *
+ * Checks two independent caps in the same window:
+ *   * per-identifier (5 failures) — slows credential-stuffing on one account
+ *   * per-IP (20 failures)        — slows password-spraying across accounts
+ *
+ * Fails CLOSED on DB error: a broken `login_attempts` table must not become
+ * a rate-limit bypass. Operators see the error in logs and can repair.
  */
 export async function checkRateLimit(
   db: D1Database,
   identifier: string,
-  userType: 'admin' | 'attendee'
-): Promise<{ allowed: boolean; remainingAttempts: number; resetTime: number }> {
+  userType: 'admin' | 'attendee',
+  ipAddress?: string | null
+): Promise<{ allowed: boolean; remainingAttempts: number; resetTime: number; reason?: string }> {
   const windowStart = Date.now() - RATE_LIMIT_WINDOW_MS;
   const resetTime = Date.now() + RATE_LIMIT_WINDOW_MS;
 
   try {
-    // Count recent failed attempts
-    const { results } = await db.prepare(`
+    const { results: idRows } = await db.prepare(`
       SELECT COUNT(*) as count FROM login_attempts
       WHERE identifier = ? AND user_type = ? AND attempt_time > ? AND success = 0
     `).bind(identifier, userType, windowStart).all();
 
-    const failedAttempts = (results[0] as unknown as { count: number }).count;
-    const remainingAttempts = Math.max(0, MAX_LOGIN_ATTEMPTS - failedAttempts);
+    const idFails = (idRows[0] as unknown as { count: number }).count;
+
+    let ipFails = 0;
+    if (ipAddress) {
+      const { results: ipRows } = await db.prepare(`
+        SELECT COUNT(*) as count FROM login_attempts
+        WHERE ip_address = ? AND attempt_time > ? AND success = 0
+      `).bind(ipAddress, windowStart).all();
+      ipFails = (ipRows[0] as unknown as { count: number }).count;
+    }
+
+    if (idFails >= MAX_LOGIN_ATTEMPTS) {
+      return { allowed: false, remainingAttempts: 0, resetTime, reason: 'identifier' };
+    }
+    if (ipFails >= MAX_LOGIN_ATTEMPTS_PER_IP) {
+      return { allowed: false, remainingAttempts: 0, resetTime, reason: 'ip' };
+    }
 
     return {
-      allowed: failedAttempts < MAX_LOGIN_ATTEMPTS,
-      remainingAttempts,
+      allowed: true,
+      remainingAttempts: Math.max(0, MAX_LOGIN_ATTEMPTS - idFails),
       resetTime
     };
-  } catch {
-    // If table doesn't exist, allow login
-    return { allowed: true, remainingAttempts: MAX_LOGIN_ATTEMPTS, resetTime };
+  } catch (err) {
+    console.error('[rate-limit] check failed; failing closed', err);
+    return { allowed: false, remainingAttempts: 0, resetTime, reason: 'error' };
   }
 }
 
@@ -383,14 +422,34 @@ export async function clearRateLimit(
 }
 
 /**
+ * Pick the CORS allow-origin to echo for this response.
+ *
+ * If `ALLOWED_ORIGINS` is set in the env (comma-separated list) and the
+ * request's `Origin` matches, we echo that origin (locking access to the
+ * known portal domain). Otherwise we fall through to `*` so the API stays
+ * accessible to same-origin browsers and tools — the auth header is bearer
+ * token, not cookies, so `*` is not a credential-leak vector by itself.
+ *
+ * Pass `null` for `request` (e.g. webhook responses) to skip the lookup.
+ */
+function pickCorsOrigin(request: Request | null, allowedOrigins?: string): string {
+  if (!request || !allowedOrigins) return '*';
+  const origin = request.headers.get('Origin');
+  if (!origin) return '*';
+  const allowed = allowedOrigins.split(',').map(o => o.trim()).filter(Boolean);
+  return allowed.includes(origin) ? origin : (allowed[0] || '*');
+}
+
+/**
  * Create standardized JSON response with CORS headers
  */
-export function createResponse<T>(data: T, status: number = 200): Response {
+export function createResponse<T>(data: T, status: number = 200, request?: Request, allowedOrigins?: string): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': pickCorsOrigin(request ?? null, allowedOrigins),
+      'Vary': 'Origin',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Cache-Control': 'no-cache'
@@ -401,11 +460,12 @@ export function createResponse<T>(data: T, status: number = 200): Response {
 /**
  * Handle CORS preflight requests
  */
-export function handleCORS(): Response {
+export function handleCORS(request?: Request, allowedOrigins?: string): Response {
   return new Response(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': pickCorsOrigin(request ?? null, allowedOrigins),
+      'Vary': 'Origin',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400'
@@ -413,9 +473,3 @@ export function handleCORS(): Response {
   });
 }
 
-/**
- * Check if password needs upgrade from legacy format
- */
-export function needsPasswordUpgrade(storedHash: string): boolean {
-  return storedHash.startsWith('$retreat$');
-}

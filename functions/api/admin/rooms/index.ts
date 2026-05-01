@@ -10,6 +10,11 @@ interface RoomRow {
   id: number;
   number: string;
   description: string | null;
+  capacity: number;
+  cot_capacity: number;
+  floor: string | null;
+  room_type: string | null;
+  amenities: string | null;
   occupant_count: number;
   occupants: string | null;
 }
@@ -42,17 +47,24 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     ).all();
     const total = (countResult[0] as unknown as CountResult).total;
 
-    // Get rooms with occupancy information and pagination
+    // Get rooms with occupancy information and pagination.
+    // Soft-delete filter on attendees so archived rows don't inflate occupancy.
     const { results } = await context.env.DB.prepare(`
       SELECT
         r.id,
         r.number,
         r.description,
-        COUNT(a.id) as occupant_count,
-        GROUP_CONCAT(a.name, ', ') as occupants
+        COALESCE(r.capacity, 1) AS capacity,
+        COALESCE(r.cot_capacity, 0) AS cot_capacity,
+        r.floor,
+        r.room_type,
+        r.amenities,
+        COUNT(a.id) AS occupant_count,
+        GROUP_CONCAT(a.name, ', ') AS occupants
       FROM rooms r
-      LEFT JOIN attendees a ON r.id = a.room_id
-      GROUP BY r.id, r.number, r.description
+      LEFT JOIN attendees a
+        ON r.id = a.room_id AND (a.is_archived = 0 OR a.is_archived IS NULL)
+      GROUP BY r.id
       ORDER BY r.number
       LIMIT ? OFFSET ?
     `).bind(limit, offset).all();
@@ -61,6 +73,11 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       id: room.id,
       number: room.number,
       description: room.description || '',
+      capacity: room.capacity || 1,
+      cot_capacity: room.cot_capacity || 0,
+      floor: room.floor || '',
+      room_type: room.room_type || 'standard',
+      amenities: room.amenities || '',
       occupant_count: room.occupant_count || 0,
       occupants: room.occupants ? room.occupants.split(', ').filter(Boolean) : []
     }));
@@ -91,7 +108,15 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       return createErrorResponse(errors.validation(validation.errors, requestId));
     }
 
-    const { number, description } = body as { number: string; description?: string };
+    const { number, description, capacity, cot_capacity, floor, room_type, amenities } = body as {
+      number: string;
+      description?: string;
+      capacity?: number;
+      cot_capacity?: number;
+      floor?: string;
+      room_type?: string;
+      amenities?: string;
+    };
 
     // Check if room number already exists
     const { results: existing } = await context.env.DB.prepare(
@@ -102,10 +127,21 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       return createErrorResponse(errors.conflict('Room number already exists', requestId));
     }
 
-    // Insert new room
+    // Insert new room — persist all the metadata fields the previous version
+    // silently dropped (capacity, room_type, floor, amenities), plus the new
+    // cot_capacity dimension for family rooms.
     const result = await context.env.DB.prepare(
-      'INSERT INTO rooms (number, description) VALUES (?, ?)'
-    ).bind(number.trim(), description?.trim() || null).run();
+      `INSERT INTO rooms (number, description, capacity, cot_capacity, floor, room_type, amenities)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      number.trim(),
+      description?.trim() || null,
+      capacity ?? 1,
+      cot_capacity ?? 0,
+      floor?.trim() || null,
+      room_type || 'standard',
+      amenities?.trim() || null,
+    ).run();
 
     if (!result.success) {
       throw new Error('Failed to create room');

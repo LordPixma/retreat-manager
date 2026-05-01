@@ -20,6 +20,7 @@
                 <div id="export-dropdown" style="display:none; position:absolute; right:0; top:100%; margin-top:0.25rem; background: #1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.25rem; z-index:100; min-width:160px;">
                     <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees" style="width:100%; justify-content:flex-start;"><i class="fas fa-users"></i> Attendees CSV</button>
                     <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees-basic" style="width:100%; justify-content:flex-start;"><i class="fas fa-id-card"></i> Attendees (Basic) CSV</button>
+                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees-checkin" style="width:100%; justify-content:flex-start;"><i class="fas fa-clipboard-check"></i> Check-in / H&amp;S CSV</button>
                     <button class="btn btn-ghost btn-sm export-csv-btn" data-type="payments" style="width:100%; justify-content:flex-start;"><i class="fas fa-credit-card"></i> Payments CSV</button>
                     <button class="btn btn-ghost btn-sm export-csv-btn" data-type="registrations" style="width:100%; justify-content:flex-start;"><i class="fas fa-clipboard"></i> Registrations CSV</button>
                 </div>
@@ -101,6 +102,9 @@
         </button>
         <button class="tab-btn" data-tab="activity-teams">
             <i class="fas fa-people-group"></i> Activity Teams
+        </button>
+        <button class="tab-btn" data-tab="allergies">
+            <i class="fas fa-notes-medical"></i> Allergies
         </button>
         <button class="tab-btn" data-tab="checkin">
             <i class="fas fa-qrcode"></i> Check-in
@@ -595,6 +599,54 @@
         </div>
     </div>
 
+    <!-- Allergies Tab -->
+    <div class="tab-content" id="allergies-tab">
+        <div class="data-table" style="margin-bottom: 1.5rem;">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-notes-medical"></i> Allergy &amp; Medical Registry</h3>
+                <button class="btn btn-primary" id="allergy-send-all-btn"><i class="fas fa-paper-plane"></i> Send forms to pending</button>
+            </div>
+            <div class="table-content" style="padding: 1.25rem;">
+                <div style="display:flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                    <input type="text" class="form-input" id="allergy-search" placeholder="Search name or ref..." style="flex:1; min-width: 220px;">
+                    <select class="form-input" id="allergy-filter" style="width: 200px;">
+                        <option value="all">All statuses</option>
+                        <option value="severe">Severe only</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="pending">Pending</option>
+                        <option value="none">No record</option>
+                    </select>
+                </div>
+                <div id="allergy-summary" style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom: 1rem; font-size: 0.85rem;"></div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead><tr>
+                            <th>Name</th>
+                            <th>Reference</th>
+                            <th>Room</th>
+                            <th>Group</th>
+                            <th>Status</th>
+                            <th>Severity</th>
+                            <th>EpiPen</th>
+                            <th>Actions</th>
+                        </tr></thead>
+                        <tbody id="allergy-table-body">
+                            <tr><td colspan="8" class="loading-placeholder">Click tab to load...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="allergy-detail" class="data-table" style="display:none;">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-user-injured"></i> Detail</h3>
+                <button class="btn btn-ghost btn-sm" id="allergy-detail-close"><i class="fas fa-times"></i> Close</button>
+            </div>
+            <div class="table-content" style="padding: 1.5rem;" id="allergy-detail-body"></div>
+        </div>
+    </div>
+
     <!-- Check-in Tab -->
     <div class="tab-content" id="checkin-tab">
         <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 1.5rem;">
@@ -621,28 +673,71 @@
             </div>
         </div>
 
-        <div class="data-table">
+        <!-- Check-in Window Controls -->
+        <div class="data-table" style="margin-bottom: 1.5rem;">
             <div class="table-header">
-                <h3 class="table-title"><i class="fas fa-qrcode"></i> Quick Check-in</h3>
+                <h3 class="table-title"><i class="fas fa-clock"></i> Check-in Window</h3>
+                <span id="checkin-window-status" class="badge badge-secondary">unknown</span>
             </div>
             <div class="table-content" style="padding: 1.5rem;">
-                <div style="display: flex; gap: 0.75rem; max-width: 500px; margin: 0 auto;">
-                    <input type="text" class="form-input" id="checkin-ref-input" placeholder="Scan QR or enter Reference Number..." style="flex: 1;">
-                    <button class="btn btn-success" id="checkin-submit-btn"><i class="fas fa-check"></i> Check In</button>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
+                    <div class="form-group" style="flex: 1; min-width: 220px; margin: 0;">
+                        <label class="form-label" for="checkin-window-open">Opens at</label>
+                        <input type="datetime-local" id="checkin-window-open" class="form-input">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 220px; margin: 0;">
+                        <label class="form-label" for="checkin-window-close">Closes at</label>
+                        <input type="datetime-local" id="checkin-window-close" class="form-input">
+                    </div>
+                    <button class="btn btn-primary" id="checkin-window-save"><i class="fas fa-save"></i> Save Window</button>
+                    <button class="btn btn-ghost" id="checkin-window-clear" title="Remove both bounds"><i class="fas fa-times"></i> Clear</button>
                 </div>
-                <div id="checkin-result" style="margin-top: 1rem; text-align: center;"></div>
+                <small class="form-help" style="display:block; margin-top: 0.75rem;">Outside this window, check-in is refused unless an admin uses the Force toggle below.</small>
             </div>
         </div>
 
+        <!-- Quick Check-in (manual + scanner) -->
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-qrcode"></i> Quick Check-in</h3>
+                <label style="display:inline-flex; align-items:center; gap:0.4rem; font-size:0.85rem; color: var(--text-secondary);">
+                    <input type="checkbox" id="checkin-force"> Force (override window)
+                </label>
+            </div>
+            <div class="table-content" style="padding: 1.5rem;">
+                <div style="display: flex; gap: 0.75rem; max-width: 600px; margin: 0 auto;">
+                    <input type="text" class="form-input" id="checkin-ref-input" placeholder="Scan QR or enter Reference Number..." style="flex: 1;">
+                    <button class="btn btn-success" id="checkin-submit-btn"><i class="fas fa-check"></i> Check In</button>
+                    <button class="btn btn-primary" id="checkin-scanner-toggle" title="Scan with camera"><i class="fas fa-camera"></i></button>
+                </div>
+                <div id="checkin-result" style="margin-top: 1rem; text-align: center;"></div>
+                <div id="checkin-scanner" style="display:none; margin: 1rem auto; max-width: 480px;">
+                    <div id="checkin-scanner-region" style="width: 100%;"></div>
+                    <small class="form-help" style="display:block; margin-top: 0.5rem; text-align:center;">
+                        Point your camera at an attendee's QR code. Match auto-submits.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roster -->
         <div class="data-table" style="margin-top: 1.5rem;">
             <div class="table-header">
-                <h3 class="table-title">Recent Check-ins</h3>
+                <h3 class="table-title">Attendee Roster</h3>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <input type="text" class="form-input" id="checkin-roster-search" placeholder="Search name or ref..." style="width: 220px;">
+                    <select class="form-input" id="checkin-roster-filter" style="width: 140px;">
+                        <option value="all">All</option>
+                        <option value="in">Checked In</option>
+                        <option value="out">Not Yet</option>
+                    </select>
+                </div>
             </div>
             <div class="table-container">
                 <table class="table">
-                    <thead><tr><th>Name</th><th>Reference</th><th>Time</th></tr></thead>
-                    <tbody id="checkin-history-body">
-                        <tr><td colspan="3" class="loading-placeholder">Click tab to load...</td></tr>
+                    <thead><tr><th>Name</th><th>Reference</th><th>Room</th><th>Group</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead>
+                    <tbody id="checkin-roster-body">
+                        <tr><td colspan="7" class="loading-placeholder">Click tab to load...</td></tr>
                     </tbody>
                 </table>
             </div>
