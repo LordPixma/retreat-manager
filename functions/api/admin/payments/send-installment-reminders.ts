@@ -15,6 +15,13 @@ interface ScheduleRow {
   stripe_customer_id: string | null;
 }
 
+// One batched Resend call covers up to 100 emails per HTTP subrequest.
+// Stripe checkout-session creation has no batch endpoint, so those stay
+// sequential — but for typical retreat sizes (a couple of dozen on
+// installment plans) the Stripe-side subrequest count is well under
+// Cloudflare Workers' free-tier cap.
+const RESEND_BATCH_MAX = 100;
+
 export async function onRequestOptions(): Promise<Response> {
   return handleCORS();
 }
@@ -48,8 +55,25 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     const stripe = getStripe(context.env);
-    let sent = 0;
     const results: { attendee: string; status: string; error?: string }[] = [];
+
+    // Phase 1: per-schedule Stripe session creation. Stripe doesn't support
+    // batch session creation so this is sequential. Each successful session
+    // produces a (paymentInsertBindings, emailPayload) pair queued for the
+    // batched DB and email phases below.
+    interface PreparedSend {
+      attendeeId: number;
+      attendeeName: string;
+      email: string;
+      sessionId: string;
+      sessionUrl: string;
+      installmentAmountPence: number;
+      installmentNumber: number;
+      installmentTotal: number;
+      stripeCustomerId: string;
+      description: string;
+    }
+    const prepared: PreparedSend[] = [];
 
     for (const row of schedules) {
       const schedule = row as unknown as ScheduleRow & { name: string; email: string | null; ref_number: string; attendee_stripe_id: string | null };
@@ -59,7 +83,6 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
           results.push({ attendee: schedule.name, status: 'skipped', error: 'No email' });
           continue;
         }
-
         const customerId = schedule.stripe_customer_id || schedule.attendee_stripe_id;
         if (!customerId) {
           results.push({ attendee: schedule.name, status: 'skipped', error: 'No Stripe customer' });
@@ -67,12 +90,12 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
         }
 
         const nextInstallment = schedule.installments_paid + 1;
+        const description = `${retreatName} - Installment ${nextInstallment} of ${schedule.installment_count}`;
 
-        // Create checkout session for next installment
         const session = await createCheckoutSession(stripe, {
           customerId,
           amount: schedule.installment_amount,
-          description: `${retreatName} - Installment ${nextInstallment} of ${schedule.installment_count}`,
+          description,
           successUrl: `${portalUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${portalUrl}?payment=cancelled`,
           metadata: {
@@ -84,62 +107,88 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
           },
         });
 
-        // Record pending payment
-        await context.env.DB.prepare(`
-          INSERT INTO payments (attendee_id, stripe_checkout_session_id, stripe_customer_id, amount, currency, status, payment_type, installment_number, installment_total, description)
-          VALUES (?, ?, ?, ?, 'gbp', 'pending', 'installment', ?, ?, ?)
-        `).bind(
-          schedule.attendee_id,
-          session.id,
-          customerId,
-          schedule.installment_amount,
-          nextInstallment,
-          schedule.installment_count,
-          `${retreatName} - Installment ${nextInstallment} of ${schedule.installment_count}`
-        ).run();
+        prepared.push({
+          attendeeId: schedule.attendee_id,
+          attendeeName: schedule.name,
+          email: schedule.email,
+          sessionId: session.id,
+          sessionUrl: session.url || `${portalUrl}?payment=cancelled`,
+          installmentAmountPence: schedule.installment_amount,
+          installmentNumber: nextInstallment,
+          installmentTotal: schedule.installment_count,
+          stripeCustomerId: customerId,
+          description,
+        });
+      } catch (error) {
+        console.error(`[${requestId}] Stripe session for ${schedule.name} failed:`, error);
+        results.push({ attendee: schedule.name, status: 'error', error: String(error) });
+      }
+    }
 
-        // Send reminder email with payment link
-        if (context.env.RESEND_API_KEY && context.env.FROM_EMAIL) {
-          const amount = (schedule.installment_amount / 100).toFixed(2);
-          await fetch('https://api.resend.com/emails', {
+    if (prepared.length === 0) {
+      return createResponse({ message: 'No installment reminders sent', sent: 0, total: schedules.length, results });
+    }
+
+    // Phase 2: insert all pending-payment rows in a single D1 batch (one
+    // subrequest for the lot, regardless of count).
+    try {
+      const insertStmt = context.env.DB.prepare(`
+        INSERT INTO payments (attendee_id, stripe_checkout_session_id, stripe_customer_id, amount, currency, status, payment_type, installment_number, installment_total, description)
+        VALUES (?, ?, ?, ?, 'gbp', 'pending', 'installment', ?, ?, ?)
+      `);
+      const inserts = prepared.map(p => insertStmt.bind(
+        p.attendeeId,
+        p.sessionId,
+        p.stripeCustomerId,
+        p.installmentAmountPence,
+        p.installmentNumber,
+        p.installmentTotal,
+        p.description,
+      ));
+      await context.env.DB.batch(inserts);
+    } catch (err) {
+      console.error(`[${requestId}] Payments insert batch failed`, err);
+      // Don't abort — we still want to email out, the admin can reconcile.
+    }
+
+    // Phase 3: Resend /emails/batch — one subrequest per 100 reminders.
+    let sent = 0;
+    if (context.env.RESEND_API_KEY && context.env.FROM_EMAIL) {
+      for (let i = 0; i < prepared.length; i += RESEND_BATCH_MAX) {
+        const slice = prepared.slice(i, i + RESEND_BATCH_MAX);
+        const payload = slice.map(p => {
+          const amount = (p.installmentAmountPence / 100).toFixed(2);
+          return {
+            from: context.env.FROM_EMAIL,
+            to: [p.email],
+            subject: `Installment Payment Due - £${amount} - ${retreatName}`,
+            html: buildInstallmentHtml(p, retreatName, amount),
+          };
+        });
+
+        try {
+          const response = await fetch('https://api.resend.com/emails/batch', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${context.env.RESEND_API_KEY}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              from: context.env.FROM_EMAIL,
-              to: [schedule.email],
-              subject: `Installment Payment Due - £${amount} - ${retreatName}`,
-              html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                    <h1 style="color: white; margin: 0;">Installment Payment Due</h1>
-                  </div>
-                  <div style="padding: 30px; background: #f8fafc; border-radius: 0 0 12px 12px;">
-                    <p>Dear ${escapeHtml(schedule.name)},</p>
-                    <p>Your installment payment for the ${escapeHtml(retreatName)} is now due.</p>
-                    <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
-                      <p style="margin: 0;"><strong>Amount Due:</strong> £${amount}</p>
-                      <p style="margin: 5px 0 0;"><strong>Installment:</strong> ${nextInstallment} of ${schedule.installment_count}</p>
-                    </div>
-                    <div style="text-align: center; margin: 25px 0;">
-                      <a href="${session.url}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Pay Now - £${amount}</a>
-                    </div>
-                    <p style="color: #6b7280; font-size: 0.85rem;">This link will expire in 24 hours. If you have any questions, please contact the retreat organizers.</p>
-                  </div>
-                </div>
-              `,
-            }),
+            body: JSON.stringify(payload),
           });
+          if (response.ok) {
+            sent += slice.length;
+            for (const p of slice) results.push({ attendee: p.attendeeName, status: 'sent' });
+          } else {
+            const errorText = await response.text();
+            for (const p of slice) results.push({ attendee: p.attendeeName, status: 'error', error: errorText });
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          for (const p of slice) results.push({ attendee: p.attendeeName, status: 'error', error: msg });
         }
-
-        sent++;
-        results.push({ attendee: schedule.name, status: 'sent' });
-      } catch (error) {
-        console.error(`[${requestId}] Failed to process installment for ${schedule.name}:`, error);
-        results.push({ attendee: schedule.name, status: 'error', error: String(error) });
       }
+    } else {
+      for (const p of prepared) results.push({ attendee: p.attendeeName, status: 'skipped', error: 'Email service not configured' });
     }
 
     return createResponse({
@@ -153,4 +202,30 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     console.error(`[${requestId}] Installment reminder error:`, error);
     return createErrorResponse(handleError(error, requestId));
   }
+}
+
+function buildInstallmentHtml(
+  p: { attendeeName: string; sessionUrl: string; installmentNumber: number; installmentTotal: number },
+  retreatName: string,
+  amount: string,
+): string {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0;">Installment Payment Due</h1>
+      </div>
+      <div style="padding: 30px; background: #f8fafc; border-radius: 0 0 12px 12px;">
+        <p>Dear ${escapeHtml(p.attendeeName)},</p>
+        <p>Your installment payment for the ${escapeHtml(retreatName)} is now due.</p>
+        <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Amount Due:</strong> £${amount}</p>
+          <p style="margin: 5px 0 0;"><strong>Installment:</strong> ${p.installmentNumber} of ${p.installmentTotal}</p>
+        </div>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${escapeHtml(p.sessionUrl)}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Pay Now - £${amount}</a>
+        </div>
+        <p style="color: #6b7280; font-size: 0.85rem;">This link will expire in 24 hours. If you have any questions, please contact the retreat organizers.</p>
+      </div>
+    </div>
+  `;
 }
