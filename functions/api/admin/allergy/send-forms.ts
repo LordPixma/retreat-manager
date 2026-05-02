@@ -16,7 +16,8 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS, generateAllergyFormToken } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { ageFromDateOfBirth } from '../../../_shared/names.js';
-import { sendAllergyFormEmail } from '../../../_shared/notifications.js';
+import { sendAllergyFormEmail, sendAllergyFormEmailsBatch } from '../../../_shared/notifications.js';
+import type { AllergyFormBatchRecipient } from '../../../_shared/notifications.js';
 
 interface AttendeeForAllergy {
   id: number;
@@ -77,17 +78,21 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const { results } = await context.env.DB.prepare(stmt).bind(...binds).all();
     const attendees = results as unknown as AttendeeForAllergy[];
 
-    const portalUrl = context.env.PORTAL_URL || 'https://retreat.cloverleafchristiancentre.org';
+    const portalUrl = (context.env.PORTAL_URL || 'https://retreat.cloverleafchristiancentre.org').replace(/\/$/, '');
+    const secret = context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET;
     const sentTo: { attendee_id: number; recipient: string }[] = [];
     const skipped: SkipReason[] = [];
 
+    // Phase 1: resolve recipient + mint token for every attendee with an
+    // email. No HTTP subrequests in this loop — only HMAC signing, which is
+    // hardware-accelerated and fast enough for hundreds of recipients.
+    const batchRecipients: (AllergyFormBatchRecipient & { recipient: string })[] = [];
     for (const a of attendees) {
       const age = ageFromDateOfBirth(a.date_of_birth);
       const isChild = age !== null && age < CHILD_AGE_THRESHOLD;
 
-      // Pick recipient. Children: registration email if available; otherwise
-      // their own email if any; otherwise skip. Adults: own email; if missing,
-      // fall back to registration email so we don't go silent.
+      // Children: registration email if available; otherwise their own.
+      // Adults: own email; fall back to registration email if missing.
       let recipient: string | null = null;
       let label: string | undefined;
       if (isChild) {
@@ -102,31 +107,66 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
         continue;
       }
 
-      const token = await generateAllergyFormToken(a.id, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
-      const url = `${portalUrl.replace(/\/$/, '')}/allergy?token=${encodeURIComponent(token)}`;
-
-      const ok = await sendAllergyFormEmail(context.env, {
+      const token = await generateAllergyFormToken(a.id, secret);
+      batchRecipients.push({
+        attendee_id: a.id,
         attendee_name: a.name,
         recipient_email: recipient,
         recipient_label: label,
-        form_url: url,
+        form_url: `${portalUrl}/allergy?token=${encodeURIComponent(token)}`,
+        recipient,
       });
+    }
 
+    // Phase 2: send. For a single attendee (per-row Resend button) the
+    // simple endpoint is fine; for bulk we use Resend's /emails/batch so
+    // 73 recipients become 1 HTTP subrequest, not 73.
+    if (batchRecipients.length === 1) {
+      const r = batchRecipients[0];
+      const ok = await sendAllergyFormEmail(context.env, {
+        attendee_name: r.attendee_name,
+        recipient_email: r.recipient_email,
+        recipient_label: r.recipient_label,
+        form_url: r.form_url,
+      });
       if (ok) {
-        sentTo.push({ attendee_id: a.id, recipient });
+        sentTo.push({ attendee_id: r.attendee_id, recipient: r.recipient });
+      } else {
+        skipped.push({ attendee_id: r.attendee_id, name: r.attendee_name, reason: 'email send failed (see worker logs)' });
+      }
+    } else if (batchRecipients.length > 1) {
+      const batchResult = await sendAllergyFormEmailsBatch(context.env, batchRecipients);
+      const sentSet = new Set(batchResult.sentAttendeeIds);
+      for (const r of batchRecipients) {
+        if (sentSet.has(r.attendee_id)) {
+          sentTo.push({ attendee_id: r.attendee_id, recipient: r.recipient });
+        } else {
+          skipped.push({
+            attendee_id: r.attendee_id,
+            name: r.attendee_name,
+            reason: batchResult.errorMessage || 'email send failed (see worker logs)',
+          });
+        }
+      }
+    }
 
-        // Mark the record so the registry shows "form sent". Upsert: if a row
-        // already exists (e.g. previously submitted, now re-issuing), we
-        // bump form_sent_at without disturbing the prior submission.
+    // Phase 3: one batched UPSERT into allergy_records for everyone we
+    // successfully emailed — replaces N per-attendee subrequests with 1.
+    // ON CONFLICT preserves any existing submission and only refreshes
+    // form_sent_at + updated_at.
+    if (sentTo.length > 0) {
+      const sentIds = sentTo.map(s => s.attendee_id);
+      const valuesClause = sentIds.map(() => "(?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)").join(', ');
+      try {
         await context.env.DB.prepare(`
           INSERT INTO allergy_records (attendee_id, status, form_sent_at, updated_at)
-          VALUES (?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          VALUES ${valuesClause}
           ON CONFLICT(attendee_id) DO UPDATE SET
             form_sent_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
-        `).bind(a.id).run();
-      } else {
-        skipped.push({ attendee_id: a.id, name: a.name, reason: 'email send failed (see worker logs)' });
+        `).bind(...sentIds).run();
+      } catch (err) {
+        console.warn(`[${requestId}] allergy_records bulk upsert failed`, err);
       }
     }
 
