@@ -135,7 +135,14 @@ async function getTargetAttendees(db: D1Database, criteria: TargetCriteria): Pro
   return results as unknown as AttendeeRow[];
 }
 
-// Send bulk emails using Resend API
+// Resend's /emails/batch endpoint accepts up to 100 messages in one call.
+// Using it collapses N email sends into ceil(N/100) HTTP subrequests,
+// which dodges Cloudflare Workers' 50-subrequest cap on the free tier
+// and the per-request CPU budget that the previous one-request-per-email
+// loop kept blowing past (the symptom the admin saw was the loop dying
+// around 25 emails with the rest silently dropped).
+const RESEND_BATCH_MAX = 100;
+
 async function sendBulkEmails(
   env: Env,
   emailData: {
@@ -158,52 +165,40 @@ async function sendBulkEmails(
     day: 'numeric'
   });
 
-  // Process emails in batches to avoid rate limits
-  const batchSize = 10;
-  for (let i = 0; i < attendees.length; i += batchSize) {
-    const batch = attendees.slice(i, i + batchSize);
+  for (let i = 0; i < attendees.length; i += RESEND_BATCH_MAX) {
+    const batch = attendees.slice(i, i + RESEND_BATCH_MAX);
 
-    await Promise.all(batch.map(async (attendee) => {
-      try {
-        const emailHtml = generateEmailTemplate({
-          attendee,
-          subject,
-          message,
-          email_type,
-          sender,
-          currentDate
-        });
-
-        const response = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: env.FROM_EMAIL,
-            to: [attendee.email],
-            subject: subject,
-            html: emailHtml
-          })
-        });
-
-        if (response.ok) {
-          results.successful++;
-        } else {
-          const errorText = await response.text();
-          results.failed++;
-          results.errors.push(`${attendee.name} (${attendee.email}): ${errorText}`);
-        }
-      } catch (error) {
-        results.failed++;
-        results.errors.push(`${attendee.name} (${attendee.email}): ${(error as Error).message}`);
-      }
+    const payload = batch.map(attendee => ({
+      from: env.FROM_EMAIL,
+      to: [attendee.email],
+      subject,
+      html: generateEmailTemplate({ attendee, subject, message, email_type, sender, currentDate }),
     }));
 
-    // Small delay between batches to respect rate limits
-    if (i + batchSize < attendees.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const response = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        // Resend's batch response is { data: [{ id }, ...] } — one entry per
+        // message in the input order. We assume success for any returned id;
+        // partial failures inside a batch surface as a non-2xx on the whole
+        // call (per Resend docs at the time of writing).
+        results.successful += batch.length;
+      } else {
+        const errorText = await response.text();
+        results.failed += batch.length;
+        results.errors.push(`Batch ${i / RESEND_BATCH_MAX + 1} (${batch.length} recipients): ${errorText}`);
+      }
+    } catch (error) {
+      results.failed += batch.length;
+      results.errors.push(`Batch ${i / RESEND_BATCH_MAX + 1} (${batch.length} recipients): ${(error as Error).message}`);
     }
   }
 
