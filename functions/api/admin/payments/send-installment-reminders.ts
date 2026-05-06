@@ -3,6 +3,7 @@ import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/aut
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { getStripe, createCheckoutSession } from '../../../_shared/stripe.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
+import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
 
 interface ScheduleRow {
   id: number;
@@ -14,13 +15,6 @@ interface ScheduleRow {
   next_due_date: string;
   stripe_customer_id: string | null;
 }
-
-// One batched Resend call covers up to 100 emails per HTTP subrequest.
-// Stripe checkout-session creation has no batch endpoint, so those stay
-// sequential — but for typical retreat sizes (a couple of dozen on
-// installment plans) the Stripe-side subrequest count is well under
-// Cloudflare Workers' free-tier cap.
-const RESEND_BATCH_MAX = 100;
 
 export async function onRequestOptions(): Promise<Response> {
   return handleCORS();
@@ -151,41 +145,29 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       // Don't abort — we still want to email out, the admin can reconcile.
     }
 
-    // Phase 3: Resend /emails/batch — one subrequest per 100 reminders.
+    // Phase 3: fan out reminder emails through the Cloudflare Email Send
+    // binding. sendEmailsBulk caps concurrency so even a large schedule list
+    // stays under the per-request subrequest budget.
     let sent = 0;
-    if (context.env.RESEND_API_KEY && context.env.FROM_EMAIL) {
-      for (let i = 0; i < prepared.length; i += RESEND_BATCH_MAX) {
-        const slice = prepared.slice(i, i + RESEND_BATCH_MAX);
-        const payload = slice.map(p => {
-          const amount = (p.installmentAmountPence / 100).toFixed(2);
-          return {
-            from: context.env.FROM_EMAIL,
-            to: [p.email],
-            subject: `Installment Payment Due - £${amount} - ${retreatName}`,
-            html: buildInstallmentHtml(p, retreatName, amount),
-          };
-        });
+    if (context.env.EMAIL && context.env.FROM_EMAIL) {
+      const messages: OutboundEmail[] = prepared.map(p => {
+        const amount = (p.installmentAmountPence / 100).toFixed(2);
+        return {
+          to: p.email,
+          subject: `Installment Payment Due - £${amount} - ${retreatName}`,
+          html: buildInstallmentHtml(p, retreatName, amount),
+        };
+      });
+      const keys = prepared.map((_, idx) => idx);
 
-        try {
-          const response = await fetch('https://api.resend.com/emails/batch', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${context.env.RESEND_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          });
-          if (response.ok) {
-            sent += slice.length;
-            for (const p of slice) results.push({ attendee: p.attendeeName, status: 'sent' });
-          } else {
-            const errorText = await response.text();
-            for (const p of slice) results.push({ attendee: p.attendeeName, status: 'error', error: errorText });
-          }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          for (const p of slice) results.push({ attendee: p.attendeeName, status: 'error', error: msg });
-        }
+      const bulkResult = await sendEmailsBulk(context.env, messages, keys);
+      sent = bulkResult.sentKeys.length;
+      for (const idx of bulkResult.sentKeys) {
+        results.push({ attendee: prepared[idx].attendeeName, status: 'sent' });
+      }
+      for (const idx of bulkResult.failedKeys) {
+        const err = bulkResult.errorsByKey?.[String(idx)] || bulkResult.errorMessage || 'Unknown error';
+        results.push({ attendee: prepared[idx].attendeeName, status: 'error', error: err });
       }
     } else {
       for (const p of prepared) results.push({ attendee: p.attendeeName, status: 'skipped', error: 'Email service not configured' });

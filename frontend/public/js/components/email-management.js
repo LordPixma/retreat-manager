@@ -136,7 +136,7 @@ window.EmailManagement = {
         this.attachButtonListener('bulk-email-action-btn', () => this.showBulkEmailModal());
         this.attachButtonListener('test-email-action-btn', () => this.showEmailTestModal());
         this.attachButtonListener('payment-reminders-btn', () => this.sendPaymentReminders());
-        this.attachButtonListener('welcome-emails-btn', () => this.showWelcomeEmailInfo());
+        this.attachButtonListener('login-reminders-btn', () => this.sendLoginReminders());
 
         // Target audience change handler
         document.addEventListener('change', (e) => {
@@ -671,11 +671,52 @@ This message will be formatted nicely and include attendee-specific details like
     },
 
     /**
-     * Show welcome email info
+     * Send login-reminder emails to every active attendee with an email on
+     * file. The backend rotates the temp password (and forces a reset on
+     * next login) for anyone who has never logged in or is flagged for
+     * reset, so the message includes the password they need. Returning
+     * users get a reminder with just their reference number.
+     *
+     * Confirmation dialog spells out the side-effect (rotating temp
+     * passwords) because re-running the action invalidates the previous
+     * temp password for any not-yet-logged-in attendee.
      */
-    showWelcomeEmailInfo() {
-        if (confirm('Send welcome emails to attendees who haven\'t received them yet?')) {
-            Utils.showAlert('Welcome email feature will be enhanced to send to specific attendees. For now, welcome emails are sent automatically when creating new attendees.', 'info');
+    async sendLoginReminders() {
+        const ok = confirm(
+            'Send login reminder emails to ALL active attendees with an email address?\n\n' +
+            'For attendees who have never logged in (or are flagged for reset) this will ' +
+            'generate a fresh temp password and email it to them. Re-running invalidates ' +
+            'any previous temp password for those users.'
+        );
+        if (!ok) return;
+
+        const btn = document.getElementById('login-reminders-btn');
+        const originalLabel = btn ? btn.innerHTML : null;
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        }
+
+        try {
+            const response = await API.post('/admin/email/send-login-reminders', {});
+            if (response && response.success) {
+                const { sent = 0, total = 0, with_new_password = 0, existing_credentials = 0, failed = 0 } = response;
+                let msg = `Sent ${sent} of ${total} login reminders. `
+                    + `${with_new_password} got a fresh temp password, `
+                    + `${existing_credentials} got a reminder for the password they set.`;
+                if (failed > 0) msg += ` ${failed} failed — check worker logs.`;
+                Utils.showAlert(msg, failed > 0 ? 'warning' : 'success');
+            } else {
+                Utils.showAlert('Failed to send login reminders: ' + (response && response.message ? response.message : 'unknown error'), 'error');
+            }
+        } catch (error) {
+            console.error('Failed to send login reminders:', error);
+            Utils.showAlert('Failed to send login reminders: ' + error.message, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                if (originalLabel) btn.innerHTML = originalLabel;
+            }
         }
     },
 

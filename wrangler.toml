@@ -18,3 +18,13 @@ publish = "frontend/public"
 [vars]
 PORTAL_URL = "https://retreat.cloverleafchristiancentre.org"
 RETREAT_NAME = "Growth and Wisdom Retreat"
+
+# Cloudflare Email Send binding.
+# remote=true means `wrangler pages dev` sends real email through Cloudflare's
+# service rather than stubbing locally — matches the Resend-era behaviour that
+# the rest of the codebase (welcome emails, reminders, allergy forms) expects.
+# Requires the FROM_EMAIL domain to be onboarded in the Cloudflare dashboard
+# under Email Service → Email Sending, with SPF/DKIM/DMARC records added.
+[[send_email]]
+name = "EMAIL"
+remote = true

@@ -1,9 +1,10 @@
 // Send announcement as email endpoint with TypeScript and validation
 
-import type { PagesContext } from '../../../../_shared/types.js';
+import type { PagesContext, Env } from '../../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../../_shared/errors.js';
 import { escapeHtml } from '../../../../_shared/sanitize.js';
+import { sendEmailsBulk, type OutboundEmail } from '../../../../_shared/email.js';
 
 interface AnnouncementRow {
   id: number;
@@ -32,12 +33,6 @@ interface EmailResults {
   successful: number;
   failed: number;
   errors: string[];
-}
-
-interface Env {
-  DB: D1Database;
-  RESEND_API_KEY?: string;
-  FROM_EMAIL?: string;
 }
 
 // Handle CORS preflight
@@ -103,7 +98,7 @@ export async function onRequestPost(context: PagesContext<IdParams>): Promise<Re
     }
 
     // Check for required environment variables
-    if (!context.env.RESEND_API_KEY || !context.env.FROM_EMAIL) {
+    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
       console.error(`[${requestId}] Email configuration missing`);
       return createErrorResponse(errors.internal('Email system not configured', requestId));
     }
@@ -134,11 +129,9 @@ export async function onRequestPost(context: PagesContext<IdParams>): Promise<Re
   }
 }
 
-// Resend's /emails/batch endpoint accepts up to 100 messages per call. Using
-// it keeps subrequest count proportional to ceil(N/100) instead of N, which
-// is what makes the bulk-email path work past 25 recipients on the free
-// Cloudflare Workers tier.
-const RESEND_BATCH_MAX = 100;
+// Cloudflare Email Send has no /emails/batch analogue, so each recipient is
+// its own subrequest. sendEmailsBulk caps concurrency so a 200-recipient
+// announcement blast doesn't burn the entire request's subrequest budget.
 
 async function sendAnnouncementEmails(
   env: Env,
@@ -150,45 +143,23 @@ async function sendAnnouncementEmails(
 ): Promise<EmailResults> {
   const { announcement, attendees, adminUser } = options;
 
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) {
+  if (!env.EMAIL || !env.FROM_EMAIL) {
     throw new Error('Email service not configured');
   }
 
   const results: EmailResults = { successful: 0, failed: 0, errors: [] };
-  // Strip CR/LF from subject so an admin can't inject SMTP headers via title.
-  const safeSubject = announcement.title.replace(/[\r\n]/g, ' ');
+  const messages: OutboundEmail[] = attendees.map(attendee => ({
+    to: attendee.email,
+    subject: announcement.title,
+    html: generateAnnouncementEmailTemplate({ attendee, announcement, adminUser }),
+  }));
+  const keys = attendees.map(a => a.id);
 
-  for (let i = 0; i < attendees.length; i += RESEND_BATCH_MAX) {
-    const batch = attendees.slice(i, i + RESEND_BATCH_MAX);
-
-    const payload = batch.map(attendee => ({
-      from: env.FROM_EMAIL,
-      to: [attendee.email],
-      subject: safeSubject,
-      html: generateAnnouncementEmailTemplate({ attendee, announcement, adminUser }),
-    }));
-
-    try {
-      const response = await fetch('https://api.resend.com/emails/batch', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        results.successful += batch.length;
-      } else {
-        const errorText = await response.text();
-        results.failed += batch.length;
-        results.errors.push(`Batch ${i / RESEND_BATCH_MAX + 1} (${batch.length} recipients): ${errorText}`);
-      }
-    } catch (error) {
-      results.failed += batch.length;
-      results.errors.push(`Batch ${i / RESEND_BATCH_MAX + 1} (${batch.length} recipients): ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  const result = await sendEmailsBulk(env, messages, keys);
+  results.successful = result.sentKeys.length;
+  results.failed = result.failedKeys.length;
+  if (result.failedKeys.length > 0) {
+    results.errors.push(`${result.failedKeys.length} of ${attendees.length} recipients failed${result.errorMessage ? `: ${result.errorMessage}` : ''}`);
   }
 
   return results;

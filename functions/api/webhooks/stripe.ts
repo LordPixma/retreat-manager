@@ -3,6 +3,7 @@ import { createResponse } from '../../_shared/auth.js';
 import { generateRequestId } from '../../_shared/errors.js';
 import { getStripe, verifyWebhookEvent, penceToPounds } from '../../_shared/stripe.js';
 import { escapeHtml } from '../../_shared/sanitize.js';
+import { sendEmail } from '../../_shared/email.js';
 import type Stripe from 'stripe';
 
 // CORS not needed for webhooks but Cloudflare may send OPTIONS
@@ -182,8 +183,6 @@ async function sendPaymentConfirmationEmail(
   requestId: string
 ): Promise<void> {
   try {
-    if (!env.RESEND_API_KEY || !env.FROM_EMAIL) return;
-
     const { results } = await env.DB.prepare(
       'SELECT name, email FROM attendees WHERE id = ?'
     ).bind(attendeeId).all();
@@ -194,17 +193,10 @@ async function sendPaymentConfirmationEmail(
     const amount = (amountPence / 100).toFixed(2);
     const retreatName = env.RETREAT_NAME || 'Growth and Wisdom Retreat';
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: env.FROM_EMAIL,
-        to: [attendee.email],
-        subject: `Payment Confirmation - £${amount} - ${retreatName.replace(/[\r\n]/g, ' ')}`,
-        html: `
+    const ok = await sendEmail(env, {
+      to: attendee.email,
+      subject: `Payment Confirmation - £${amount} - ${retreatName}`,
+      html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
               <h1 style="color: white; margin: 0;">Payment Confirmed</h1>
@@ -222,10 +214,9 @@ async function sendPaymentConfirmationEmail(
             </div>
           </div>
         `,
-      }),
     });
 
-    console.log(`[${requestId}] Payment confirmation email sent to ${attendee.email}`);
+    if (ok) console.log(`[${requestId}] Payment confirmation email sent to ${attendee.email}`);
   } catch (error) {
     console.error(`[${requestId}] Failed to send payment confirmation email:`, error);
   }
