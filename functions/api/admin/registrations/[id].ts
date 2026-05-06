@@ -6,6 +6,7 @@ import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { splitFullName } from '../../../_shared/names.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
+import { sendEmailOrThrow } from '../../../_shared/email.js';
 
 interface IdParams {
   id: string;
@@ -239,9 +240,10 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
       // Send approval email with all credentials. We await the result so the
       // response can tell the admin whether credentials were actually
-      // delivered — previously the UI claimed "Credentials sent to X" even
-      // when Resend was down. The send itself shouldn't block the response
-      // for too long (Resend p99 ~1s), so this is acceptable.
+      // delivered — the UI must not claim "Credentials sent to X" when the
+      // email transport fails. The send itself is fast enough (Cloudflare
+      // Email Send returns a messageId quickly) that this doesn't materially
+      // delay the response.
       let emailSent = false;
       let emailError: string | null = null;
       try {
@@ -380,7 +382,7 @@ async function sendApprovalEmail(
   totalAmount: number,
   paymentOption: string
 ): Promise<void> {
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) {
+  if (!env.EMAIL || !env.FROM_EMAIL) {
     console.warn('Email service not configured - skipping approval email');
     return;
   }
@@ -525,24 +527,11 @@ async function sendApprovalEmail(
     </div>
   `;
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.FROM_EMAIL,
-      to: [email],
-      subject: `✅ Registration Approved - ${retreatName} (${attendees.length} Member${attendees.length > 1 ? 's' : ''})`,
-      html: emailHtml
-    })
+  await sendEmailOrThrow(env, {
+    to: email,
+    subject: `✅ Registration Approved - ${retreatName} (${attendees.length} Member${attendees.length > 1 ? 's' : ''})`,
+    html: emailHtml,
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to send approval email: ${errorText}`);
-  }
 
   console.log(`Approval email sent to ${email} for ${attendees.length} family members`);
 }

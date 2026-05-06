@@ -2,6 +2,7 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { penceToPounds } from '../../../_shared/stripe.js';
+import { sendEmail } from '../../../_shared/email.js';
 
 interface IdParams { id: string; }
 
@@ -137,7 +138,6 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
 async function sendConfirmation(env: PagesContext['env'], attendeeId: number, amountPence: number, requestId: string): Promise<void> {
   try {
-    if (!env.RESEND_API_KEY || !env.FROM_EMAIL) return;
     const { results } = await env.DB.prepare('SELECT name, email FROM attendees WHERE id = ?').bind(attendeeId).all();
     if (results.length === 0) return;
     const attendee = results[0] as { name: string; email: string | null };
@@ -146,14 +146,10 @@ async function sendConfirmation(env: PagesContext['env'], attendeeId: number, am
     const amount = (amountPence / 100).toFixed(2);
     const retreatName = env.RETREAT_NAME || 'Growth and Wisdom Retreat';
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: env.FROM_EMAIL,
-        to: [attendee.email],
-        subject: `Payment Confirmed - £${amount} - ${retreatName}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+    await sendEmail(env, {
+      to: attendee.email,
+      subject: `Payment Confirmed - £${amount} - ${retreatName}`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:12px 12px 0 0;">
             <h1 style="color:white;margin:0;">Payment Confirmed</h1></div>
           <div style="padding:30px;background:#f8fafc;border-radius:0 0 12px 12px;">
@@ -162,7 +158,6 @@ async function sendConfirmation(env: PagesContext['env'], attendeeId: number, am
             <p>Thank you!</p>
             <p style="color:#6b7280;font-size:0.85rem;">— The ${retreatName} Team</p>
           </div></div>`,
-      }),
     });
   } catch (err) {
     console.error(`[${requestId}] Confirmation email failed:`, err);

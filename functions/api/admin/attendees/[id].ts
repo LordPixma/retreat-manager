@@ -242,7 +242,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
       if (roomRows.length > 0) {
         const room = roomRows[0] as { number: string; description: string | null; floor: string | null; group_name: string | null };
-        // Fire-and-forget — don't block the admin's save on Resend latency.
+        // Fire-and-forget — don't block the admin's save on email-send latency.
         context.waitUntil(
           sendRoomAssignedEmail(
             context.env,

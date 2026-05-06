@@ -1,6 +1,7 @@
 import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
 
 interface TeamRow {
   id: number;
@@ -141,7 +142,7 @@ async function sendTeamNotificationEmails(
   leaderId: number | null,
   requestId: string
 ): Promise<void> {
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL || memberIds.length === 0) return;
+  if (!env.EMAIL || !env.FROM_EMAIL || memberIds.length === 0) return;
 
   const retreatName = env.RETREAT_NAME || 'Growth and Wisdom Retreat';
 
@@ -160,23 +161,14 @@ async function sendTeamNotificationEmails(
     if (leaderRows.length > 0) leaderName = (leaderRows[0] as { name: string }).name;
   }
 
-  const memberNames = (results as { name: string }[]).map(r => r.name);
+  const memberRows = results as { id: number; name: string; email: string | null }[];
+  const memberNames = memberRows.map(r => r.name);
+  const recipients = memberRows.filter(m => m.email);
 
-  for (const member of results as { id: number; name: string; email: string | null }[]) {
-    if (!member.email) continue;
-
-    try {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: env.FROM_EMAIL,
-          to: [member.email],
-          subject: `You've been added to ${teamName} - ${retreatName}`,
-          html: `
+  const messages: OutboundEmail[] = recipients.map(member => ({
+    to: member.email!,
+    subject: `You've been added to ${teamName} - ${retreatName}`,
+    html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
                 <h1 style="color: white; margin: 0;">Activity Team Assignment</h1>
@@ -196,13 +188,11 @@ async function sendTeamNotificationEmails(
               </div>
             </div>
           `,
-        }),
-      });
-      console.log(`[${requestId}] Team notification sent to ${member.email}`);
-    } catch (err) {
-      console.error(`[${requestId}] Failed to send team notification to ${member.email}:`, err);
-    }
-  }
+  }));
+  const keys = recipients.map(m => m.id);
+
+  const result = await sendEmailsBulk(env, messages, keys);
+  console.log(`[${requestId}] Team notifications: ${result.sentKeys.length} sent, ${result.failedKeys.length} failed`);
 }
 
 export { sendTeamNotificationEmails };

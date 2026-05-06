@@ -2,12 +2,7 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
-
-// Resend's /emails/batch endpoint accepts up to 100 messages in one call,
-// keeping subrequest count proportional to ceil(N/100). Stops the previous
-// per-recipient loop from blowing past Cloudflare Workers' free-tier
-// subrequest cap around 25-50 emails.
-const RESEND_BATCH_MAX = 100;
+import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
 
 interface ReminderRow {
   id: number;
@@ -30,7 +25,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
     if (!admin) return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
 
-    if (!context.env.RESEND_API_KEY || !context.env.FROM_EMAIL) {
+    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
       return createErrorResponse(errors.badRequest('Email service not configured', requestId));
     }
 
@@ -48,33 +43,18 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       return createResponse({ message: 'No attendees with outstanding balances', sent: 0, total: 0 });
     }
 
-    let sent = 0;
-    const errors_list: string[] = [];
+    const messages: OutboundEmail[] = rows.map(row => ({
+      to: row.email,
+      subject: `Payment Reminder - £${row.payment_due.toFixed(2)} Outstanding - ${retreatName}`,
+      html: buildReminderHtml(row, retreatName, portalUrl),
+    }));
+    const keys = rows.map(r => r.id);
 
-    for (let i = 0; i < rows.length; i += RESEND_BATCH_MAX) {
-      const slice = rows.slice(i, i + RESEND_BATCH_MAX);
-      const payload = slice.map(row => ({
-        from: context.env.FROM_EMAIL,
-        to: [row.email],
-        subject: `Payment Reminder - £${row.payment_due.toFixed(2)} Outstanding - ${retreatName}`,
-        html: buildReminderHtml(row, retreatName, portalUrl),
-      }));
-
-      try {
-        const response = await fetch('https://api.resend.com/emails/batch', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${context.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (response.ok) {
-          sent += slice.length;
-        } else {
-          errors_list.push(`Batch ${i / RESEND_BATCH_MAX + 1}: ${response.status} ${await response.text()}`);
-        }
-      } catch (err) {
-        errors_list.push(`Batch ${i / RESEND_BATCH_MAX + 1}: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
+    const result = await sendEmailsBulk(context.env, messages, keys);
+    const sent = result.sentKeys.length;
+    const errors_list = result.failedKeys.length
+      ? [`${result.failedKeys.length} failed${result.errorMessage ? `: ${result.errorMessage}` : ''}`]
+      : [];
 
     try {
       await context.env.DB.prepare(

@@ -4,6 +4,7 @@ import type { PagesContext, Env } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { headerStyles, typeIcons } from '../../../_shared/email-helpers.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { sendEmail } from '../../../_shared/email.js';
 
 interface AttendeeRow {
   id: number;
@@ -81,7 +82,7 @@ async function sendNotification(
 ): Promise<{ success: boolean; message: string; results?: NotificationResults }> {
   const { notification_type, attendee_id, custom_data, admin_user } = options;
 
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) {
+  if (!env.EMAIL || !env.FROM_EMAIL) {
     throw new Error('Email service not configured');
   }
 
@@ -136,31 +137,16 @@ async function sendNotification(
       continue;
     }
 
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: env.FROM_EMAIL,
-          to: [attendee.email],
-          subject: emailTemplate.subject,
-          html: emailTemplate.html || generateGenericTemplate(emailTemplate, attendee)
-        })
-      });
-
-      if (response.ok) {
-        results.successful++;
-      } else {
-        const errorText = await response.text();
-        results.failed++;
-        results.errors.push(`${attendee.name}: ${errorText}`);
-      }
-    } catch (error) {
+    const ok = await sendEmail(env, {
+      to: attendee.email,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html || generateGenericTemplate(emailTemplate, attendee),
+    });
+    if (ok) {
+      results.successful++;
+    } else {
       results.failed++;
-      results.errors.push(`${attendee.name}: ${(error as Error).message}`);
+      results.errors.push(`${attendee.name}: send failed`);
     }
   }
 

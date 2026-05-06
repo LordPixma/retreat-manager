@@ -118,9 +118,10 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       });
     }
 
-    // Phase 2: send. For a single attendee (per-row Resend button) the
-    // simple endpoint is fine; for bulk we use Resend's /emails/batch so
-    // 73 recipients become 1 HTTP subrequest, not 73.
+    // Phase 2: send. For a single attendee (per-row "Resend" button — a UI
+    // label meaning "re-send") we use the single-recipient helper; for bulk
+    // we fan out via sendEmailsBulk with bounded concurrency so a 73-person
+    // blast doesn't all hit the Cloudflare Email Send binding at once.
     if (batchRecipients.length === 1) {
       const r = batchRecipients[0];
       const ok = await sendAllergyFormEmail(context.env, {

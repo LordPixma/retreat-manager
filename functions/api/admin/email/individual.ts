@@ -5,6 +5,7 @@ import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/aut
 import { validate, individualEmailSchema } from '../../../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
+import { sendEmailOrThrow } from '../../../_shared/email.js';
 
 interface AttendeeRow {
   id: number;
@@ -66,7 +67,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     // Check for required environment variables
-    if (!context.env.RESEND_API_KEY || !context.env.FROM_EMAIL) {
+    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
       console.error(`[${requestId}] Email configuration missing`);
       return createErrorResponse(errors.internal('Email system not configured', requestId));
     }
@@ -80,32 +81,18 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       adminUser: admin.user
     });
 
-    // Send email using Resend API
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${context.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: context.env.FROM_EMAIL,
-        to: [attendee.email],
-        subject: subject,
-        html: emailContent
-      })
-    });
-
-    if (response.ok) {
-      const result = await response.json() as { id: string };
-
+    try {
+      await sendEmailOrThrow(context.env, {
+        to: attendee.email,
+        subject,
+        html: emailContent,
+      });
       return createResponse({
         success: true,
         message: 'Email sent successfully',
-        email_id: result.id
       });
-    } else {
-      const errorText = await response.text();
-      console.error(`[${requestId}] Resend API error:`, errorText);
+    } catch (err) {
+      console.error(`[${requestId}] Cloudflare Email Send error:`, err);
       return createErrorResponse(errors.externalService('Email service', requestId));
     }
 

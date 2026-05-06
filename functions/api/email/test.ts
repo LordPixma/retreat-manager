@@ -1,21 +1,15 @@
 // Email test endpoint with TypeScript and validation
+//
+// Now backed by the Cloudflare Email Send binding (env.EMAIL.send) instead
+// of the Resend HTTP API. The endpoint is otherwise identical: an admin
+// triggers it with a target address, we fire one email, and report success
+// back to the UI so they can confirm the integration is wired up.
 
 import type { PagesContext } from '../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../_shared/auth.js';
 import { validate, validators, ValidationSchema } from '../../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../_shared/errors.js';
-
-interface Env {
-  DB: D1Database;
-  RESEND_API_KEY?: string;
-  FROM_EMAIL?: string;
-}
-
-interface EmailResult {
-  success: boolean;
-  data?: { id: string };
-  error?: string;
-}
+import { sendEmailOrThrow } from '../../_shared/email.js';
 
 const testEmailSchema: ValidationSchema = {
   testEmail: { validators: [validators.required, validators.email] }
@@ -47,78 +41,36 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const { testEmail } = body as { testEmail: string };
 
     console.log(`[${requestId}] Testing email to:`, testEmail);
-    console.log(`[${requestId}] API key available:`, !!context.env.RESEND_API_KEY);
+    console.log(`[${requestId}] EMAIL binding present:`, !!context.env.EMAIL);
     console.log(`[${requestId}] From email:`, context.env.FROM_EMAIL || 'Not set');
 
     // Check for required environment variables
-    if (!context.env.RESEND_API_KEY || !context.env.FROM_EMAIL) {
+    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
       console.error(`[${requestId}] Email configuration missing`);
       return createErrorResponse(errors.internal('Email system not configured', requestId));
     }
 
-    // Send test email using Resend
-    const emailResult = await sendTestEmail(context.env as Env, testEmail);
-
-    if (emailResult.success) {
+    try {
+      await sendEmailOrThrow(context.env, {
+        to: testEmail,
+        subject: 'Retreat Portal - Email Test Successful!',
+        html: generateTestEmailTemplate(context.env.FROM_EMAIL),
+      });
       return createResponse({
         success: true,
         message: `Test email sent successfully to ${testEmail}`,
-        service: 'Resend API',
-        fromEmail: context.env.FROM_EMAIL
+        service: 'Cloudflare Email Send',
+        fromEmail: context.env.FROM_EMAIL,
       });
-    } else {
-      return createErrorResponse(errors.externalService('Email service', requestId, emailResult.error));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[${requestId}] Cloudflare Email Send error:`, msg);
+      return createErrorResponse(errors.externalService('Email service', requestId, msg));
     }
 
   } catch (error) {
     console.error(`[${requestId}] Error sending test email:`, error);
     return createErrorResponse(handleError(error, requestId));
-  }
-}
-
-async function sendTestEmail(env: Env, toEmail: string): Promise<EmailResult> {
-  if (!env.RESEND_API_KEY) {
-    return {
-      success: false,
-      error: 'RESEND_API_KEY not configured. Please add it in Cloudflare Pages settings.'
-    };
-  }
-
-  if (!env.FROM_EMAIL) {
-    return {
-      success: false,
-      error: 'FROM_EMAIL not configured. Please add it in Cloudflare Pages settings.'
-    };
-  }
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: env.FROM_EMAIL,
-        to: [toEmail],
-        subject: 'Retreat Portal - Email Test Successful!',
-        html: generateTestEmailTemplate(env.FROM_EMAIL)
-      })
-    });
-
-    if (response.ok) {
-      const result = await response.json() as { id: string };
-      console.log('Email sent successfully:', result);
-      return { success: true, data: result };
-    } else {
-      const errorText = await response.text();
-      console.error('Resend API error:', errorText);
-      return { success: false, error: `Resend API error: ${errorText}` };
-    }
-
-  } catch (error) {
-    console.error('Email sending error:', error);
-    return { success: false, error: `Connection error: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
 
@@ -160,7 +112,7 @@ function generateTestEmailTemplate(fromEmail: string): string {
         <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 2rem;">
           <div style="color: #6b7280; font-size: 0.875rem; text-align: center;">
             <p><strong>Sent:</strong> ${timestamp}</p>
-            <p><strong>Service:</strong> Resend API</p>
+            <p><strong>Service:</strong> Cloudflare Email Send</p>
             <p><strong>From:</strong> ${fromEmail}</p>
             <div style="margin-top: 1rem; padding: 0.5rem; background: #f3f4f6; border-radius: 6px;">
               <strong style="color: #374141;">Retreat Portal Email System</strong>

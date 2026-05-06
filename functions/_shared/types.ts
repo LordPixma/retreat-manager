@@ -1,9 +1,49 @@
 // Type definitions for retreat-manager Cloudflare Workers
 
+// Cloudflare Email Send binding (env.EMAIL.send).
+// Defined inline so we don't need a Cloudflare-types upgrade just for this.
+// Mirrors the public Workers API exposed by the [[send_email]] binding.
+// Docs: https://developers.cloudflare.com/email-service/api/send-emails/workers-api/
+export interface CloudflareEmailAddress {
+  email: string;
+  name?: string;
+}
+
+export interface CloudflareEmailAttachment {
+  content: string; // base64
+  filename: string;
+  type?: string;
+  disposition?: 'attachment' | 'inline';
+}
+
+export interface CloudflareEmailMessage {
+  to: string | string[];
+  from: string | CloudflareEmailAddress;
+  subject: string;
+  html?: string;
+  text?: string;
+  cc?: string | string[];
+  bcc?: string | string[];
+  replyTo?: string | CloudflareEmailAddress;
+  headers?: Record<string, string>;
+  attachments?: CloudflareEmailAttachment[];
+}
+
+export interface CloudflareEmailSendResult {
+  messageId: string;
+}
+
+export interface CloudflareEmailSender {
+  send(message: CloudflareEmailMessage): Promise<CloudflareEmailSendResult>;
+}
+
 // Cloudflare Environment bindings
 export interface Env {
   DB: D1Database;
-  RESEND_API_KEY?: string;
+  // Cloudflare Email Send binding (configured in wrangler.toml as [[send_email]] name="EMAIL").
+  // Optional in the type so endpoints can detect and skip cleanly when unbound
+  // (e.g. unit tests with miniflare configs that don't include it).
+  EMAIL?: CloudflareEmailSender;
   FROM_EMAIL?: string;
   ADMIN_NOTIFICATION_EMAIL?: string;
   ADMIN_USER?: string;

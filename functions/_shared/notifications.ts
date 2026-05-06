@@ -1,9 +1,11 @@
 // Outbound notification helpers shared by admin endpoints.
 // Each function is a no-op when the recipient has no email or when the
-// Resend env vars aren't set, so callers can fire-and-forget without guards.
+// Cloudflare Email Send binding isn't wired up, so callers can fire-and-forget
+// without guards.
 
 import type { Env } from './types.js';
 import { escapeHtml } from './sanitize.js';
+import { sendEmail, sendEmailsBulk, type OutboundEmail } from './email.js';
 
 interface RoomAssignmentRecipient {
   name: string;
@@ -19,7 +21,7 @@ interface RoomDetails {
 
 /**
  * Send a room-assignment notification to one attendee.
- * Returns true if the email was queued with Resend, false if skipped or failed.
+ * Returns true if accepted by Cloudflare Email Send, false if skipped or failed.
  */
 export async function sendRoomAssignedEmail(
   env: Env,
@@ -28,10 +30,6 @@ export async function sendRoomAssignedEmail(
   groupName: string | null = null,
 ): Promise<boolean> {
   if (!attendee.email) return false;
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) {
-    console.warn('[notifications] room-assigned email skipped — Resend not configured');
-    return false;
-  }
 
   const retreatName = env.RETREAT_NAME || 'Growth and Wisdom Retreat';
   const portalUrl = env.PORTAL_URL || 'https://retreat.cloverleafchristiancentre.org';
@@ -89,31 +87,11 @@ export async function sendRoomAssignedEmail(
     </div>
   `;
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: env.FROM_EMAIL,
-        to: [attendee.email],
-        // Strip CR/LF defensively in case admin-provided room number sneaks newlines.
-        subject: `Your room assignment — ${retreatName}`.replace(/[\r\n]/g, ' '),
-        html,
-      }),
-    });
-    if (!response.ok) {
-      const body = await response.text();
-      console.error('[notifications] Resend rejected room-assigned email', response.status, body);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[notifications] room-assigned email failed', err);
-    return false;
-  }
+  return sendEmail(env, {
+    to: attendee.email,
+    subject: `Your room assignment — ${retreatName}`,
+    html,
+  });
 }
 
 interface AllergyFormRecipient {
@@ -165,38 +143,18 @@ function buildAllergyFormHtml(retreatName: string, opts: AllergyFormRecipient): 
 /**
  * Send the allergy / medical form invitation email to ONE recipient. Used by
  * the per-row "Resend" button on the Allergy Registry tab. For bulk sends,
- * use sendAllergyFormEmailsBatch instead — that routes through Resend's
- * /emails/batch endpoint to stay under Cloudflare Workers' subrequest budget.
+ * use sendAllergyFormEmailsBatch instead — that fans out via the shared bulk
+ * helper to stay under Cloudflare Workers' subrequest budget.
  */
 export async function sendAllergyFormEmail(env: Env, opts: AllergyFormRecipient): Promise<boolean> {
-  if (!opts.recipient_email || !env.RESEND_API_KEY || !env.FROM_EMAIL) return false;
+  if (!opts.recipient_email) return false;
 
   const retreatName = env.RETREAT_NAME || 'Growth and Wisdom Retreat';
-  const html = buildAllergyFormHtml(retreatName, opts);
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: env.FROM_EMAIL,
-        to: [opts.recipient_email],
-        subject: buildAllergyFormSubject(opts.attendee_name, retreatName),
-        html,
-      }),
-    });
-    if (!response.ok) {
-      console.error('[notifications] Resend rejected allergy email', response.status, await response.text());
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[notifications] allergy email failed', err);
-    return false;
-  }
+  return sendEmail(env, {
+    to: opts.recipient_email,
+    subject: buildAllergyFormSubject(opts.attendee_name, retreatName),
+    html: buildAllergyFormHtml(retreatName, opts),
+  });
 }
 
 export interface AllergyFormBatchRecipient extends AllergyFormRecipient {
@@ -210,15 +168,13 @@ export interface AllergyFormBatchResult {
 }
 
 /**
- * Send allergy-form emails in bulk via Resend's /emails/batch endpoint.
+ * Send allergy-form emails in bulk via the Cloudflare Email Send binding.
  *
- * Each recipient still gets a unique tokenised URL (Resend accepts a per-
- * message `to`/`html`), but we collapse N HTTP requests into ceil(N/100) so
- * the bulk sender stays under Cloudflare Workers' free-tier subrequest cap.
- *
- * Resend's batch endpoint either accepts the whole sub-batch or rejects it;
- * partial failures inside one batch surface as a non-2xx on the whole call.
- * That's the trade-off we accept for the launch use case (send to all).
+ * Cloudflare has no /emails/batch analogue, so we fan out via the shared
+ * sendEmailsBulk helper — bounded concurrency keeps the subrequest budget
+ * under control while still scaling past the ~25-recipient ceiling we used
+ * to hit by sending sequentially. Each recipient still gets a unique
+ * tokenised URL (form_url is per-message).
  */
 export async function sendAllergyFormEmailsBatch(
   env: Env,
@@ -227,49 +183,19 @@ export async function sendAllergyFormEmailsBatch(
   if (recipients.length === 0) {
     return { sentAttendeeIds: [], failedAttendeeIds: [], errorMessage: null };
   }
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) {
-    return {
-      sentAttendeeIds: [],
-      failedAttendeeIds: recipients.map(r => r.attendee_id),
-      errorMessage: 'Resend not configured (RESEND_API_KEY / FROM_EMAIL missing)',
-    };
-  }
 
   const retreatName = env.RETREAT_NAME || 'Growth and Wisdom Retreat';
-  const RESEND_BATCH_MAX = 100;
-  const sent: number[] = [];
-  const failed: number[] = [];
-  let lastError: string | null = null;
+  const messages: OutboundEmail[] = recipients.map(r => ({
+    to: r.recipient_email,
+    subject: buildAllergyFormSubject(r.attendee_name, retreatName),
+    html: buildAllergyFormHtml(retreatName, r),
+  }));
+  const keys = recipients.map(r => r.attendee_id);
 
-  for (let i = 0; i < recipients.length; i += RESEND_BATCH_MAX) {
-    const slice = recipients.slice(i, i + RESEND_BATCH_MAX);
-    const payload = slice.map(r => ({
-      from: env.FROM_EMAIL,
-      to: [r.recipient_email],
-      subject: buildAllergyFormSubject(r.attendee_name, retreatName),
-      html: buildAllergyFormHtml(retreatName, r),
-    }));
-
-    try {
-      const response = await fetch('https://api.resend.com/emails/batch', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        sent.push(...slice.map(r => r.attendee_id));
-      } else {
-        lastError = `${response.status}: ${await response.text()}`;
-        failed.push(...slice.map(r => r.attendee_id));
-      }
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      failed.push(...slice.map(r => r.attendee_id));
-    }
-  }
-
-  return { sentAttendeeIds: sent, failedAttendeeIds: failed, errorMessage: lastError };
+  const result = await sendEmailsBulk(env, messages, keys);
+  return {
+    sentAttendeeIds: result.sentKeys,
+    failedAttendeeIds: result.failedKeys,
+    errorMessage: result.errorMessage,
+  };
 }

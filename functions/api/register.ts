@@ -5,6 +5,7 @@ import type { PagesContext, Env } from '../_shared/types.js';
 import { createResponse, handleCORS } from '../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../_shared/errors.js';
 import { escapeHtml } from '../_shared/sanitize.js';
+import { sendEmailOrThrow } from '../_shared/email.js';
 
 // Pricing constants
 const PRICING = {
@@ -285,7 +286,7 @@ async function sendRegistrationNotification(
   data: RegistrationInput,
   registrationId: number
 ): Promise<void> {
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) {
+  if (!env.EMAIL || !env.FROM_EMAIL) {
     console.warn('Email service not configured - skipping notification');
     return;
   }
@@ -466,24 +467,14 @@ async function sendRegistrationNotification(
     </div>
   `;
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.FROM_EMAIL,
-      to: [env.ADMIN_NOTIFICATION_EMAIL || env.FROM_EMAIL].filter(Boolean),
-      // Subject is plain text — Resend handles header encoding for us, but we
-      // still strip newlines so a registrant can't inject extra headers.
-      subject: `${subjectPrefix}Family Registration: ${primaryMember.name.replace(/[\r\n]/g, ' ')} (${data.members.length} members, £${totalAmount})`,
-      html: emailHtml
-    })
-  });
+  const adminRecipient = env.ADMIN_NOTIFICATION_EMAIL || env.FROM_EMAIL;
+  if (!adminRecipient) return;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to send notification email: ${errorText}`);
-  }
+  // sendEmailOrThrow strips CR/LF from the subject defensively so a registrant
+  // can't inject extra SMTP headers via their primary member's name.
+  await sendEmailOrThrow(env, {
+    to: adminRecipient,
+    subject: `${subjectPrefix}Family Registration: ${primaryMember.name} (${data.members.length} members, £${totalAmount})`,
+    html: emailHtml,
+  });
 }
