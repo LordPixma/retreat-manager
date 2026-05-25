@@ -129,9 +129,15 @@ export interface InstallmentSchedule {
 }
 
 // Auth Types
+export type AdminRole = 'admin' | 'super_admin';
+
 export interface AdminAuth {
   user: string;
-  role: string;
+  role: AdminRole;
+  // admin_id is null for the env-var bootstrap admin (the migration 020 row
+  // gets created on first login). Once present, every endpoint that needs
+  // to attribute writes back to a specific admin row can use it directly.
+  admin_id: number | null;
 }
 
 export interface AttendeeAuth {

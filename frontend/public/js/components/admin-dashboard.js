@@ -24,6 +24,8 @@ const AdminDashboard = {
             this.bindEvents();
             this.setupTabNavigation();
             this.bindEnhancedFeatures();
+            this.bindSidebar();
+            this.loadAdminProfile();
             
             // Initialize email management with better error handling
             if (window.EmailManagement) {
@@ -1202,6 +1204,18 @@ const AdminDashboard = {
                     window.AllergyRegistry.load();
                 }
 
+                // Lazy-load admins management
+                if (tabName === 'admins' && window.AdminManagement) {
+                    if (!window.AdminManagement._initialised) {
+                        window.AdminManagement.init();
+                        window.AdminManagement._initialised = true;
+                    }
+                    window.AdminManagement.load();
+                }
+
+                // Close the mobile sidebar after a tab pick.
+                if (window.innerWidth < 1024) this._closeMobileSidebar();
+
                 // Lazy-load analytics
                 if (tabName === 'analytics' && !this.data.analytics) {
                     this.loadAnalytics();
@@ -2228,6 +2242,62 @@ const AdminDashboard = {
         } else {
             Utils.showAlert(`${this.failedLoads.size} section(s) still failed to load`, 'warning');
         }
+    },
+
+    // ==================== SIDEBAR ====================
+
+    bindSidebar() {
+        const toggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('admin-sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (toggle && sidebar && backdrop) {
+            toggle.addEventListener('click', () => this._toggleMobileSidebar());
+            backdrop.addEventListener('click', () => this._closeMobileSidebar());
+        }
+        document.getElementById('change-my-password-btn')?.addEventListener('click', () => this.openChangePassword());
+    },
+
+    _toggleMobileSidebar() {
+        document.getElementById('admin-sidebar')?.classList.toggle('is-open');
+        document.getElementById('sidebar-backdrop')?.classList.toggle('is-visible');
+    },
+
+    _closeMobileSidebar() {
+        document.getElementById('admin-sidebar')?.classList.remove('is-open');
+        document.getElementById('sidebar-backdrop')?.classList.remove('is-visible');
+    },
+
+    async loadAdminProfile() {
+        try {
+            const me = await API.request('/admin/me');
+            const name = me.full_name || me.username || 'Admin';
+            const role = me.role || 'admin';
+            document.getElementById('sidebar-user-name')?.replaceChildren(document.createTextNode(name));
+            const roleEl = document.getElementById('sidebar-user-role');
+            if (roleEl) roleEl.textContent = role === 'super_admin' ? 'Super Admin' : 'Admin';
+
+            // Reveal super-admin-only nav items.
+            if (role === 'super_admin') {
+                document.querySelectorAll('.nav-link.super-only').forEach(el => el.removeAttribute('hidden'));
+            }
+            this._currentAdmin = me;
+        } catch (err) {
+            console.warn('Failed to load admin profile', err);
+        }
+    },
+
+    openChangePassword() {
+        const current = prompt('Enter your CURRENT password:');
+        if (!current) return;
+        const next = prompt('Enter your NEW password (min 8 chars):');
+        if (!next) return;
+        if (next.length < 8) { Utils.showAlert('New password must be at least 8 characters', 'error'); return; }
+        if (next === current) { Utils.showAlert('New password must differ from current', 'error'); return; }
+        API.request('/admin/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ current_password: current, new_password: next }),
+        }).then(() => Utils.showAlert('Password updated', 'success'))
+          .catch(err => Utils.showAlert('Failed: ' + (err.message || err), 'error'));
     },
 
     // ==================== ENHANCEMENT FEATURES ====================

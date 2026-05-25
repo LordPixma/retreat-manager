@@ -2046,3 +2046,240 @@ select.form-input option,
 .login-form-panel .form-validation-message i {
   font-size: var(--text-xs);
 }
+
+/* ==========================================================================
+   ADMIN DASHBOARD — VERTICAL SIDEBAR SHELL
+   ========================================================================== */
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  background: var(--bg-base, #0f0f1a);
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #181828 0%, #14141f 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.sidebar-brand > i {
+  font-size: 1.5rem;
+  color: #a78bfa;
+}
+.sidebar-brand-title {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+.sidebar-brand-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 0.75rem 0.5rem 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.25rem 0.25rem 0.5rem;
+}
+.nav-section-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 0.35rem 0.75rem;
+  font-weight: 600;
+}
+
+/* Override the horizontal-tab styling on sidebar nav buttons */
+.sidebar-nav .nav-link {
+  flex: initial;
+  min-width: 0;
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.625rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+}
+.sidebar-nav .nav-link i {
+  width: 1.25rem;
+  text-align: center;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+.sidebar-nav .nav-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+.sidebar-nav .nav-link.active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.18) 100%);
+  color: #fff;
+  box-shadow: inset 3px 0 0 #a78bfa;
+}
+
+.sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.sidebar-user {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.5rem 0.4rem;
+}
+.sidebar-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.sidebar-user-meta {
+  min-width: 0;
+  overflow: hidden;
+}
+.sidebar-user-name {
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.sidebar-user-role {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #9ca3af);
+  text-transform: capitalize;
+}
+.sidebar-footer .btn {
+  justify-content: flex-start;
+}
+
+/* Main column */
+.admin-shell .dashboard-main {
+  min-width: 0;
+  padding: 1.25rem 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.dashboard-topbar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+}
+.topbar-titles {
+  flex: 1;
+  min-width: 220px;
+}
+.dashboard-topbar .dashboard-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.dashboard-topbar .dashboard-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #9ca3af);
+}
+.dashboard-topbar .dashboard-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* The dashboard-main no longer needs the legacy horizontal tab nav, so the
+   header/title block from the old layout is collapsed into the topbar. */
+.admin-shell > .dashboard-main > .stats-grid {
+  margin-bottom: 0.5rem;
+}
+
+/* Hamburger button — hidden on desktop, visible on small screens. */
+.sidebar-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+}
+
+/* Responsive: collapse sidebar into an off-canvas drawer below 1024px. */
+@media (max-width: 1023px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .admin-sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
+  }
+  .sidebar-backdrop.is-visible {
+    display: block;
+  }
+  .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .admin-shell > .dashboard-main {
+    padding: 1rem;
+  }
+}

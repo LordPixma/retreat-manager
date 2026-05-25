@@ -1,35 +1,98 @@
-<div class="dashboard">
-    <!-- Header -->
-    <div class="dashboard-header">
-        <div>
-            <h1 class="dashboard-title"><i class="fas fa-shield-alt"></i> Admin Dashboard</h1>
-            <p class="dashboard-subtitle">Manage attendees, rooms, groups, announcements, and email communications</p>
+<div class="dashboard admin-shell">
+    <!-- Sidebar backdrop (mobile, click-to-close) -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="admin-sidebar" aria-label="Admin navigation">
+        <div class="sidebar-brand">
+            <i class="fas fa-shield-alt"></i>
+            <div>
+                <div class="sidebar-brand-title">Admin Portal</div>
+                <div class="sidebar-brand-sub">Growth &amp; Wisdom Retreat</div>
+            </div>
         </div>
-        <div class="dashboard-actions">
-            <button class="btn btn-ghost" id="test-email-btn" title="Test Email System">
-                <i class="fas fa-flask"></i> Test Email
-            </button>
-            <button class="btn btn-ghost" id="bulk-email-btn" title="Send Bulk Email">
-                <i class="fas fa-envelope"></i> Send Email
-            </button>
-            <button class="btn btn-primary" id="add-attendee-btn">
-                <i class="fas fa-plus"></i> Add Attendee
-            </button>
-            <div style="position: relative; display: inline-block;">
-                <button class="btn btn-ghost" id="export-menu-btn"><i class="fas fa-download"></i> Export</button>
-                <div id="export-dropdown" style="display:none; position:absolute; right:0; top:100%; margin-top:0.25rem; background: #1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.25rem; z-index:100; min-width:160px;">
-                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees" style="width:100%; justify-content:flex-start;"><i class="fas fa-users"></i> Attendees CSV</button>
-                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees-basic" style="width:100%; justify-content:flex-start;"><i class="fas fa-id-card"></i> Attendees (Basic) CSV</button>
-                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees-checkin" style="width:100%; justify-content:flex-start;"><i class="fas fa-clipboard-check"></i> Check-in / H&amp;S CSV</button>
-                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="payments" style="width:100%; justify-content:flex-start;"><i class="fas fa-credit-card"></i> Payments CSV</button>
-                    <button class="btn btn-ghost btn-sm export-csv-btn" data-type="registrations" style="width:100%; justify-content:flex-start;"><i class="fas fa-clipboard"></i> Registrations CSV</button>
+
+        <nav class="sidebar-nav" id="sidebar-nav">
+            <div class="nav-section">
+                <span class="nav-section-label">People</span>
+                <button class="tab-btn nav-link active" data-tab="attendees"><i class="fas fa-users"></i> Attendees</button>
+                <button class="tab-btn nav-link" data-tab="groups"><i class="fas fa-layer-group"></i> Groups</button>
+                <button class="tab-btn nav-link" data-tab="activity-teams"><i class="fas fa-people-group"></i> Activity Teams</button>
+            </div>
+            <div class="nav-section">
+                <span class="nav-section-label">Operations</span>
+                <button class="tab-btn nav-link" data-tab="checkin"><i class="fas fa-qrcode"></i> Check-in</button>
+                <button class="tab-btn nav-link" data-tab="allergies"><i class="fas fa-notes-medical"></i> Allergies</button>
+                <button class="tab-btn nav-link" data-tab="rooms"><i class="fas fa-bed"></i> Rooms</button>
+            </div>
+            <div class="nav-section">
+                <span class="nav-section-label">Comms</span>
+                <button class="tab-btn nav-link" data-tab="emails"><i class="fas fa-envelope"></i> Email Management</button>
+                <button class="tab-btn nav-link" data-tab="announcements"><i class="fas fa-bullhorn"></i> Announcements</button>
+            </div>
+            <div class="nav-section">
+                <span class="nav-section-label">Finance</span>
+                <button class="tab-btn nav-link" data-tab="payments"><i class="fas fa-credit-card"></i> Payments</button>
+                <button class="tab-btn nav-link" data-tab="registrations"><i class="fas fa-clipboard-list"></i> Registrations</button>
+            </div>
+            <div class="nav-section">
+                <span class="nav-section-label">System</span>
+                <button class="tab-btn nav-link" data-tab="analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
+                <button class="tab-btn nav-link" data-tab="reports"><i class="fas fa-chart-bar"></i> Reports</button>
+                <button class="tab-btn nav-link super-only" data-tab="admins" hidden><i class="fas fa-user-shield"></i> Admins</button>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user" id="sidebar-user-info">
+                <div class="sidebar-user-avatar"><i class="fas fa-user"></i></div>
+                <div class="sidebar-user-meta">
+                    <div class="sidebar-user-name" id="sidebar-user-name">Loading…</div>
+                    <div class="sidebar-user-role" id="sidebar-user-role">—</div>
                 </div>
             </div>
-            <button class="btn btn-ghost" id="admin-logout">
-                <i class="fas fa-sign-out-alt"></i>
+            <button class="btn btn-ghost btn-sm" id="change-my-password-btn" title="Change my password">
+                <i class="fas fa-key"></i> Change Password
+            </button>
+            <button class="btn btn-ghost btn-sm" id="admin-logout" title="Sign out">
+                <i class="fas fa-sign-out-alt"></i> Sign out
             </button>
         </div>
-    </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="dashboard-main">
+        <!-- Topbar -->
+        <header class="dashboard-topbar">
+            <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-titles">
+                <h1 class="dashboard-title"><i class="fas fa-shield-alt"></i> Admin Dashboard</h1>
+                <p class="dashboard-subtitle">Manage attendees, rooms, groups, announcements, and email communications</p>
+            </div>
+            <div class="dashboard-actions">
+                <button class="btn btn-ghost" id="test-email-btn" title="Test Email System">
+                    <i class="fas fa-flask"></i> Test Email
+                </button>
+                <button class="btn btn-ghost" id="bulk-email-btn" title="Send Bulk Email">
+                    <i class="fas fa-envelope"></i> Send Email
+                </button>
+                <button class="btn btn-primary" id="add-attendee-btn">
+                    <i class="fas fa-plus"></i> Add Attendee
+                </button>
+                <div style="position: relative; display: inline-block;">
+                    <button class="btn btn-ghost" id="export-menu-btn"><i class="fas fa-download"></i> Export</button>
+                    <div id="export-dropdown" style="display:none; position:absolute; right:0; top:100%; margin-top:0.25rem; background: #1e1e2e; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.25rem; z-index:100; min-width:160px;">
+                        <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees" style="width:100%; justify-content:flex-start;"><i class="fas fa-users"></i> Attendees CSV</button>
+                        <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees-basic" style="width:100%; justify-content:flex-start;"><i class="fas fa-id-card"></i> Attendees (Basic) CSV</button>
+                        <button class="btn btn-ghost btn-sm export-csv-btn" data-type="attendees-checkin" style="width:100%; justify-content:flex-start;"><i class="fas fa-clipboard-check"></i> Check-in / H&amp;S CSV</button>
+                        <button class="btn btn-ghost btn-sm export-csv-btn" data-type="payments" style="width:100%; justify-content:flex-start;"><i class="fas fa-credit-card"></i> Payments CSV</button>
+                        <button class="btn btn-ghost btn-sm export-csv-btn" data-type="registrations" style="width:100%; justify-content:flex-start;"><i class="fas fa-clipboard"></i> Registrations CSV</button>
+                    </div>
+                </div>
+            </div>
+        </header>
 
     <!-- Stats -->
     <div class="stats-grid" id="admin-stats">
@@ -75,46 +138,6 @@
                 <div class="stat-label">Logins Today</div>
             </div>
         </div>
-    </div>
-
-    <!-- Tab Navigation -->
-    <div class="tab-navigation">
-        <button class="tab-btn active" data-tab="attendees">
-            <i class="fas fa-users"></i> Attendees
-        </button>
-        <button class="tab-btn" data-tab="registrations">
-            <i class="fas fa-clipboard-list"></i> Registrations
-        </button>
-        <button class="tab-btn" data-tab="announcements">
-            <i class="fas fa-bullhorn"></i> Announcements
-        </button>
-        <button class="tab-btn" data-tab="emails">
-            <i class="fas fa-envelope"></i> Email Management
-        </button>
-        <button class="tab-btn" data-tab="payments">
-            <i class="fas fa-credit-card"></i> Payments
-        </button>
-        <button class="tab-btn" data-tab="rooms">
-            <i class="fas fa-bed"></i> Rooms
-        </button>
-        <button class="tab-btn" data-tab="groups">
-            <i class="fas fa-layer-group"></i> Groups
-        </button>
-        <button class="tab-btn" data-tab="activity-teams">
-            <i class="fas fa-people-group"></i> Activity Teams
-        </button>
-        <button class="tab-btn" data-tab="allergies">
-            <i class="fas fa-notes-medical"></i> Allergies
-        </button>
-        <button class="tab-btn" data-tab="checkin">
-            <i class="fas fa-qrcode"></i> Check-in
-        </button>
-        <button class="tab-btn" data-tab="analytics">
-            <i class="fas fa-chart-pie"></i> Analytics
-        </button>
-        <button class="tab-btn" data-tab="reports">
-            <i class="fas fa-chart-bar"></i> Reports
-        </button>
     </div>
 
     <!-- Attendees Tab -->
@@ -888,4 +911,34 @@
             </div>
         </div>
     </div>
+
+    <!-- Admin Management Tab (super-admin only — nav link is hidden for non-super) -->
+    <div class="tab-content" id="admins-tab">
+        <div class="data-table" style="margin-bottom: 1.5rem;">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-user-shield"></i> Administrators</h3>
+                <button class="btn btn-primary" id="admin-add-btn"><i class="fas fa-plus"></i> Add Admin</button>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admins-table-body">
+                        <tr><td colspan="7" class="loading-placeholder">Click tab to load...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /.dashboard-main -->
 </div>

@@ -1,6 +1,6 @@
 // Authentication utilities for retreat-manager with enhanced security
 
-import type { AdminAuth, AttendeeAuth } from './types.js';
+import type { AdminAuth, AdminRole, AttendeeAuth } from './types.js';
 
 // Constants
 const PBKDF2_ITERATIONS = 100000; // OWASP recommended minimum
@@ -245,10 +245,18 @@ async function verifySignedToken<T extends Record<string, unknown>>(
 }
 
 /**
- * Generate admin token
+ * Generate admin token. Carries `admin_id` so server-side endpoints can
+ * attribute writes back to a specific row in the admins table; null is
+ * reserved for the env-var bootstrap admin before the table row has been
+ * lazy-created.
  */
-export async function generateAdminToken(user: string, role: string = 'admin', secret?: string): Promise<string> {
-  return createSignedToken({ type: 'admin', user, role }, requireSecret(secret));
+export async function generateAdminToken(
+  user: string,
+  role: AdminRole = 'admin',
+  secret?: string,
+  adminId: number | null = null,
+): Promise<string> {
+  return createSignedToken({ type: 'admin', user, role, admin_id: adminId }, requireSecret(secret));
 }
 
 /**
@@ -259,7 +267,12 @@ export async function generateAttendeeToken(ref: string, secret?: string): Promi
 }
 
 /**
- * Check admin authorization from request
+ * Check admin authorization from request. Returns the decoded admin payload
+ * or null if the bearer token is missing / invalid / not an admin token.
+ *
+ * The returned `role` is narrowed to AdminRole; tokens issued before the
+ * multi-admin migration are coerced to 'admin' (still allowed to do the
+ * non-management actions) — a fresh login bumps them into the table.
  */
 export async function checkAdminAuth(request: Request, secret?: string): Promise<AdminAuth | null> {
   const auth = request.headers.get('Authorization') || '';
@@ -267,14 +280,33 @@ export async function checkAdminAuth(request: Request, secret?: string): Promise
 
   if (!token) return null;
 
-  const payload = await verifySignedToken<{ type: string; user: string; role: string }>(
-    token,
-    requireSecret(secret)
-  );
+  const payload = await verifySignedToken<{
+    type: string;
+    user: string;
+    role: string;
+    admin_id?: number | null;
+  }>(token, requireSecret(secret));
 
   if (!payload || payload.type !== 'admin') return null;
 
-  return { user: payload.user, role: payload.role };
+  const role: AdminRole = payload.role === 'super_admin' ? 'super_admin' : 'admin';
+  return {
+    user: payload.user,
+    role,
+    admin_id: typeof payload.admin_id === 'number' ? payload.admin_id : null,
+  };
+}
+
+/**
+ * Guard for endpoints that should only run for super-admins (managing other
+ * admins, role changes, password resets for another admin). Returns the
+ * admin auth payload when allowed, or null when the caller is not authorised
+ * — endpoints turn that null into a 403.
+ */
+export async function requireSuperAdmin(request: Request, secret?: string): Promise<AdminAuth | null> {
+  const admin = await checkAdminAuth(request, secret);
+  if (!admin || admin.role !== 'super_admin') return null;
+  return admin;
 }
 
 // 30-day expiry for tokens that authenticate the public allergy form via
