@@ -2283,3 +2283,23 @@ select.form-input option,
     padding: 1rem;
   }
 }
+
+/* ==========================================================================
+   ATTENDEE DASHBOARD SHELL — wide-screen friendly
+   ========================================================================== */
+
+.attendee-shell {
+  /* Generous cap so 4K monitors get usable horizontal space without making
+     individual cards too wide to read. Roughly: 1920px → fills, 2560px →
+     ~88% used, 3440px → ~64% used. Tighten if cards start to feel sparse. */
+  max-width: 2200px;
+  margin: 0 auto;
+  padding: 2rem 2.5rem;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .attendee-shell {
+    padding: 1.25rem 1rem;
+  }
+}
