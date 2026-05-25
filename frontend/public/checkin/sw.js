@@ -14,8 +14,14 @@
   queue itself.
 */
 
-const CACHE = 'checkin-shell-v1';
+// Bump this when the shell changes shape (new files, new caching strategy).
+// On install the new SW pre-caches; on activate it deletes any cache name
+// that isn't this one, evicting stale builds.
+const CACHE = 'checkin-shell-v2';
 
+// Pre-cached so the door tablet boots offline. app.js / app.css / index.html
+// are also pre-cached but served network-first (see fetch handler) so the
+// PWA self-updates on every reload that has connectivity.
 const SHELL = [
   '/checkin/',
   '/checkin/index.html',
@@ -24,6 +30,16 @@ const SHELL = [
   '/checkin/manifest.json',
   // External libs — failing to cache these is non-fatal (network fallback).
   'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js',
+];
+
+// Network-first for these — always pick up new deploys, fall back to cache
+// only when offline. Without this, a service-worker cache hit on app.js
+// can leave a device stuck on an old build for days after a fix ships.
+const NETWORK_FIRST_PATHS = [
+  '/checkin/',
+  '/checkin/index.html',
+  '/checkin/app.js',
+  '/checkin/app.css',
 ];
 
 self.addEventListener('install', (event) => {
@@ -57,8 +73,23 @@ self.addEventListener('fetch', (event) => {
   // result from cache.
   if (url.pathname.startsWith('/api/')) return;
 
-  // App shell + same-origin static: cache-first, fall back to network and
-  // update cache opportunistically.
+  // App-owned files (index.html, app.js, app.css): network-first so a deploy
+  // propagates on the next reload, with cache fallback for offline.
+  const isNetworkFirst = NETWORK_FIRST_PATHS.some((p) => url.pathname === p || url.pathname === p + 'index.html');
+  if (isNetworkFirst) {
+    event.respondWith(
+      fetch(req).then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE).then((c) => c.put(req, clone));
+        }
+        return response;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Everything else same-origin (or in our pinned SHELL): cache-first.
   if (url.origin === self.location.origin || SHELL.some((s) => req.url === s)) {
     event.respondWith(
       caches.match(req).then((cached) => {
