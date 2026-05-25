@@ -37,7 +37,13 @@ const API = {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-                throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                // Surface the full response body on the thrown error so callers
+                // (e.g. login → reset_required handling) can branch on it
+                // instead of getting just the status text.
+                const err = new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                err.status = response.status;
+                err.body = errorData;
+                throw err;
             }
 
             return await response.json();

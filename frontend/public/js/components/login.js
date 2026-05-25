@@ -116,24 +116,90 @@ const Login = {
         
         try {
             this.showButtonLoading(submitBtn, 'admin-login-spinner', 'admin-login-text');
-            
+
             await Auth.adminLogin(user, pass);
-            
+
             this.showAlert('admin-login-alert', 'Login successful! Redirecting...', 'success');
-            
+
             // Small delay to show success message
             setTimeout(async () => {
                 await App.loadAdminView();
             }, 1000);
-            
+
         } catch (error) {
+            // Forced-reset path: the server returned 403 reset_required because
+            // the admin's row is flagged must_reset_password = 1 (either from
+            // a super-admin reset or the legacy bootstrap). Walk them through
+            // setting a new password right here instead of bouncing them.
+            if (error.status === 403 && error.body && error.body.reset_required) {
+                this.hideButtonLoading(submitBtn, 'admin-login-spinner', 'admin-login-text', 'Sign In');
+                await this._handleAdminResetRequired(user, pass);
+                return;
+            }
             this.showAlert('admin-login-alert', error.message, 'error');
-            
-            // Focus back to form for accessibility
             document.getElementById('admin-user').focus();
-            
         } finally {
             this.hideButtonLoading(submitBtn, 'admin-login-spinner', 'admin-login-text', 'Sign In');
+        }
+    },
+
+    async _handleAdminResetRequired(user, currentPass) {
+        // Minimal prompt-based UX. Good enough to unblock the forced-reset
+        // path; a richer in-page form can replace it later.
+        const newPass = prompt(`Welcome ${user}! You must set a new password to continue.\n\nMinimum 8 characters, must differ from current.`);
+        if (!newPass) {
+            this.showAlert('admin-login-alert', 'Password reset cancelled. You won’t be able to sign in until you set a new password.', 'warning');
+            return;
+        }
+        if (newPass.length < 8) {
+            this.showAlert('admin-login-alert', 'New password must be at least 8 characters.', 'error');
+            return;
+        }
+        if (newPass === currentPass) {
+            this.showAlert('admin-login-alert', 'New password must be different from your current password.', 'error');
+            return;
+        }
+        const confirmPass = prompt('Confirm your new password:');
+        if (confirmPass !== newPass) {
+            this.showAlert('admin-login-alert', 'Passwords did not match. Try again.', 'error');
+            return;
+        }
+
+        try {
+            // The change-password endpoint requires an admin token. Issue a
+            // throwaway token by minting one server-side via a reset-only
+            // login path — we can't here, so we POST a one-shot endpoint
+            // /api/admin/change-password authorising via current_password.
+            //
+            // Because the existing /api/admin/change-password requires a
+            // bearer token, we work around by hitting it with the current
+            // creds in the body and a temporary token from /api/admin/login
+            // … but login refuses to issue tokens while flagged.
+            //
+            // Solution: use the dedicated forced-reset path (POST to
+            // /api/admin/change-password with credentials embedded). The
+            // server endpoint detects "no Authorization header" and
+            // falls through to validating current_password against the
+            // admins table, then clears the flag.
+            const response = await fetch('/api/admin/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: user,
+                    current_password: currentPass,
+                    new_password: newPass,
+                }),
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                this.showAlert('admin-login-alert', body.error || `Reset failed (HTTP ${response.status})`, 'error');
+                return;
+            }
+            this.showAlert('admin-login-alert', 'Password updated. Signing you in…', 'success');
+            await Auth.adminLogin(user, newPass);
+            setTimeout(async () => await App.loadAdminView(), 800);
+        } catch (err) {
+            this.showAlert('admin-login-alert', 'Reset failed: ' + (err.message || err), 'error');
         }
     },
 

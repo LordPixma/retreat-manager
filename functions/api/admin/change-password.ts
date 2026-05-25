@@ -1,13 +1,19 @@
 // POST /api/admin/change-password
-// Body: { current_password: string, new_password: string }
 //
-// Self-serve password change. Requires a valid admin token AND knowledge of
-// the current password (so a stolen token alone can't lock out the real
-// admin by replacing their password).
+// Two entry modes:
 //
-// Also clears must_reset_password — used both by the forced-reset flow
-// (after a super-admin runs /api/admin/admins/:id/reset-password) and the
-// generic "change my password" affordance in the UI.
+//   AUTHENTICATED (Bearer token):
+//     Body { current_password, new_password }
+//     The token identifies the admin; current_password is required so a
+//     stolen token alone can't take over the account.
+//
+//   UNAUTHENTICATED FORCED-RESET (no Bearer token):
+//     Body { username, current_password, new_password }
+//     Only allowed when the admin's row is flagged must_reset_password = 1.
+//     This is the recovery path when login.ts has returned a 403
+//     reset_required and the user has no usable token yet.
+//
+// Both paths verify the current password and clear must_reset_password.
 
 import type { PagesContext } from '../../_shared/types.js';
 import {
@@ -25,6 +31,7 @@ interface AdminRow {
   id: number;
   username: string;
   password_hash: string | null;
+  must_reset_password: number;
 }
 
 export async function onRequestOptions(): Promise<Response> {
@@ -34,10 +41,11 @@ export async function onRequestOptions(): Promise<Response> {
 export async function onRequestPost(context: PagesContext): Promise<Response> {
   const requestId = generateRequestId();
   try {
-    const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
-    if (!admin) return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
-
-    const body = await context.request.json() as { current_password?: string; new_password?: string };
+    const body = await context.request.json() as {
+      username?: string;
+      current_password?: string;
+      new_password?: string;
+    };
     const current = body.current_password ?? '';
     const next = body.new_password ?? '';
 
@@ -51,30 +59,65 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       return createErrorResponse(errors.badRequest('New password must be different from current password', requestId));
     }
 
-    // Find the admin row — prefer admin_id from the token, fall back to
-    // username for the env-var bootstrap case (admin_id may be null until
-    // the row is lazy-created on first table-backed login).
+    const hasAuthHeader = !!context.request.headers.get('Authorization');
+    const secret = context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET;
+
+    let resolvedUsername: string | null = null;
     let row: AdminRow | null = null;
-    if (admin.admin_id !== null) {
+    let isForcedResetPath = false;
+
+    if (hasAuthHeader) {
+      // Authenticated self-serve path — token identifies the admin.
+      const admin = await checkAdminAuth(context.request, secret);
+      if (!admin) return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
+      resolvedUsername = admin.user;
+      if (admin.admin_id !== null) {
+        const { results } = await context.env.DB.prepare(
+          'SELECT id, username, password_hash, must_reset_password FROM admins WHERE id = ?'
+        ).bind(admin.admin_id).all();
+        if (results.length) row = results[0] as unknown as AdminRow;
+      }
+      if (!row) {
+        const { results } = await context.env.DB.prepare(
+          'SELECT id, username, password_hash, must_reset_password FROM admins WHERE username = ?'
+        ).bind(admin.user).all();
+        if (results.length) row = results[0] as unknown as AdminRow;
+      }
+    } else {
+      // Unauthenticated forced-reset path — username must be in the body
+      // and the row must actually be flagged.
+      const username = body.username?.trim();
+      if (!username) {
+        return createErrorResponse(errors.badRequest('username required when not authenticated', requestId));
+      }
+      resolvedUsername = username;
       const { results } = await context.env.DB.prepare(
-        'SELECT id, username, password_hash FROM admins WHERE id = ?'
-      ).bind(admin.admin_id).all();
-      if (results.length) row = results[0] as unknown as AdminRow;
-    }
-    if (!row) {
-      const { results } = await context.env.DB.prepare(
-        'SELECT id, username, password_hash FROM admins WHERE username = ?'
-      ).bind(admin.user).all();
-      if (results.length) row = results[0] as unknown as AdminRow;
+        'SELECT id, username, password_hash, must_reset_password FROM admins WHERE username = ?'
+      ).bind(username).all();
+      if (!results.length) {
+        return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
+      }
+      row = results[0] as unknown as AdminRow;
+      if (row.must_reset_password !== 1) {
+        // Don't let an unauthenticated caller change a password just because
+        // they know it — that bypasses session-level lockout we'd otherwise
+        // depend on. Force them through the normal token-authed path.
+        return createErrorResponse(errors.forbidden('Password change requires authentication; use the normal change-password flow.', requestId));
+      }
+      isForcedResetPath = true;
     }
 
-    // Current-password check. If there's still no row (token from before
-    // bootstrap), fall back to ADMIN_PASS env var since that's what they
-    // would have used to log in.
+    // Verify the current password.
     let currentValid = false;
     if (row?.password_hash) {
       currentValid = await verifyPassword(current, row.password_hash);
-    } else if (context.env.ADMIN_PASS && admin.user === context.env.ADMIN_USER) {
+    } else if (
+      !isForcedResetPath
+      && context.env.ADMIN_PASS
+      && resolvedUsername === context.env.ADMIN_USER
+    ) {
+      // Authenticated env-var admin who hasn't been bootstrapped into the
+      // table yet — fall back to comparing against ADMIN_PASS.
       currentValid = current === context.env.ADMIN_PASS;
     }
 
@@ -96,14 +139,19 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       await context.env.DB.prepare(
         `INSERT INTO admins (username, password_hash, role, full_name, is_active, must_reset_password)
          VALUES (?, ?, 'super_admin', ?, 1, 0)`
-      ).bind(admin.user, hash, admin.user).run();
+      ).bind(resolvedUsername, hash, resolvedUsername).run();
     }
 
     try {
       await context.env.DB.prepare(
         `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
-         VALUES (?, 'admin_self_password_change', 'admin', ?, ?)`
-      ).bind(admin.user, row?.id ?? 0, JSON.stringify({ at: new Date().toISOString() })).run();
+         VALUES (?, ?, 'admin', ?, ?)`
+      ).bind(
+        resolvedUsername,
+        isForcedResetPath ? 'admin_forced_reset_completed' : 'admin_self_password_change',
+        row?.id ?? 0,
+        JSON.stringify({ at: new Date().toISOString() }),
+      ).run();
     } catch (err) {
       console.warn(`[${requestId}] audit_log write failed`, err);
     }
