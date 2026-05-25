@@ -54,7 +54,9 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       email?: string;
     };
 
-    const username = body.username?.trim();
+    // Usernames are case-insensitive — store canonical lowercase, look up
+    // existing rows with COLLATE NOCASE so mixed-case legacy rows also dup.
+    const username = body.username?.trim().toLowerCase();
     const password = body.password ?? '';
     const role = (body.role as AdminRole) || 'admin';
     const full_name = body.full_name?.trim() || username;
@@ -66,7 +68,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       return createErrorResponse(errors.badRequest(`Initial password must be at least ${MIN_PASSWORD_LENGTH} characters`, requestId));
     }
 
-    const { results: dupe } = await context.env.DB.prepare('SELECT id FROM admins WHERE username = ?').bind(username).all();
+    const { results: dupe } = await context.env.DB.prepare('SELECT id FROM admins WHERE username = ? COLLATE NOCASE').bind(username).all();
     if (dupe.length) return createErrorResponse(errors.conflict('An admin with that username already exists', requestId));
 
     const hash = await hashPassword(password);

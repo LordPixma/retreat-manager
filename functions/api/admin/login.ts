@@ -49,7 +49,10 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     const { user, pass } = body as { user: string; pass: string };
-    const trimmedUser = user.trim();
+    // Usernames are case-insensitive — normalise here so the lowercased
+    // form is what we store in audit logs, login_history, rate-limit
+    // identifiers, and compare against env-var ADMIN_USER.
+    const trimmedUser = user.trim().toLowerCase();
 
     const clientIP = context.request.headers.get('CF-Connecting-IP') ||
                      context.request.headers.get('X-Forwarded-For') ||
@@ -87,7 +90,9 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
         await recordLoginAttempt(context.env.DB, trimmedUser, 'admin', false, clientIP);
         return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
       }
-      if (timingSafeEqual(trimmedUser, adminUser) && timingSafeEqual(pass, adminPass)) {
+      // adminUser env var is compared case-insensitively (we've already
+      // lowercased trimmedUser). Password stays case-sensitive.
+      if (timingSafeEqual(trimmedUser, adminUser.toLowerCase()) && timingSafeEqual(pass, adminPass)) {
         matchedRole = 'super_admin';
         // Lazy-bootstrap: ensure a `super_admin` row exists for this user,
         // hashed via PBKDF2 so subsequent logins go through the table path.
@@ -153,9 +158,11 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
 
 async function loadAdminRow(context: PagesContext, username: string): Promise<AdminRow | null> {
   try {
+    // COLLATE NOCASE so existing rows with mixed-case usernames (created
+    // before normalisation landed) still match the lowercased input.
     const { results } = await context.env.DB.prepare(
       `SELECT id, username, password_hash, role, is_active, must_reset_password
-       FROM admins WHERE username = ?`
+       FROM admins WHERE username = ? COLLATE NOCASE`
     ).bind(username).all();
     if (!results.length) return null;
     return results[0] as unknown as AdminRow;

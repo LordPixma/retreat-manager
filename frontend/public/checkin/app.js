@@ -363,7 +363,7 @@
             body: JSON.stringify(payload),
         });
         const body = await res.json().catch(() => ({}));
-        if (res.status === 401) throw new Error('AUTH');
+        if (res.status === 401) { handleSessionExpired(); throw new Error('AUTH'); }
         if (!res.ok) {
             // Surface server message in scanner overlay
             flashScanner('error');
@@ -408,7 +408,7 @@
                     },
                     body: JSON.stringify(item.payload),
                 });
-                if (res.status === 401) return; // stop — need re-auth, leave queue
+                if (res.status === 401) { handleSessionExpired(); return; } // stop — need re-auth, leave queue
                 // 4xx that isn't auth = bad data we won't fix by retrying.
                 // Drop the entry but warn the admin.
                 if (!res.ok && res.status >= 400 && res.status < 500) {
@@ -668,12 +668,29 @@
         const res = await fetch(path, {
             headers: { 'Authorization': `Bearer ${State.token}` },
         });
-        if (res.status === 401) throw new Error('AUTH');
+        if (res.status === 401) {
+            // In-session 401 — token expired or invalidated server-side.
+            // Bounce to login instead of leaving a broken app screen up.
+            handleSessionExpired();
+            throw new Error('AUTH');
+        }
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             throw new Error(body.error || `HTTP ${res.status}`);
         }
         return res.json();
+    }
+
+    function handleSessionExpired() {
+        if (!State.token) return; // already logged out
+        State.token = '';
+        localStorage.removeItem(TOKEN_KEY);
+        stopScanner();
+        // Close any open sheets so the login screen is the only thing visible.
+        $('search-sheet').hidden = true;
+        $('menu-sheet').hidden = true;
+        showScreen('login');
+        showLoginError('Session expired. Please sign in again.');
     }
 
     // ============================================================

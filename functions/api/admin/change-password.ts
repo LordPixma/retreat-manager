@@ -79,20 +79,22 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       }
       if (!row) {
         const { results } = await context.env.DB.prepare(
-          'SELECT id, username, password_hash, must_reset_password FROM admins WHERE username = ?'
+          'SELECT id, username, password_hash, must_reset_password FROM admins WHERE username = ? COLLATE NOCASE'
         ).bind(admin.user).all();
         if (results.length) row = results[0] as unknown as AdminRow;
       }
     } else {
       // Unauthenticated forced-reset path — username must be in the body
-      // and the row must actually be flagged.
-      const username = body.username?.trim();
+      // and the row must actually be flagged. Usernames are case-
+      // insensitive everywhere; lookup with COLLATE NOCASE so mixed-case
+      // legacy rows still match.
+      const username = body.username?.trim().toLowerCase();
       if (!username) {
         return createErrorResponse(errors.badRequest('username required when not authenticated', requestId));
       }
       resolvedUsername = username;
       const { results } = await context.env.DB.prepare(
-        'SELECT id, username, password_hash, must_reset_password FROM admins WHERE username = ?'
+        'SELECT id, username, password_hash, must_reset_password FROM admins WHERE username = ? COLLATE NOCASE'
       ).bind(username).all();
       if (!results.length) {
         return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
@@ -114,7 +116,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     } else if (
       !isForcedResetPath
       && context.env.ADMIN_PASS
-      && resolvedUsername === context.env.ADMIN_USER
+      && resolvedUsername?.toLowerCase() === context.env.ADMIN_USER?.toLowerCase()
     ) {
       // Authenticated env-var admin who hasn't been bootstrapped into the
       // table yet — fall back to comparing against ADMIN_PASS.
