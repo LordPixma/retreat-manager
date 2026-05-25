@@ -2,7 +2,7 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
-import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
+import { sendEmailsBulk, isEmailReady, type OutboundEmail } from '../../../_shared/email.js';
 
 interface ReminderRow {
   id: number;
@@ -25,7 +25,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const admin = await checkAdminAuth(context.request, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
     if (!admin) return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
 
-    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
+    if (!isEmailReady(context.env)) {
       return createErrorResponse(errors.badRequest('Email service not configured', requestId));
     }
 

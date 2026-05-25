@@ -3,7 +3,7 @@ import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/aut
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { getStripe, createCheckoutSession } from '../../../_shared/stripe.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
-import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
+import { sendEmailsBulk, isEmailReady, type OutboundEmail } from '../../../_shared/email.js';
 
 interface ScheduleRow {
   id: number;
@@ -149,7 +149,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     // binding. sendEmailsBulk caps concurrency so even a large schedule list
     // stays under the per-request subrequest budget.
     let sent = 0;
-    if (context.env.EMAIL && context.env.FROM_EMAIL) {
+    if (isEmailReady(context.env)) {
       const messages: OutboundEmail[] = prepared.map(p => {
         const amount = (p.installmentAmountPence / 100).toFixed(2);
         return {

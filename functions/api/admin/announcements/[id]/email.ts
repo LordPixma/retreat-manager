@@ -4,7 +4,7 @@ import type { PagesContext, Env } from '../../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../../_shared/errors.js';
 import { escapeHtml } from '../../../../_shared/sanitize.js';
-import { sendEmailsBulk, type OutboundEmail } from '../../../../_shared/email.js';
+import { sendEmailsBulk, isEmailReady, type OutboundEmail } from '../../../../_shared/email.js';
 
 interface AnnouncementRow {
   id: number;
@@ -98,7 +98,7 @@ export async function onRequestPost(context: PagesContext<IdParams>): Promise<Re
     }
 
     // Check for required environment variables
-    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
+    if (!isEmailReady(context.env)) {
       console.error(`[${requestId}] Email configuration missing`);
       return createErrorResponse(errors.internal('Email system not configured', requestId));
     }
@@ -143,7 +143,7 @@ async function sendAnnouncementEmails(
 ): Promise<EmailResults> {
   const { announcement, attendees, adminUser } = options;
 
-  if (!env.EMAIL || !env.FROM_EMAIL) {
+  if (!isEmailReady(env)) {
     throw new Error('Email service not configured');
   }
 

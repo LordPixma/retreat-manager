@@ -26,7 +26,7 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
-import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
+import { sendEmailsBulk, isEmailReady, type OutboundEmail } from '../../../_shared/email.js';
 
 interface AttendeeRow {
   id: number;
@@ -50,7 +50,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     if (!admin) {
       return createErrorResponse(errors.unauthorized('Invalid or expired token', requestId));
     }
-    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
+    if (!isEmailReady(context.env)) {
       return createErrorResponse(errors.internal('Email system not configured', requestId));
     }
 

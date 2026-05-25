@@ -5,7 +5,7 @@ import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/aut
 import { validate, individualEmailSchema } from '../../../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
-import { sendEmailOrThrow } from '../../../_shared/email.js';
+import { sendEmailOrThrow, isEmailReady } from '../../../_shared/email.js';
 
 interface AttendeeRow {
   id: number;
@@ -67,7 +67,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     // Check for required environment variables
-    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
+    if (!isEmailReady(context.env)) {
       console.error(`[${requestId}] Email configuration missing`);
       return createErrorResponse(errors.internal('Email system not configured', requestId));
     }

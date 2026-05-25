@@ -4,7 +4,7 @@ import type { PagesContext, Env } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { headerStyles, typeIcons } from '../../../_shared/email-helpers.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
-import { sendEmail } from '../../../_shared/email.js';
+import { sendEmail, isEmailReady } from '../../../_shared/email.js';
 
 interface AttendeeRow {
   id: number;
@@ -82,7 +82,7 @@ async function sendNotification(
 ): Promise<{ success: boolean; message: string; results?: NotificationResults }> {
   const { notification_type, attendee_id, custom_data, admin_user } = options;
 
-  if (!env.EMAIL || !env.FROM_EMAIL) {
+  if (!isEmailReady(env)) {
     throw new Error('Email service not configured');
   }
 

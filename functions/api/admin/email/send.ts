@@ -6,7 +6,7 @@ import { validate, emailSendSchema } from '../../../_shared/validation.js';
 import { headerStyles, typeIcons } from '../../../_shared/email-helpers.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
-import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
+import { sendEmailsBulk, isEmailReady, type OutboundEmail } from '../../../_shared/email.js';
 
 interface AttendeeRow {
   id: number;
@@ -151,7 +151,7 @@ async function sendBulkEmails(
     sender: string;
   }
 ): Promise<EmailResults> {
-  if (!env.EMAIL || !env.FROM_EMAIL) {
+  if (!isEmailReady(env)) {
     throw new Error('Email service not configured');
   }
 

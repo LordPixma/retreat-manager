@@ -45,6 +45,9 @@ export interface Env {
   // (e.g. unit tests with miniflare configs that don't include it).
   EMAIL?: CloudflareEmailSender;
   FROM_EMAIL?: string;
+  // Fallback when EMAIL binding isn't configured. The shared email helper
+  // routes sends through Resend's HTTP API if RESEND_API_KEY is present.
+  RESEND_API_KEY?: string;
   ADMIN_NOTIFICATION_EMAIL?: string;
   ADMIN_USER?: string;
   ADMIN_PASS?: string;

@@ -1,7 +1,7 @@
 import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
-import { sendEmailsBulk, type OutboundEmail } from '../../../_shared/email.js';
+import { sendEmailsBulk, isEmailReady, type OutboundEmail } from '../../../_shared/email.js';
 
 interface TeamRow {
   id: number;
@@ -142,7 +142,7 @@ async function sendTeamNotificationEmails(
   leaderId: number | null,
   requestId: string
 ): Promise<void> {
-  if (!env.EMAIL || !env.FROM_EMAIL || memberIds.length === 0) return;
+  if (!isEmailReady(env) || memberIds.length === 0) return;
 
   const retreatName = env.RETREAT_NAME || 'Growth and Wisdom Retreat';
 

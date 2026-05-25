@@ -6,7 +6,7 @@ import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { splitFullName } from '../../../_shared/names.js';
 import { escapeHtml } from '../../../_shared/sanitize.js';
-import { sendEmailOrThrow } from '../../../_shared/email.js';
+import { sendEmailOrThrow, isEmailReady } from '../../../_shared/email.js';
 
 interface IdParams {
   id: string;
@@ -382,7 +382,7 @@ async function sendApprovalEmail(
   totalAmount: number,
   paymentOption: string
 ): Promise<void> {
-  if (!env.EMAIL || !env.FROM_EMAIL) {
+  if (!isEmailReady(env)) {
     console.warn('Email service not configured - skipping approval email');
     return;
   }

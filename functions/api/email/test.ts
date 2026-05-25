@@ -9,7 +9,7 @@ import type { PagesContext } from '../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../_shared/auth.js';
 import { validate, validators, ValidationSchema } from '../../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../_shared/errors.js';
-import { sendEmailOrThrow } from '../../_shared/email.js';
+import { sendEmailOrThrow, isEmailReady } from '../../_shared/email.js';
 
 const testEmailSchema: ValidationSchema = {
   testEmail: { validators: [validators.required, validators.email] }
@@ -42,29 +42,32 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
 
     console.log(`[${requestId}] Testing email to:`, testEmail);
     console.log(`[${requestId}] EMAIL binding present:`, !!context.env.EMAIL);
+    console.log(`[${requestId}] RESEND_API_KEY present:`, !!context.env.RESEND_API_KEY);
     console.log(`[${requestId}] From email:`, context.env.FROM_EMAIL || 'Not set');
 
-    // Check for required environment variables
-    if (!context.env.EMAIL || !context.env.FROM_EMAIL) {
-      console.error(`[${requestId}] Email configuration missing`);
+    // Check for required environment variables (either backend will do).
+    if (!isEmailReady(context.env)) {
+      console.error(`[${requestId}] Email configuration missing — need EMAIL binding or RESEND_API_KEY, plus FROM_EMAIL`);
       return createErrorResponse(errors.internal('Email system not configured', requestId));
     }
+
+    const backend = context.env.EMAIL ? 'Cloudflare Email Send' : 'Resend';
 
     try {
       await sendEmailOrThrow(context.env, {
         to: testEmail,
         subject: 'Retreat Portal - Email Test Successful!',
-        html: generateTestEmailTemplate(context.env.FROM_EMAIL),
+        html: generateTestEmailTemplate(context.env.FROM_EMAIL!),
       });
       return createResponse({
         success: true,
-        message: `Test email sent successfully to ${testEmail}`,
-        service: 'Cloudflare Email Send',
+        message: `Test email sent successfully to ${testEmail} via ${backend}`,
+        service: backend,
         fromEmail: context.env.FROM_EMAIL,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      console.error(`[${requestId}] Cloudflare Email Send error:`, msg);
+      console.error(`[${requestId}] ${backend} error:`, msg);
       return createErrorResponse(errors.externalService('Email service', requestId, msg));
     }
 
