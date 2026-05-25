@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Check-in">
+    <title>Retreat Check-in</title>
+    <link rel="manifest" href="/checkin/manifest.json">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/checkin/app.css">
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<section id="login-screen" class="screen active">
+    <div class="login-card">
+        <div class="login-brand">
+            <i class="fas fa-shield-alt"></i>
+            <h1>Check-in</h1>
+        </div>
+        <p class="login-sub">Admin access only. Sign in to start checking in attendees.</p>
+
+        <div id="login-error" class="alert alert-error hidden" role="alert"></div>
+
+        <form id="login-form" autocomplete="on">
+            <label for="username" class="field-label">Username</label>
+            <div class="input-wrap">
+                <i class="fas fa-user"></i>
+                <input type="text" id="username" name="username" autocomplete="username" required autocapitalize="off" autocorrect="off">
+            </div>
+
+            <label for="password" class="field-label">Password</label>
+            <div class="input-wrap">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="password" name="password" autocomplete="current-password" required>
+                <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Show password">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
+
+            <button type="submit" class="btn-primary" id="login-btn">
+                <span id="login-btn-text">Sign in</span>
+                <i class="fas fa-spinner fa-spin hidden" id="login-spinner"></i>
+            </button>
+        </form>
+
+        <p class="install-hint" id="install-hint" hidden>
+            <i class="fas fa-mobile-alt"></i> Install this app to your home screen for fast access.
+            <button type="button" class="link-btn" id="install-btn">Install</button>
+        </p>
+    </div>
+</section>
+
+<!-- MAIN APP SCREEN -->
+<section id="app-screen" class="screen">
+    <header class="top-bar">
+        <button class="icon-btn" id="menu-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
+        <div class="top-bar-title">
+            <div class="top-bar-name">Retreat Check-in</div>
+            <div class="top-bar-meta">
+                <span id="who-am-i">…</span>
+                <span class="window-pill" id="window-pill">checking…</span>
+            </div>
+        </div>
+        <div class="connectivity" id="connectivity" title="Network status">
+            <i class="fas fa-wifi"></i>
+        </div>
+    </header>
+
+    <!-- Slide-down menu -->
+    <div class="menu-sheet" id="menu-sheet" hidden>
+        <label class="menu-toggle">
+            <input type="checkbox" id="force-toggle">
+            <span>Force check-in (override window)</span>
+        </label>
+        <button class="menu-item" id="open-search-btn"><i class="fas fa-search"></i> Search roster</button>
+        <button class="menu-item" id="refresh-btn"><i class="fas fa-sync"></i> Refresh stats</button>
+        <button class="menu-item menu-item-danger" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Sign out</button>
+    </div>
+
+    <!-- Stats banner -->
+    <div class="stats">
+        <div class="stats-numbers">
+            <span class="stats-in" id="stats-in">0</span>
+            <span class="stats-divider">/</span>
+            <span class="stats-total" id="stats-total">0</span>
+        </div>
+        <div class="stats-label">checked in</div>
+        <div class="queue-pill" id="queue-pill" hidden>
+            <i class="fas fa-hourglass-half"></i>
+            <span id="queue-count">0</span> queued offline
+        </div>
+    </div>
+
+    <!-- Scanner viewfinder -->
+    <div class="scanner">
+        <div id="scanner-region"></div>
+        <div class="scanner-overlay" id="scanner-overlay">
+            <div class="scanner-flash" id="scanner-flash"></div>
+            <div class="scanner-result hidden" id="scanner-result">
+                <i class="fas fa-check-circle"></i>
+                <div class="scanner-result-name" id="scanner-result-name"></div>
+                <div class="scanner-result-detail" id="scanner-result-detail"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual ref input -->
+    <form class="manual-form" id="manual-form">
+        <input
+            type="text"
+            id="manual-ref"
+            placeholder="Or type reference number…"
+            autocapitalize="characters"
+            autocorrect="off"
+            spellcheck="false"
+        >
+        <button type="submit" class="btn-check" id="manual-submit"><i class="fas fa-check"></i></button>
+    </form>
+
+    <!-- Recent check-ins (long-press = undo) -->
+    <div class="recent">
+        <div class="recent-header">Recent (long-press to undo)</div>
+        <ul class="recent-list" id="recent-list"></ul>
+    </div>
+</section>
+
+<!-- SEARCH ROSTER SHEET (slide-up from bottom) -->
+<section id="search-sheet" class="sheet" hidden>
+    <div class="sheet-handle"></div>
+    <header class="sheet-header">
+        <button class="icon-btn" id="search-close" aria-label="Close"><i class="fas fa-times"></i></button>
+        <h2>Search roster</h2>
+        <select id="search-filter" class="sheet-filter">
+            <option value="all">All</option>
+            <option value="out" selected>Not yet</option>
+            <option value="in">Checked in</option>
+        </select>
+    </header>
+    <div class="sheet-search">
+        <i class="fas fa-search"></i>
+        <input type="search" id="search-input" placeholder="Name or reference…" autocomplete="off">
+    </div>
+    <ul class="search-list" id="search-list"></ul>
+</section>
+
+<!-- Toast container -->
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="/checkin/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "Retreat Check-in",
+  "short_name": "Check-in",
+  "description": "Door check-in app for the Growth & Wisdom Retreat. Admin-only.",
+  "start_url": "/checkin/",
+  "scope": "/checkin/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f1a",
+  "theme_color": "#667eea",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
