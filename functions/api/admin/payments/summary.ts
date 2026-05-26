@@ -46,6 +46,26 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       FROM installment_schedules WHERE status = 'active'
     `).all();
 
+    // Active flexible plans + the count of bank-transfer rows awaiting
+    // admin reconciliation. The reconciliation count is what the admin
+    // most needs to see — every row here is an attendee blocked on us
+    // confirming receipt. Wrapped in try/catch so old deployments where
+    // migration 021 hasn't been applied yet don't blow up the summary.
+    let activeFlexPlans = 0;
+    let flexPendingReconciliation = 0;
+    try {
+      const { results: flexRows } = await context.env.DB.prepare(`
+        SELECT COUNT(*) as active_count FROM flexible_payment_plans WHERE status = 'active'
+      `).all();
+      activeFlexPlans = (flexRows[0] as { active_count: number }).active_count;
+      const { results: pendingRows } = await context.env.DB.prepare(`
+        SELECT COUNT(*) as pending_count FROM flexible_installments WHERE status = 'pending_bank'
+      `).all();
+      flexPendingReconciliation = (pendingRows[0] as { pending_count: number }).pending_count;
+    } catch (err) {
+      console.warn(`[${requestId}] flexible plan summary skipped (tables missing?)`, err);
+    }
+
     const collected = collectedRows[0] as { total: number; count: number };
     const outstanding = outstandingRows[0] as { total: number; count: number };
     const activeInstallments = (installmentRows[0] as { active_count: number }).active_count;
@@ -66,6 +86,8 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       total_outstanding_pounds: outstanding.total,
       outstanding_attendees: outstanding.count,
       active_installment_plans: activeInstallments,
+      active_flexible_plans: activeFlexPlans,
+      flex_pending_reconciliation: flexPendingReconciliation,
       by_status: byStatus,
       by_type: byType,
     });

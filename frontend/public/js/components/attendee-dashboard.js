@@ -890,6 +890,15 @@ const AttendeeDashboard = {
                             <div style="font-size: 2rem; font-weight: 700; color: #fff;">${Utils.formatCurrency(paymentDue)}</div>
                         </div>
 
+                        <!-- Custom multi-month plan (flexible installments) -->
+                        <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(118, 75, 162, 0.08) 100%); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 1.25rem; margin-bottom: 0.75rem;">
+                            <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem;"><i class="fas fa-calendar-alt" style="color: #a78bfa;"></i> Build a custom payment plan</div>
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 1rem;">Pick any number of monthly payments (2–36). Pay each installment by card or bank transfer whenever it's due. Email reminders optional.</div>
+                            <button class="btn btn-primary open-flex-plan-builder" style="width: 100%;">
+                                <i class="fas fa-sliders-h"></i> Set up custom plan
+                            </button>
+                        </div>
+
                         <!-- Card Payment -->
                         <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem; margin-bottom: 0.75rem;">
                             <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem;"><i class="fas fa-credit-card" style="color: #a78bfa;"></i> Pay by Card</div>
@@ -943,6 +952,12 @@ const AttendeeDashboard = {
         modal.querySelector('.pay-bank-full')?.addEventListener('click', (e) => { close(); this.handleBankTransfer('full', null, e); });
         modal.querySelectorAll('.pay-bank-installment').forEach(btn => {
             btn.addEventListener('click', (e) => { close(); this.handleBankTransfer('installment', parseInt(btn.dataset.count), e); });
+        });
+
+        // Custom plan builder — closes the picker modal, opens the calculator.
+        modal.querySelector('.open-flex-plan-builder')?.addEventListener('click', () => {
+            close();
+            this.showFlexiblePlanCalculator();
         });
     },
 

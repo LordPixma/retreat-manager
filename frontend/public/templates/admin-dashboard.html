@@ -470,6 +470,32 @@
                     <div class="stat-label">Total Transactions</div>
                 </div>
             </div>
+            <div class="stat-card stat-accent-blue">
+                <div class="stat-icon-modern"><i class="fas fa-list-check"></i></div>
+                <div class="stat-body">
+                    <div class="stat-value" id="payments-flex-plans">0</div>
+                    <div class="stat-label">Active Custom Plans <span id="payments-flex-pending-badge" class="badge badge-warning" style="display:none; margin-left:0.4rem;"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom payment plans (flexible installments) -->
+        <div class="data-table" id="flex-plans-section" style="margin-bottom: 1.5rem;">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-calendar-alt"></i> Custom Payment Plans</h3>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <select class="search-box" id="flex-plans-status-filter" style="width:auto;">
+                        <option value="active" selected>Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="all">All</option>
+                    </select>
+                    <button class="btn btn-sm btn-ghost" id="flex-plans-refresh"><i class="fas fa-sync-alt"></i></button>
+                </div>
+            </div>
+            <div id="flex-plans-content" class="table-content">
+                <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading custom plans...</div>
+            </div>
         </div>
 
         <div class="data-table">

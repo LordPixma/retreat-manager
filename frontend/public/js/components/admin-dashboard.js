@@ -1001,6 +1001,140 @@ const AdminDashboard = {
         }
     },
 
+    /**
+     * Load and render the Custom Payment Plans section on the Payments tab.
+     * Uses the status filter dropdown; defaults to active plans only.
+     */
+    async loadFlexiblePlans() {
+        const container = document.getElementById('flex-plans-content');
+        if (!container) return;
+        const statusSel = document.getElementById('flex-plans-status-filter');
+        const status = statusSel ? statusSel.value : 'active';
+
+        try {
+            const res = await API.get(`/admin/payments/flexible-plans?status=${encodeURIComponent(status)}`);
+            this.renderFlexiblePlans(res.plans || []);
+        } catch (err) {
+            container.innerHTML = `<div class="loading-placeholder">Failed to load: ${Utils.escapeHtml(err.message || '')}</div>`;
+        }
+    },
+
+    renderFlexiblePlans(plans) {
+        const container = document.getElementById('flex-plans-content');
+        if (!container) return;
+
+        if (!plans.length) {
+            container.innerHTML = `
+                <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary);">
+                    <i class="fas fa-calendar-alt" style="font-size:1.5rem; display:block; margin-bottom:0.5rem;"></i>
+                    No plans match that filter.
+                </div>`;
+            return;
+        }
+
+        const fmtDate = (iso) => iso ? new Date(iso + (iso.includes('T') ? '' : 'T00:00:00Z')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—';
+        const fmtPence = (p) => `£${(p / 100).toFixed(2)}`;
+
+        container.innerHTML = plans.map((p) => {
+            const planStatusBadge = {
+                active: '<span class="badge badge-success">Active</span>',
+                completed: '<span class="badge badge-secondary">Completed</span>',
+                cancelled: '<span class="badge badge-danger">Cancelled</span>',
+            }[p.status] || '';
+
+            const pendingBank = p.installments_pending_bank;
+            const overdue = p.installments_overdue;
+            const flags = [
+                pendingBank > 0 ? `<span class="badge badge-warning">${pendingBank} awaiting bank confirmation</span>` : '',
+                overdue > 0 ? `<span class="badge badge-danger">${overdue} overdue</span>` : '',
+            ].filter(Boolean).join(' ');
+
+            const installmentRows = (p.installments || []).map((i) => {
+                const istatus = {
+                    upcoming: '<span class="badge badge-secondary">Upcoming</span>',
+                    pending_bank: '<span class="badge badge-warning">Pending bank</span>',
+                    paid: '<span class="badge badge-success">Paid</span>',
+                    overdue: '<span class="badge badge-danger">Overdue</span>',
+                    cancelled: '<span class="badge badge-secondary">Cancelled</span>',
+                }[i.status] || i.status;
+                const method = i.payment_method === 'card'
+                    ? '<span class="badge badge-primary"><i class="fas fa-credit-card"></i> Card</span>'
+                    : i.payment_method === 'bank_transfer'
+                    ? '<span class="badge badge-success"><i class="fas fa-building-columns"></i> Bank</span>'
+                    : '';
+                const canMarkPaid = i.status === 'pending_bank' || i.status === 'upcoming' || i.status === 'overdue';
+                const refLine = i.bank_transfer_reference
+                    ? `<div style="font-size:0.7rem; color: var(--text-tertiary);">Ref: <span style="font-family:monospace;">${Utils.escapeHtml(i.bank_transfer_reference)}</span></div>`
+                    : '';
+                const markBtn = canMarkPaid
+                    ? `<button class="btn btn-sm btn-success flex-mark-paid-btn" data-id="${i.id}" title="Mark paid"><i class="fas fa-check"></i> Mark paid</button>`
+                    : '';
+                return `
+                    <tr>
+                        <td>#${i.installment_number}</td>
+                        <td>${fmtDate(i.due_date)}</td>
+                        <td><strong>${fmtPence(i.amount)}</strong></td>
+                        <td>${istatus} ${method}${refLine}</td>
+                        <td style="text-align:right;">${markBtn}</td>
+                    </tr>`;
+            }).join('');
+
+            return `
+                <details class="flex-plan-card" data-plan-id="${p.id}" style="border-bottom: 1px solid var(--border); padding: 0.85rem 1rem;" ${p.status === 'active' && (pendingBank > 0 || overdue > 0) ? 'open' : ''}>
+                    <summary style="cursor:pointer; display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center; list-style:none;">
+                        <div style="flex:1; min-width: 200px;">
+                            <strong>${Utils.escapeHtml(p.attendee_name)}</strong>
+                            <small style="color: var(--text-tertiary); margin-left:0.5rem;">${Utils.escapeHtml(p.attendee_ref)}</small>
+                        </div>
+                        <div style="font-size:0.85rem; color: var(--text-secondary);">
+                            ${p.months_count}-month plan · ${fmtPence(p.total_amount)} total
+                        </div>
+                        <div style="font-size:0.85rem;">
+                            <span class="badge badge-info">${p.installments_paid}/${(p.installments || []).length} paid</span>
+                            ${planStatusBadge}
+                            ${flags}
+                        </div>
+                    </summary>
+                    <div style="margin-top: 0.75rem;">
+                        <table class="table" style="margin:0;">
+                            <thead><tr><th>#</th><th>Due</th><th>Amount</th><th>Status</th><th style="text-align:right;">Action</th></tr></thead>
+                            <tbody>${installmentRows}</tbody>
+                        </table>
+                        <div style="font-size: 0.72rem; color: var(--text-tertiary); padding: 0.5rem 0;">
+                            Created ${fmtDate(p.created_at)} ·
+                            reminders ${p.reminders_enabled ? `on (${p.reminder_days_before}d before)` : 'off'}${p.cancelled_at ? ` · cancelled ${fmtDate(p.cancelled_at)}` : ''}
+                        </div>
+                    </div>
+                </details>
+            `;
+        }).join('');
+
+        // Wire mark-paid buttons.
+        container.querySelectorAll('.flex-mark-paid-btn').forEach((btn) => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                if (!confirm('Mark this installment as paid? This credits the attendee\'s outstanding balance.')) return;
+                const notes = prompt('Optional notes (e.g. bank reference, received date) — leave blank to skip:') || '';
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                try {
+                    await API.post(`/admin/payments/flexible-plans/installments/${id}/mark-paid`, notes ? { notes } : {});
+                    Utils.showAlert('Installment marked paid.', 'success');
+                    await Promise.all([this.loadFlexiblePlans(), this.loadPaymentSummary(), this.loadAttendees()]);
+                    this.updatePaymentsDisplay();
+                    this.calculateStats();
+                    this.updateStatsDisplay();
+                } catch (err) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Mark paid';
+                    Utils.showAlert(err.message || 'Failed to mark paid', 'error');
+                }
+            });
+        });
+    },
+
     updatePaymentsDisplay() {
         const summary = this.data.paymentSummary;
 
@@ -1014,6 +1148,21 @@ const AdminDashboard = {
         if (outstandingEl) outstandingEl.textContent = `£${(summary.total_outstanding_pounds || 0).toFixed(2)}`;
         if (installmentEl) installmentEl.textContent = summary.active_installment_plans || 0;
         if (countEl) countEl.textContent = summary.total_collected_count || 0;
+
+        // Flexible (custom) plans card + the orange "pending reconciliation"
+        // badge that nags the admin to clear bank-transfer rows.
+        const flexEl = document.getElementById('payments-flex-plans');
+        const flexBadge = document.getElementById('payments-flex-pending-badge');
+        if (flexEl) flexEl.textContent = summary.active_flexible_plans || 0;
+        if (flexBadge) {
+            const pending = summary.flex_pending_reconciliation || 0;
+            if (pending > 0) {
+                flexBadge.textContent = `${pending} to confirm`;
+                flexBadge.style.display = '';
+            } else {
+                flexBadge.style.display = 'none';
+            }
+        }
 
         // Update table
         const tbody = document.getElementById('payments-table-body');
@@ -1183,6 +1332,7 @@ const AdminDashboard = {
                 if (tabName === 'payments' && this.data.payments.length === 0) {
                     Promise.all([this.loadPayments(), this.loadPaymentSummary()])
                         .then(() => this.updatePaymentsDisplay());
+                    this.loadFlexiblePlans();
                 }
 
                 // Lazy-load activity teams on first visit
@@ -1236,6 +1386,12 @@ const AdminDashboard = {
                 this.updatePaymentsDisplay();
             });
         }
+
+        // Custom payment plans filter + refresh
+        const flexFilter = document.getElementById('flex-plans-status-filter');
+        if (flexFilter) flexFilter.addEventListener('change', () => this.loadFlexiblePlans());
+        const flexRefresh = document.getElementById('flex-plans-refresh');
+        if (flexRefresh) flexRefresh.addEventListener('click', () => this.loadFlexiblePlans());
     },
 
     /**
