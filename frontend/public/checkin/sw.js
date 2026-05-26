@@ -17,7 +17,7 @@
 // Bump this when the shell changes shape (new files, new caching strategy).
 // On install the new SW pre-caches; on activate it deletes any cache name
 // that isn't this one, evicting stale builds.
-const CACHE = 'checkin-shell-v2';
+const CACHE = 'checkin-shell-v3';
 
 // Pre-cached so the door tablet boots offline. app.js / app.css / index.html
 // are also pre-cached but served network-first (see fetch handler) so the
@@ -75,10 +75,15 @@ self.addEventListener('fetch', (event) => {
 
   // App-owned files (index.html, app.js, app.css): network-first so a deploy
   // propagates on the next reload, with cache fallback for offline.
+  //
+  // `cache: 'no-store'` bypasses the BROWSER HTTP cache. Without it, a device
+  // that originally fetched these with a long max-age can stay pinned on the
+  // old build for hours even after the new SW activates — the SW's fetch()
+  // resolves to the stale HTTP cache entry instead of going to origin.
   const isNetworkFirst = NETWORK_FIRST_PATHS.some((p) => url.pathname === p || url.pathname === p + 'index.html');
   if (isNetworkFirst) {
     event.respondWith(
-      fetch(req).then((response) => {
+      fetch(req, { cache: 'no-store' }).then((response) => {
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE).then((c) => c.put(req, clone));
