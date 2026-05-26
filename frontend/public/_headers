@@ -12,8 +12,18 @@
 /api/*
   Cache-Control: no-store
 
-# Service worker must always revalidate so cache-policy changes (e.g. new CSP
-# entries the SW needs to honor on install) reach existing PWA installs on
-# the next reload instead of being pinned by the default max-age.
+# Service worker + shell must always revalidate. The SW does network-first
+# for the shell already, but its fetch() still respects the browser HTTP
+# cache — so without no-cache here a freshly-activated v2 SW can still
+# serve a 4-hour-old app.js. Forces immediate propagation of every shell
+# change. Shell files are tiny so revalidation cost is negligible.
 /checkin/sw.js
+  Cache-Control: no-cache, must-revalidate
+/checkin/app.js
+  Cache-Control: no-cache, must-revalidate
+/checkin/app.css
+  Cache-Control: no-cache, must-revalidate
+/checkin/index.html
+  Cache-Control: no-cache, must-revalidate
+/checkin/
   Cache-Control: no-cache, must-revalidate
