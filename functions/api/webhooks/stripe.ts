@@ -88,6 +88,15 @@ async function handleCheckoutCompleted(
     return;
   }
 
+  // Flexible-plan installments live in their own table — handle them
+  // separately so the legacy installment_schedules update below doesn't
+  // run, then return. We still credit attendee.payment_due so the
+  // outstanding-balance UI stays in sync.
+  if (paymentType === 'flexible_installment') {
+    await handleFlexibleInstallmentCompleted(context, session, attendeeId, requestId);
+    return;
+  }
+
   // Confirm the session/PI was created against our attendee — defends against
   // a tampered metadata.attendee_id by re-deriving from the checkout session
   // we previously inserted into the payments table.
@@ -175,6 +184,91 @@ async function handleCheckoutExpired(
   console.log(`[${requestId}] Checkout session ${session.id} expired, payment cancelled`);
 }
 
+async function handleFlexibleInstallmentCompleted(
+  context: PagesContext,
+  session: Stripe.Checkout.Session,
+  attendeeId: number,
+  requestId: string,
+): Promise<void> {
+  const metadata = session.metadata || {};
+  const installmentId = parseInt(metadata.flexible_installment_id || '0');
+  const planId = parseInt(metadata.flexible_plan_id || '0');
+  if (!installmentId || !planId) {
+    console.error(`[${requestId}] Missing flexible_installment_id/plan_id metadata on session ${session.id}`);
+    return;
+  }
+
+  // Ownership check: re-derive attendee from the plan rather than trusting
+  // metadata blindly. Mirrors the legacy-path guard above.
+  const ownerRes = await context.env.DB.prepare(
+    `SELECT p.attendee_id, i.status AS installment_status, i.amount AS installment_amount
+     FROM flexible_installments i
+     JOIN flexible_payment_plans p ON p.id = i.plan_id
+     WHERE i.id = ? AND i.plan_id = ?`,
+  ).bind(installmentId, planId).all();
+  if (!ownerRes.results.length) {
+    console.error(`[${requestId}] flexible_installment ${installmentId} / plan ${planId} not found`);
+    return;
+  }
+  const owner = ownerRes.results[0] as { attendee_id: number; installment_status: string; installment_amount: number };
+  if (owner.attendee_id !== attendeeId) {
+    console.error(`[${requestId}] metadata attendee ${attendeeId} doesn't own installment ${installmentId}; refusing`);
+    return;
+  }
+  if (owner.installment_status === 'paid') {
+    console.log(`[${requestId}] flexible_installment ${installmentId} already paid, skipping`);
+    return;
+  }
+
+  const paymentIntentId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : session.payment_intent?.id || null;
+
+  // Mark the installment row paid.
+  await context.env.DB.prepare(`
+    UPDATE flexible_installments
+    SET status = 'paid',
+        payment_method = 'card',
+        stripe_payment_intent_id = ?,
+        paid_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(paymentIntentId, installmentId).run();
+
+  // Credit the attendee's outstanding balance.
+  const paidPounds = penceToPounds(session.amount_total || owner.installment_amount);
+  const { results: aRows } = await context.env.DB.prepare(
+    'SELECT payment_due FROM attendees WHERE id = ?',
+  ).bind(attendeeId).all();
+  if (aRows.length) {
+    const currentDue = (aRows[0] as { payment_due: number }).payment_due || 0;
+    const newDue = Math.max(0, currentDue - paidPounds);
+    const newStatus = newDue <= 0 ? 'paid' : 'partial';
+    await context.env.DB.prepare(
+      `UPDATE attendees SET payment_due = ?, payment_status = ? WHERE id = ?`,
+    ).bind(newDue, newStatus, attendeeId).run();
+    console.log(`[${requestId}] flex plan: attendee ${attendeeId} payment_due ${currentDue} -> ${newDue}`);
+  }
+
+  // If every installment on this plan is now paid (or cancelled), the
+  // plan itself is complete.
+  const { results: openRows } = await context.env.DB.prepare(
+    `SELECT COUNT(*) AS open_count FROM flexible_installments
+     WHERE plan_id = ? AND status IN ('upcoming', 'pending_bank', 'overdue')`,
+  ).bind(planId).all();
+  const openCount = (openRows[0] as { open_count: number }).open_count;
+  if (openCount === 0) {
+    await context.env.DB.prepare(
+      `UPDATE flexible_payment_plans SET status = 'completed' WHERE id = ?`,
+    ).bind(planId).run();
+    console.log(`[${requestId}] flexible plan ${planId} fully paid → completed`);
+  }
+
+  // Confirmation email (best-effort, async).
+  context.waitUntil(
+    sendPaymentConfirmationEmail(context.env, attendeeId, session.amount_total || owner.installment_amount, 'flexible_installment', requestId),
+  );
+}
+
 async function sendPaymentConfirmationEmail(
   env: PagesContext['env'],
   attendeeId: number,
@@ -206,9 +300,9 @@ async function sendPaymentConfirmationEmail(
               <p>We have received your payment of <strong>£${amount}</strong> for the ${escapeHtml(retreatName)}.</p>
               <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981; margin: 20px 0;">
                 <p style="margin: 0;"><strong>Amount Paid:</strong> £${amount}</p>
-                <p style="margin: 5px 0 0;"><strong>Payment Type:</strong> ${paymentType === 'installment' ? 'Installment Payment' : 'Full Payment'}</p>
+                <p style="margin: 5px 0 0;"><strong>Payment Type:</strong> ${paymentType === 'installment' || paymentType === 'flexible_installment' ? 'Installment Payment' : 'Full Payment'}</p>
               </div>
-              ${paymentType === 'installment' ? '<p>Your remaining installments will be due according to your payment schedule. You will receive a reminder before each payment is due.</p>' : ''}
+              ${paymentType === 'installment' || paymentType === 'flexible_installment' ? '<p>Your remaining installments will be due according to your payment schedule. You will receive a reminder before each payment is due.</p>' : ''}
               <p>Thank you for your payment!</p>
               <p style="color: #6b7280; font-size: 0.85rem;">— The ${escapeHtml(retreatName)} Team</p>
             </div>

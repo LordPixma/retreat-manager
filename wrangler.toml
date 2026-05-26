@@ -28,3 +28,17 @@ RETREAT_NAME = "Growth and Wisdom Retreat"
 [[send_email]]
 name = "EMAIL"
 remote = true
+
+# Flexible-installment cron reminders (migration 021).
+# /api/cron/send-installment-reminders is guarded by env.CRON_SECRET and
+# must be hit daily by an external scheduler — Pages Functions don't run
+# their own cron triggers. Suggested wiring:
+#   * cron-job.org / GitHub Actions: POST with header
+#       X-Cron-Secret: <value of CRON_SECRET>
+#     to https://<portal>/api/cron/send-installment-reminders
+#     daily around 09:00 local time
+#   * Cloudflare worker: deploy a tiny companion Worker with a [triggers]
+#     crons entry that does the same POST
+# Set CRON_SECRET, plus BANK_ACCOUNT_NAME / BANK_SORT_CODE /
+# BANK_ACCOUNT_NUMBER for the per-installment bank-transfer flow, via
+# `wrangler pages secret put` (NOT in this file — they're secrets).

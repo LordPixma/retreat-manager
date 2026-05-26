@@ -560,8 +560,10 @@ const AttendeeDashboard = {
             if (bannerButtons) {
                 bannerButtons.innerHTML = `
                     <button class="btn btn-success show-payment-options-btn"><i class="fas fa-sterling-sign"></i> Pay Now</button>
+                    <button class="btn btn-ghost show-flex-plan-btn"><i class="fas fa-calendar-alt"></i> Set up a payment plan</button>
                 `;
                 bannerButtons.querySelector('.show-payment-options-btn').addEventListener('click', () => this.showPaymentOptions());
+                bannerButtons.querySelector('.show-flex-plan-btn').addEventListener('click', () => this.showFlexiblePlanCalculator());
             }
         } else if (banner) {
             banner.style.display = 'none';
@@ -584,13 +586,277 @@ const AttendeeDashboard = {
                 </div>
             ` : ''}
             ${paymentOption === 'sponsorship' ? '<div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-tertiary);">Sponsorship requested</div>' : ''}
+            <div id="flexible-plan-section" style="margin-top: 0.75rem;"></div>
             <div id="payment-history-section" style="margin-top: 0.75rem;"></div>
         `;
 
         content.querySelectorAll('.show-payment-options-btn').forEach(btn => {
             btn.addEventListener('click', () => this.showPaymentOptions());
         });
+        this.loadFlexiblePlan();
         this.loadPaymentHistory();
+    },
+
+    /**
+     * Load attendee's active flexible plan (if any) and render it.
+     * If a plan exists, it replaces the "Set up a payment plan" affordance
+     * with a schedule view + per-row pay buttons + cancel button.
+     */
+    async loadFlexiblePlan() {
+        const section = document.getElementById('flexible-plan-section');
+        if (!section) return;
+        try {
+            const res = await API.get('/payments/flexible-plan');
+            if (!res || !res.plan) {
+                section.innerHTML = '';
+                return;
+            }
+            this.renderFlexiblePlan(res.plan, res.installments || []);
+
+            // If a plan is active, hide the banner's "Set up" CTA since the
+            // schedule now lives in the dashboard card. Keep "Pay Now" too
+            // so the attendee can still pay everything in one go if they
+            // change their mind — they'd need to cancel the plan first.
+            const bannerButtons = document.getElementById('banner-pay-buttons');
+            if (bannerButtons) {
+                const setUpBtn = bannerButtons.querySelector('.show-flex-plan-btn');
+                if (setUpBtn) setUpBtn.remove();
+            }
+        } catch (err) {
+            // Not fatal — older deployments without the endpoint will 404 here.
+            console.warn('flexible plan load failed', err);
+        }
+    },
+
+    renderFlexiblePlan(plan, installments) {
+        const section = document.getElementById('flexible-plan-section');
+        if (!section) return;
+
+        const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+        const fmtPence = (p) => `£${(p / 100).toFixed(2)}`;
+
+        const paidCount = installments.filter(i => i.status === 'paid').length;
+        const rows = installments.map(i => {
+            const statusLabel = {
+                upcoming: '<span class="badge badge-secondary">Upcoming</span>',
+                pending_bank: '<span class="badge badge-warning">Awaiting bank confirmation</span>',
+                paid: '<span class="badge badge-success">Paid</span>',
+                overdue: '<span class="badge badge-danger">Overdue</span>',
+                cancelled: '<span class="badge badge-secondary">Cancelled</span>',
+            }[i.status] || '';
+
+            const canPay = i.status === 'upcoming' || i.status === 'overdue';
+            const actions = canPay ? `
+                <div style="display:flex; gap:0.3rem; margin-top:0.4rem;">
+                    <button class="btn btn-sm btn-success flex-pay-card-btn" data-id="${i.id}" style="flex:1;">
+                        <i class="fas fa-credit-card"></i> Card
+                    </button>
+                    <button class="btn btn-sm btn-primary flex-pay-bank-btn" data-id="${i.id}" style="flex:1;">
+                        <i class="fas fa-building-columns"></i> Bank
+                    </button>
+                </div>
+            ` : '';
+
+            return `
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.7rem 0.85rem; margin-bottom: 0.4rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+                        <div style="font-size:0.78rem; color: var(--text-tertiary);">#${i.installment_number} · ${fmtDate(i.due_date)}</div>
+                        <div style="font-weight:700; color:#fff;">${fmtPence(i.amount)}</div>
+                    </div>
+                    <div style="margin-top:0.25rem; font-size:0.72rem;">${statusLabel}</div>
+                    ${actions}
+                </div>
+            `;
+        }).join('');
+
+        section.innerHTML = `
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.75rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                    <div style="font-size:0.78rem; color:#a78bfa; text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">
+                        <i class="fas fa-calendar-alt"></i> Payment plan
+                    </div>
+                    <span class="badge badge-secondary">${paidCount}/${installments.length} paid</span>
+                </div>
+                <div style="font-size:0.72rem; color: var(--text-tertiary); margin-bottom:0.6rem;">
+                    ${plan.months_count}-month plan · ${plan.reminders_enabled ? `reminders ${plan.reminder_days_before} day(s) before` : 'reminders off'}
+                </div>
+                ${rows}
+                <button class="btn btn-sm btn-ghost flex-cancel-plan-btn" style="width:100%; margin-top:0.5rem;" data-id="${plan.id}">
+                    <i class="fas fa-times"></i> Cancel plan
+                </button>
+            </div>
+        `;
+
+        section.querySelectorAll('.flex-pay-card-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.handleFlexInstallmentCard(parseInt(e.currentTarget.dataset.id, 10), e));
+        });
+        section.querySelectorAll('.flex-pay-bank-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.handleFlexInstallmentBank(parseInt(e.currentTarget.dataset.id, 10), e));
+        });
+        section.querySelector('.flex-cancel-plan-btn').addEventListener('click', () => this.handleFlexCancelPlan());
+    },
+
+    /**
+     * Calculator: attendee picks N months + reminder options, sees a
+     * preview of the monthly amount, then confirms to create the plan.
+     */
+    showFlexiblePlanCalculator() {
+        const paymentDue = this.data.payment_due || 0;
+        if (paymentDue <= 0) {
+            Utils.showAlert('No outstanding balance to schedule.', 'info');
+            return;
+        }
+        const totalPence = Math.round(paymentDue * 100);
+
+        const modalHtml = `
+            <div class="modal-overlay" id="flex-plan-modal" style="z-index: 500;">
+                <div class="modal" style="max-width: 480px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Set up a payment plan</h3>
+                        <button type="button" class="modal-close" id="flex-close"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body" style="padding: 1.5rem;">
+                        <div style="text-align:center; margin-bottom:1.25rem;">
+                            <div style="font-size:0.7rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.05em;">Total to split</div>
+                            <div style="font-size:2rem; font-weight:700; color:#fff;">${Utils.formatCurrency(paymentDue)}</div>
+                        </div>
+
+                        <label style="display:block; font-size:0.8rem; font-weight:600; color:#fff; margin-bottom:0.35rem;">
+                            Over how many monthly payments?
+                        </label>
+                        <input id="flex-months" type="number" min="2" max="36" value="6" style="width:100%; padding:0.65rem; background:rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:1rem; margin-bottom:0.5rem;">
+                        <div id="flex-preview" style="font-size:0.85rem; color:#a78bfa; margin-bottom:1rem;"></div>
+
+                        <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.82rem; color:#fff; margin-bottom:0.5rem; cursor:pointer;">
+                            <input id="flex-reminders" type="checkbox" checked style="width:1rem; height:1rem; accent-color:#667eea;">
+                            Email me a reminder before each payment is due
+                        </label>
+
+                        <div id="flex-reminder-days-wrap">
+                            <label style="display:block; font-size:0.75rem; color:var(--text-tertiary); margin-bottom:0.3rem;">Days before each due date</label>
+                            <input id="flex-reminder-days" type="number" min="1" max="14" value="3" style="width:100%; padding:0.55rem; background:rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.95rem;">
+                        </div>
+
+                        <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
+                            <button class="btn btn-ghost" id="flex-cancel" style="flex:1;">Cancel</button>
+                            <button class="btn btn-success" id="flex-create" style="flex:1;"><i class="fas fa-check"></i> Create plan</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = document.getElementById('flex-plan-modal');
+        const close = () => modal.remove();
+
+        const monthsInput = document.getElementById('flex-months');
+        const previewEl = document.getElementById('flex-preview');
+        const remindersInput = document.getElementById('flex-reminders');
+        const remindersDaysInput = document.getElementById('flex-reminder-days');
+        const remindersDaysWrap = document.getElementById('flex-reminder-days-wrap');
+
+        const updatePreview = () => {
+            const m = Math.max(2, Math.min(36, parseInt(monthsInput.value, 10) || 0));
+            if (!m) { previewEl.textContent = ''; return; }
+            const base = Math.floor(totalPence / m);
+            const remainder = totalPence - base * m;
+            const lastAmount = base + remainder;
+            const sameEvery = remainder === 0;
+            previewEl.textContent = sameEvery
+                ? `${m} × £${(base / 100).toFixed(2)} per month`
+                : `${m - 1} × £${(base / 100).toFixed(2)} + 1 × £${(lastAmount / 100).toFixed(2)} (final)`;
+        };
+        const updateRemindersToggle = () => {
+            remindersDaysWrap.style.display = remindersInput.checked ? 'block' : 'none';
+        };
+        monthsInput.addEventListener('input', updatePreview);
+        remindersInput.addEventListener('change', updateRemindersToggle);
+        updatePreview();
+        updateRemindersToggle();
+
+        document.getElementById('flex-close').addEventListener('click', close);
+        document.getElementById('flex-cancel').addEventListener('click', close);
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+        document.getElementById('flex-create').addEventListener('click', async () => {
+            const months = parseInt(monthsInput.value, 10);
+            const remindersEnabled = remindersInput.checked;
+            const reminderDaysBefore = parseInt(remindersDaysInput.value, 10);
+            if (!months || months < 2 || months > 36) {
+                Utils.showAlert('Choose between 2 and 36 months.', 'error');
+                return;
+            }
+            const btn = document.getElementById('flex-create');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…';
+            try {
+                await API.post('/payments/flexible-plan', {
+                    months,
+                    reminders_enabled: remindersEnabled,
+                    reminder_days_before: remindersEnabled ? reminderDaysBefore : 3,
+                });
+                close();
+                Utils.showAlert('Payment plan created. A confirmation email is on its way.', 'success');
+                await this.loadFlexiblePlan();
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Create plan';
+                Utils.showAlert(err.message || 'Failed to create plan', 'error');
+            }
+        });
+    },
+
+    async handleFlexInstallmentCard(installmentId, e) {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        try {
+            const res = await API.post(`/payments/flexible-plan/installments/${installmentId}/checkout`, {});
+            if (res.checkout_url) {
+                window.location.href = res.checkout_url;
+            } else {
+                throw new Error('No checkout URL received');
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-credit-card"></i> Card';
+            Utils.showAlert(err.message || 'Failed to start payment', 'error');
+        }
+    },
+
+    async handleFlexInstallmentBank(installmentId, e) {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        try {
+            const res = await API.post(`/payments/flexible-plan/installments/${installmentId}/bank-transfer`, {});
+            const b = res.bank_details || {};
+            Utils.showAlert(
+                `Bank transfer recorded. Reference: ${b.reference}. Sort code ${b.sort_code}, account ${b.account_number}.`,
+                'success', 8000,
+            );
+            await this.loadFlexiblePlan();
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-building-columns"></i> Bank';
+            Utils.showAlert(err.message || 'Failed to record bank transfer', 'error');
+        }
+    },
+
+    async handleFlexCancelPlan() {
+        if (!confirm('Cancel your payment plan? Paid installments stay paid; any unpaid rows will be cancelled. You can set up a new plan afterwards.')) {
+            return;
+        }
+        try {
+            await API.delete('/payments/flexible-plan');
+            Utils.showAlert('Plan cancelled.', 'success');
+            // Reload underlying attendee data so payment_due reflects any
+            // adjustments the cancel made, then re-render everything.
+            this.data = await API.get('/me');
+            this.updatePaymentInfo();
+        } catch (err) {
+            Utils.showAlert(err.message || 'Failed to cancel plan', 'error');
+        }
     },
 
     showPaymentOptions() {

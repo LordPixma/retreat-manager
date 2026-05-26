@@ -59,6 +59,15 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PUBLISHABLE_KEY?: string;
+  // Shared secret guarding the cron-driven endpoints (installment reminder
+  // sweep). The caller — Cloudflare scheduled trigger, GitHub Actions, or
+  // an external scheduler — must present it as `X-Cron-Secret: <value>`.
+  CRON_SECRET?: string;
+  // Optional human-readable bank details surfaced to attendees on the
+  // bank-transfer flow. Falls back to placeholder text if unset.
+  BANK_ACCOUNT_NAME?: string;
+  BANK_SORT_CODE?: string;
+  BANK_ACCOUNT_NUMBER?: string;
 }
 
 // Context type for Pages Functions
