@@ -34,6 +34,11 @@ body {
 }
 
 .hidden { display: none !important; }
+/* The browser default `[hidden] { display: none }` has zero !important and
+   loses to any class that sets display (e.g. `.sheet { display: flex }`),
+   so the search-sheet / menu-sheet etc. would render on top of the login
+   screen on load even though their markup carries the hidden attribute. */
+[hidden] { display: none !important; }
 
 /* Screens — only one visible at a time */
 .screen { display: none; height: 100%; }
