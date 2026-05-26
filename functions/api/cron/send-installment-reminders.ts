@@ -70,9 +70,17 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const retreatName = context.env.RETREAT_NAME || 'Growth and Wisdom Retreat';
 
     // --- UPCOMING pass ----------------------------------------------------
-    // Find installments where due_date is within the plan's
-    // reminder_days_before window from today AND we haven't already
-    // reminded today.
+    // ONE heads-up email per installment, fired once when we enter the
+    // reminder window (today is within reminder_days_before of due_date).
+    // The `last_reminder_sent_at IS NULL` clause is what makes it
+    // single-shot — once sent, this row never appears in the upcoming
+    // sweep again. Catches up gracefully if the cron misses a day:
+    // an installment due in 2 days with reminder_days_before=3 still
+    // gets its reminder today, just slightly later than ideal.
+    //
+    // Overdue reminders are separately rate-limited below (weekly), so
+    // attendees who let an installment lapse hear from us periodically
+    // but not daily.
     const { results: upcomingRows } = await context.env.DB.prepare(`
       SELECT
         i.id              AS installment_id,
@@ -95,10 +103,10 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
         AND i.status = 'upcoming'
         AND julianday(i.due_date) - julianday(?) <= p.reminder_days_before
         AND julianday(i.due_date) - julianday(?) >= 0
-        AND (i.last_reminder_sent_at IS NULL OR date(i.last_reminder_sent_at) < date(?))
+        AND i.last_reminder_sent_at IS NULL
         AND a.email IS NOT NULL
         AND a.email != ''
-    `).bind(todayIso, todayIso, todayIso).all();
+    `).bind(todayIso, todayIso).all();
 
     const upcoming = upcomingRows as unknown as DueRow[];
 
