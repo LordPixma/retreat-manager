@@ -890,6 +890,9 @@ const AttendeeDashboard = {
                             <div style="font-size: 2rem; font-weight: 700; color: #fff;">${Utils.formatCurrency(paymentDue)}</div>
                         </div>
 
+                        <!-- Family/group pay (only shown if attendee is in a group with payable members) -->
+                        <div id="group-pay-section" style="display: none;"></div>
+
                         <!-- Custom multi-month plan (flexible installments) -->
                         <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(118, 75, 162, 0.08) 100%); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 1.25rem; margin-bottom: 0.75rem;">
                             <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem;"><i class="fas fa-calendar-alt" style="color: #a78bfa;"></i> Build a custom payment plan</div>
@@ -959,6 +962,132 @@ const AttendeeDashboard = {
             close();
             this.showFlexiblePlanCalculator();
         });
+
+        // Family/group pay — load asynchronously and show only if applicable.
+        this.loadGroupPayInto(modal);
+    },
+
+    /**
+     * Fetches the group summary; if the attendee belongs to a group and any
+     * member (including or excluding self) is payable, renders the
+     * "Pay for your family" section into the modal. Silent no-op if the
+     * attendee isn't grouped or there's nothing to pay for.
+     */
+    async loadGroupPayInto(modal) {
+        const section = modal.querySelector('#group-pay-section');
+        if (!section) return;
+        let data;
+        try {
+            data = await API.get('/payments/group/summary');
+        } catch {
+            return; // older deployments / no group endpoint — silent skip
+        }
+        if (!data || !data.group || !Array.isArray(data.members)) return;
+        const payable = data.members.filter(m => m.payable);
+        const blocked = data.members.filter(m => !m.payable && (m.payment_due_pence > 0));
+        if (payable.length < 1) return;
+
+        // Don't show if the only payable person is the attendee themselves —
+        // there's nothing "family" about a one-person family.
+        const others = payable.filter(m => !m.is_self);
+        if (others.length === 0) return;
+
+        const fmtPence = (p) => `£${(p / 100).toFixed(2)}`;
+        const memberRows = payable.map(m => `
+            <label style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid rgba(255,255,255,0.05); cursor:pointer;">
+                <input type="checkbox" class="group-pay-check" data-id="${m.id}" data-amount="${m.payment_due_pence}" checked style="width:1rem; height:1rem; accent-color:#a78bfa;">
+                <span style="flex:1; color:#fff; font-size:0.85rem;">${this._escape(m.name)}${m.is_self ? ' <span style="color:var(--text-tertiary); font-size:0.72rem;">(you)</span>' : ''}</span>
+                <span style="font-weight:600; color:#fff;">${fmtPence(m.payment_due_pence)}</span>
+            </label>
+        `).join('');
+
+        const blockedNote = blocked.length ? `
+            <div style="margin-top:0.5rem; font-size:0.7rem; color: var(--text-tertiary);">
+                ${blocked.length} member${blocked.length === 1 ? '' : 's'} on a payment plan — pay them separately from their own dashboard.
+            </div>
+        ` : '';
+
+        section.innerHTML = `
+            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.10) 0%, rgba(110, 231, 183, 0.06) 100%); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 1.25rem; margin-bottom: 0.75rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem;"><i class="fas fa-users" style="color: #6ee7b7;"></i> Pay for your family</div>
+                <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 0.75rem;">${this._escape(data.group.name)} — one payment covers everyone you tick.</div>
+                <div style="background: rgba(0,0,0,0.15); border-radius: 8px; padding: 0.5rem 0.75rem;">
+                    ${memberRows}
+                </div>
+                ${blockedNote}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem;">
+                    <span style="font-size:0.75rem; color: var(--text-tertiary);">Total:</span>
+                    <span id="group-pay-total" style="font-weight:700; color:#fff; font-size:1.1rem;">£0.00</span>
+                </div>
+                <div style="display:flex; gap:0.4rem; margin-top:0.75rem;">
+                    <button class="btn btn-sm btn-success group-pay-card" style="flex:1;"><i class="fas fa-credit-card"></i> Card</button>
+                    <button class="btn btn-sm btn-primary group-pay-bank" style="flex:1;"><i class="fas fa-building-columns"></i> Bank Transfer</button>
+                </div>
+            </div>
+        `;
+        section.style.display = 'block';
+
+        const checks = section.querySelectorAll('.group-pay-check');
+        const totalEl = section.querySelector('#group-pay-total');
+        const updateTotal = () => {
+            const total = Array.from(checks)
+                .filter(c => c.checked)
+                .reduce((s, c) => s + parseInt(c.dataset.amount, 10), 0);
+            totalEl.textContent = fmtPence(total);
+            section.querySelector('.group-pay-card').disabled = total === 0;
+            section.querySelector('.group-pay-bank').disabled = total === 0;
+        };
+        checks.forEach(c => c.addEventListener('change', updateTotal));
+        updateTotal();
+
+        section.querySelector('.group-pay-card').addEventListener('click', async (e) => {
+            const ids = Array.from(checks).filter(c => c.checked).map(c => parseInt(c.dataset.id, 10));
+            if (!ids.length) return;
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Redirecting…';
+            try {
+                const res = await API.post('/payments/group/checkout', { attendee_ids: ids });
+                if (res.checkout_url) {
+                    window.location.href = res.checkout_url;
+                } else {
+                    throw new Error('No checkout URL received');
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-credit-card"></i> Card';
+                Utils.showAlert(err.message || 'Failed to start group payment', 'error');
+            }
+        });
+
+        section.querySelector('.group-pay-bank').addEventListener('click', async (e) => {
+            const ids = Array.from(checks).filter(c => c.checked).map(c => parseInt(c.dataset.id, 10));
+            if (!ids.length) return;
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const res = await API.post('/payments/group/bank-transfer', { attendee_ids: ids });
+                const b = res.bank_details || {};
+                // Reuse close() captured by closure — collapse the modal so the
+                // alert isn't hidden behind it.
+                modal.remove();
+                Utils.showAlert(
+                    `Family transfer recorded for ${res.member_count} member(s). Reference ${b.reference} — sort code ${b.sort_code}, account ${b.account_number}.`,
+                    'success', 12000,
+                );
+                this.data = await API.get('/me');
+                this.updatePaymentInfo();
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-building-columns"></i> Bank Transfer';
+                Utils.showAlert(err.message || 'Failed to record family bank transfer', 'error');
+            }
+        });
+    },
+
+    _escape(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     },
 
     async handleBankTransfer(type, installmentCount, e) {
