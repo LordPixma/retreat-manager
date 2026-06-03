@@ -8,11 +8,21 @@ interface AttendeeRow {
   id: number;
   ref_number: string;
   name: string;
+  first_name: string | null;
+  last_name: string | null;
+  preferred_name?: string | null;
+  date_of_birth: string | null;
   email: string | null;
   phone: string | null;
   emergency_contact: string | null;
+  postal_address?: string | null;
   dietary_requirements: string | null;
+  medical_conditions?: string | null;
+  accessibility_needs?: string | null;
   special_requests: string | null;
+  tshirt_size?: string | null;
+  arrival_method?: string | null;
+  vehicle_registration?: string | null;
   payment_due: number;
   payment_option: string | null;
   payment_status: string;
@@ -76,11 +86,21 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         a.id,
         a.ref_number,
         a.name,
+        a.first_name,
+        a.last_name,
+        a.preferred_name,
+        a.date_of_birth,
         a.email,
         a.phone,
         a.emergency_contact,
+        a.postal_address,
         a.dietary_requirements,
+        a.medical_conditions,
+        a.accessibility_needs,
         a.special_requests,
+        a.tshirt_size,
+        a.arrival_method,
+        a.vehicle_registration,
         a.payment_due,
         a.payment_option,
         a.payment_status,
@@ -204,11 +224,21 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     const response = {
       ref_number: ref,
       name: attendeeData.name,
+      first_name: attendeeData.first_name,
+      last_name: attendeeData.last_name,
+      preferred_name: attendeeData.preferred_name ?? null,
+      date_of_birth: attendeeData.date_of_birth,
       email: attendeeData.email,
       phone: attendeeData.phone,
       emergency_contact: attendeeData.emergency_contact,
+      postal_address: attendeeData.postal_address ?? null,
       dietary_requirements: attendeeData.dietary_requirements,
+      medical_conditions: attendeeData.medical_conditions ?? null,
+      accessibility_needs: attendeeData.accessibility_needs ?? null,
       special_requests: attendeeData.special_requests,
+      tshirt_size: attendeeData.tshirt_size ?? null,
+      arrival_method: attendeeData.arrival_method ?? null,
+      vehicle_registration: attendeeData.vehicle_registration ?? null,
       payment_due: attendeeData.payment_due || 0,
       payment_option: attendeeData.payment_option || 'full',
       payment_status: attendeeData.payment_status || 'pending',

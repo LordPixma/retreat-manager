@@ -20,21 +20,48 @@ import { errors, createErrorResponse, generateRequestId, handleError } from '../
 
 const MAX_LEN: Record<string, number> = {
   name: 100,
+  first_name: 60,
+  last_name: 60,
+  preferred_name: 60,
   email: 200,
   phone: 50,
   emergency_contact: 200,
+  postal_address: 500,
   dietary_requirements: 1000,
+  medical_conditions: 1000,
+  accessibility_needs: 1000,
   special_requests: 1000,
+  tshirt_size: 20,
+  arrival_method: 40,
+  vehicle_registration: 20,
+  date_of_birth: 10,
 };
 
 interface PutBody {
   name?: string;
+  first_name?: string;
+  last_name?: string;
+  preferred_name?: string;
   email?: string;
   phone?: string;
   emergency_contact?: string;
+  postal_address?: string;
   dietary_requirements?: string;
+  medical_conditions?: string;
+  accessibility_needs?: string;
   special_requests?: string;
+  tshirt_size?: string;
+  arrival_method?: string;
+  vehicle_registration?: string;
+  date_of_birth?: string;
 }
+
+const EDITABLE_FIELDS: Array<keyof PutBody> = [
+  'name', 'first_name', 'last_name', 'preferred_name',
+  'email', 'phone', 'emergency_contact', 'postal_address',
+  'dietary_requirements', 'medical_conditions', 'accessibility_needs', 'special_requests',
+  'tshirt_size', 'arrival_method', 'vehicle_registration', 'date_of_birth',
+];
 
 export async function onRequestOptions(): Promise<Response> {
   return handleCORS();
@@ -81,25 +108,52 @@ export async function onRequestPut(context: PagesContext<{ id: string }>): Promi
     const updates: string[] = [];
     const binds: (string | null)[] = [];
 
-    const fields: Array<keyof PutBody> = [
-      'name', 'email', 'phone', 'emergency_contact', 'dietary_requirements', 'special_requests',
-    ];
+    const cleaned: Partial<Record<keyof PutBody, string | null>> = {};
 
-    for (const f of fields) {
+    for (const f of EDITABLE_FIELDS) {
       const raw = body[f];
       if (raw === undefined) continue;
       const trimmed = (raw ?? '').toString().trim();
       if (trimmed.length > MAX_LEN[f]) {
         return createErrorResponse(errors.badRequest(`${f} is too long (max ${MAX_LEN[f]} chars)`, requestId));
       }
-      if (f === 'name' && trimmed.length === 0) {
-        return createErrorResponse(errors.badRequest('Name cannot be empty', requestId));
+      if ((f === 'name' || f === 'first_name' || f === 'last_name') && trimmed.length === 0) {
+        return createErrorResponse(errors.badRequest(`${f} cannot be empty`, requestId));
       }
       if (f === 'email' && trimmed.length > 0 && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
         return createErrorResponse(errors.badRequest('Email is not valid', requestId));
       }
-      updates.push(`${f} = ?`);
-      binds.push(trimmed.length === 0 && f !== 'name' ? null : trimmed);
+      if (f === 'date_of_birth' && trimmed.length > 0) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+          return createErrorResponse(errors.badRequest('date_of_birth must be YYYY-MM-DD', requestId));
+        }
+        const d = new Date(trimmed + 'T00:00:00Z');
+        if (isNaN(d.getTime()) || d.getUTCFullYear() < 1900 || d.getTime() > Date.now()) {
+          return createErrorResponse(errors.badRequest('date_of_birth is out of range', requestId));
+        }
+      }
+      cleaned[f] = trimmed.length === 0 && !(f === 'name' || f === 'first_name' || f === 'last_name')
+        ? null
+        : trimmed;
+    }
+
+    // Sync canonical `name` from first/last if the caller edited them.
+    if (cleaned.name === undefined && (cleaned.first_name !== undefined || cleaned.last_name !== undefined)) {
+      const { results: currRows } = await context.env.DB.prepare(
+        'SELECT first_name, last_name FROM attendees WHERE id = ?',
+      ).bind(targetId).all();
+      if (currRows.length) {
+        const curr = currRows[0] as { first_name: string | null; last_name: string | null };
+        const fn = (cleaned.first_name ?? curr.first_name ?? '').toString().trim();
+        const ln = (cleaned.last_name ?? curr.last_name ?? '').toString().trim();
+        const combined = `${fn} ${ln}`.trim();
+        if (combined.length > 0) cleaned.name = combined;
+      }
+    }
+
+    for (const [k, v] of Object.entries(cleaned)) {
+      updates.push(`${k} = ?`);
+      binds.push(v);
     }
 
     if (!updates.length) {

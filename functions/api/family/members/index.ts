@@ -21,11 +21,21 @@ interface MemberDetailRow {
   id: number;
   ref_number: string;
   name: string;
+  first_name: string | null;
+  last_name: string | null;
+  preferred_name: string | null;
+  date_of_birth: string | null;
   email: string | null;
   phone: string | null;
   emergency_contact: string | null;
+  postal_address: string | null;
   dietary_requirements: string | null;
+  medical_conditions: string | null;
+  accessibility_needs: string | null;
   special_requests: string | null;
+  tshirt_size: string | null;
+  arrival_method: string | null;
+  vehicle_registration: string | null;
   payment_due: number;
   payment_status: string;
   is_group_lead: number;
@@ -61,8 +71,10 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
 
     const { results: memberRows } = await context.env.DB.prepare(`
       SELECT
-        id, ref_number, name, email, phone, emergency_contact,
-        dietary_requirements, special_requests,
+        id, ref_number, name, first_name, last_name, preferred_name, date_of_birth,
+        email, phone, emergency_contact, postal_address,
+        dietary_requirements, medical_conditions, accessibility_needs, special_requests,
+        tshirt_size, arrival_method, vehicle_registration,
         payment_due, payment_status,
         COALESCE(is_group_lead, 0) AS is_group_lead
       FROM attendees
@@ -75,11 +87,21 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       id: m.id,
       ref_number: m.ref_number,
       name: m.name,
+      first_name: m.first_name,
+      last_name: m.last_name,
+      preferred_name: m.preferred_name,
+      date_of_birth: m.date_of_birth,
       email: m.email,
       phone: m.phone,
       emergency_contact: m.emergency_contact,
+      postal_address: m.postal_address,
       dietary_requirements: m.dietary_requirements,
+      medical_conditions: m.medical_conditions,
+      accessibility_needs: m.accessibility_needs,
       special_requests: m.special_requests,
+      tshirt_size: m.tshirt_size,
+      arrival_method: m.arrival_method,
+      vehicle_registration: m.vehicle_registration,
       payment_due: m.payment_due || 0,
       payment_status: m.payment_status,
       is_group_lead: m.is_group_lead === 1,

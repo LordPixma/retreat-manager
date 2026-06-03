@@ -333,20 +333,67 @@ const AttendeeDashboard = {
     openFamilyEditModal(memberId, allMembers) {
         const m = allMembers.find((x) => x.id === memberId);
         if (!m) return;
+        const fields = [
+            'first_name', 'last_name', 'preferred_name', 'date_of_birth',
+            'email', 'phone', 'emergency_contact', 'postal_address',
+            'dietary_requirements', 'medical_conditions', 'accessibility_needs',
+            'tshirt_size', 'arrival_method', 'vehicle_registration', 'special_requests',
+        ];
         const html = `
             <div class="modal-overlay" id="family-edit-modal" style="z-index:500;">
-                <div class="modal" style="max-width:520px;">
+                <div class="modal" style="max-width:720px;">
                     <div class="modal-header">
                         <h3 class="modal-title">Edit ${this._escape(m.name)}</h3>
                         <button type="button" class="modal-close" id="family-edit-close"><i class="fas fa-times"></i></button>
                     </div>
-                    <div class="modal-body" style="padding: 1.5rem;">
-                        ${this._editField('name', 'Name', m.name)}
-                        ${this._editField('email', 'Email', m.email, 'email')}
-                        ${this._editField('phone', 'Phone', m.phone)}
-                        ${this._editField('emergency_contact', 'Emergency contact', m.emergency_contact)}
-                        ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', m.dietary_requirements)}
-                        <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                    <div class="modal-body" style="padding: 1.5rem; max-height: 75vh; overflow-y: auto;">
+                        <div style="display: grid; gap: 1.25rem;">
+                            ${this._detailSection('Personal', `
+                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                                    ${this._editField('first_name', 'First name', m.first_name || m.name)}
+                                    ${this._editField('last_name', 'Last name', m.last_name)}
+                                    ${this._editField('preferred_name', 'Preferred name', m.preferred_name)}
+                                    ${this._editField('date_of_birth', 'Date of birth', m.date_of_birth, 'date')}
+                                </div>
+                            `)}
+                            ${this._detailSection('Contact', `
+                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                                    ${this._editField('email', 'Email', m.email, 'email')}
+                                    ${this._editField('phone', 'Phone', m.phone)}
+                                    ${this._editField('emergency_contact', 'Emergency contact', m.emergency_contact)}
+                                </div>
+                                ${this._editTextarea('postal_address', 'Postal address', m.postal_address)}
+                            `)}
+                            ${this._detailSection('Health &amp; Accessibility', `
+                                ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', m.dietary_requirements)}
+                                ${this._editTextarea('medical_conditions', 'Medical conditions / medications', m.medical_conditions, 'Used by first-aid team only.')}
+                                ${this._editTextarea('accessibility_needs', 'Accessibility / mobility needs', m.accessibility_needs)}
+                            `)}
+                            ${this._detailSection('Logistics', `
+                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                                    ${this._editSelect('tshirt_size', 'T-shirt size', m.tshirt_size, [
+                                        { value: '', label: '— Not specified —' },
+                                        { value: 'XS', label: 'XS' }, { value: 'S', label: 'S' },
+                                        { value: 'M', label: 'M' }, { value: 'L', label: 'L' },
+                                        { value: 'XL', label: 'XL' }, { value: 'XXL', label: 'XXL' },
+                                        { value: '3XL', label: '3XL' },
+                                        { value: 'child_s', label: 'Child S' },
+                                        { value: 'child_m', label: 'Child M' },
+                                        { value: 'child_l', label: 'Child L' },
+                                    ])}
+                                    ${this._editSelect('arrival_method', 'Arrival method', m.arrival_method, [
+                                        { value: '', label: '— Not specified —' },
+                                        { value: 'car', label: 'Driving (own car)' },
+                                        { value: 'train', label: 'By train' },
+                                        { value: 'lift_needed', label: 'Need a lift' },
+                                        { value: 'other', label: 'Other' },
+                                    ])}
+                                    ${this._editField('vehicle_registration', 'Vehicle registration', m.vehicle_registration)}
+                                </div>
+                                ${this._editTextarea('special_requests', 'Special requests', m.special_requests)}
+                            `)}
+                        </div>
+                        <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
                             <button class="btn btn-ghost" id="family-edit-cancel" style="flex:1;">Cancel</button>
                             <button class="btn btn-success" id="family-edit-save" style="flex:1;"><i class="fas fa-check"></i> Save</button>
                         </div>
@@ -361,7 +408,7 @@ const AttendeeDashboard = {
         document.getElementById('family-edit-cancel').addEventListener('click', close);
         modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
         document.getElementById('family-edit-save').addEventListener('click', async () => {
-            const body = this._collectEditFields(modal, ['name', 'email', 'phone', 'emergency_contact', 'dietary_requirements']);
+            const body = this._collectEditFields(modal, fields);
             const btn = document.getElementById('family-edit-save');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
@@ -386,19 +433,65 @@ const AttendeeDashboard = {
         const container = document.getElementById('my-details-content');
         if (!container || !this.data) return;
         const d = this.data;
-        // Two-column layout for the short fields (name/email/phone/emergency)
-        // since they each only need ~30-40 chars. Textareas stay full width.
+        const allFields = [
+            'first_name', 'last_name', 'preferred_name', 'date_of_birth',
+            'email', 'phone', 'emergency_contact', 'postal_address',
+            'dietary_requirements', 'medical_conditions', 'accessibility_needs',
+            'tshirt_size', 'arrival_method', 'vehicle_registration', 'special_requests',
+        ];
+        // Sectioned layout for scannability. Short text fields go in a
+        // 2-up responsive grid per section; multi-line fields are full
+        // width inside their section.
         container.innerHTML = `
-            <form id="my-details-form" style="display: grid; gap: 1rem;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
-                    ${this._editField('name', 'Name', d.name)}
-                    ${this._editField('email', 'Email', d.email, 'email')}
-                    ${this._editField('phone', 'Phone', d.phone)}
-                    ${this._editField('emergency_contact', 'Emergency contact', d.emergency_contact)}
-                </div>
-                ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', d.dietary_requirements)}
-                ${this._editTextarea('special_requests', 'Special requests', d.special_requests)}
-                <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+            <form id="my-details-form" style="display: grid; gap: 1.5rem;">
+                ${this._detailSection('Personal', `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                        ${this._editField('first_name', 'First name', d.first_name)}
+                        ${this._editField('last_name', 'Last name', d.last_name)}
+                        ${this._editField('preferred_name', 'Preferred name', d.preferred_name)}
+                        ${this._editField('date_of_birth', 'Date of birth', d.date_of_birth, 'date')}
+                    </div>
+                `)}
+                ${this._detailSection('Contact', `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                        ${this._editField('email', 'Email', d.email, 'email')}
+                        ${this._editField('phone', 'Phone', d.phone)}
+                        ${this._editField('emergency_contact', 'Emergency contact', d.emergency_contact)}
+                    </div>
+                    ${this._editTextarea('postal_address', 'Postal address', d.postal_address)}
+                `)}
+                ${this._detailSection('Health &amp; Accessibility', `
+                    ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', d.dietary_requirements)}
+                    ${this._editTextarea('medical_conditions', 'Medical conditions / medications', d.medical_conditions, 'Used by first-aid team only.')}
+                    ${this._editTextarea('accessibility_needs', 'Accessibility / mobility needs', d.accessibility_needs)}
+                `)}
+                ${this._detailSection('Logistics', `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+                        ${this._editSelect('tshirt_size', 'T-shirt size', d.tshirt_size, [
+                            { value: '', label: '— Not specified —' },
+                            { value: 'XS', label: 'XS' },
+                            { value: 'S', label: 'S' },
+                            { value: 'M', label: 'M' },
+                            { value: 'L', label: 'L' },
+                            { value: 'XL', label: 'XL' },
+                            { value: 'XXL', label: 'XXL' },
+                            { value: '3XL', label: '3XL' },
+                            { value: 'child_s', label: "Child S" },
+                            { value: 'child_m', label: "Child M" },
+                            { value: 'child_l', label: "Child L" },
+                        ])}
+                        ${this._editSelect('arrival_method', 'Arrival method', d.arrival_method, [
+                            { value: '', label: '— Not specified —' },
+                            { value: 'car', label: 'Driving (own car)' },
+                            { value: 'train', label: 'By train' },
+                            { value: 'lift_needed', label: 'Need a lift' },
+                            { value: 'other', label: 'Other' },
+                        ])}
+                        ${this._editField('vehicle_registration', 'Vehicle registration (if driving)', d.vehicle_registration)}
+                    </div>
+                    ${this._editTextarea('special_requests', 'Special requests', d.special_requests)}
+                `)}
+                <div style="display: flex; gap: 0.5rem;">
                     <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save changes</button>
                 </div>
             </form>
@@ -407,7 +500,7 @@ const AttendeeDashboard = {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = form.querySelector('button[type="submit"]');
-            const body = this._collectEditFields(form, ['name', 'email', 'phone', 'emergency_contact', 'dietary_requirements', 'special_requests']);
+            const body = this._collectEditFields(form, allFields);
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
             try {
@@ -425,6 +518,28 @@ const AttendeeDashboard = {
         });
     },
 
+    _detailSection(title, innerHtml) {
+        return `
+            <fieldset style="border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 0;">
+                <legend style="padding: 0 0.5rem; font-size: 0.78rem; font-weight: 700; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.06em;">${title}</legend>
+                <div style="display: grid; gap: 1rem;">${innerHtml}</div>
+            </fieldset>
+        `;
+    },
+
+    _editSelect(name, label, value, options) {
+        const v = value == null ? '' : value;
+        const opts = options.map(o =>
+            `<option value="${this._escape(o.value)}"${o.value === v ? ' selected' : ''}>${this._escape(o.label)}</option>`,
+        ).join('');
+        return `
+            <label style="display:block;">
+                <span style="display:block; font-size:0.75rem; font-weight:600; color: var(--text-secondary); margin-bottom:0.3rem;">${label}</span>
+                <select name="${name}" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem;">${opts}</select>
+            </label>
+        `;
+    },
+
     _editField(name, label, value, type = 'text') {
         const v = value == null ? '' : value;
         return `
@@ -435,12 +550,14 @@ const AttendeeDashboard = {
         `;
     },
 
-    _editTextarea(name, label, value) {
+    _editTextarea(name, label, value, hint) {
         const v = value == null ? '' : value;
+        const hintLine = hint ? `<span style="display:block; font-size:0.7rem; color: var(--text-tertiary); margin-top:0.25rem;">${this._escape(hint)}</span>` : '';
         return `
             <label style="display:block;">
                 <span style="display:block; font-size:0.75rem; font-weight:600; color: var(--text-secondary); margin-bottom:0.3rem;">${label}</span>
                 <textarea name="${name}" rows="3" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem; font-family: inherit; resize: vertical;">${this._escape(v)}</textarea>
+                ${hintLine}
             </label>
         `;
     },
