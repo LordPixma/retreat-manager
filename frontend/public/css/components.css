@@ -2422,6 +2422,15 @@ select.form-input option,
   margin-right: auto;
 }
 
+/* Payments view: 2-column grid collapses to single column below ~860px
+   so the history doesn't get squeezed into an unreadable strip on
+   tablets. */
+@media (max-width: 860px) {
+  .att-view[data-view-panel="payments"] > div {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .att-topbar {
   display: flex;
   justify-content: space-between;

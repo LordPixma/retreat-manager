@@ -867,9 +867,12 @@ const AttendeeDashboard = {
             banner.style.display = 'none';
         }
 
-        // Update the card
+        // Balance + Pay Now lives in the left "Outstanding" card.
+        // #flexible-plan-section and #payment-history-section are now
+        // owned by the new 2-column layout in the template, not by this
+        // method — don't overwrite them on refresh.
         content.innerHTML = `
-            <div style="font-size: 1.5rem; font-weight: 700; color: ${paymentDue > 0 ? '#fbbf24' : '#6ee7b7'}; margin-bottom: 0.4rem;">
+            <div style="font-size: 2rem; font-weight: 700; color: ${paymentDue > 0 ? '#fbbf24' : '#6ee7b7'}; margin-bottom: 0.4rem;">
                 ${Utils.formatCurrency(paymentDue)}
             </div>
             <span class="badge ${paymentDue > 0 ? 'badge-warning' : 'badge-success'}">
@@ -878,14 +881,12 @@ const AttendeeDashboard = {
             </span>
             ${paymentDue > 0 && paymentOption !== 'sponsorship' ? `
                 <div style="margin-top: 1rem;">
-                    <button class="btn btn-sm btn-success show-payment-options-btn" style="width: 100%;">
+                    <button class="btn btn-success show-payment-options-btn" style="width: 100%;">
                         <i class="fas fa-sterling-sign"></i> Pay Now
                     </button>
                 </div>
             ` : ''}
             ${paymentOption === 'sponsorship' ? '<div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-tertiary);">Sponsorship requested</div>' : ''}
-            <div id="flexible-plan-section" style="margin-top: 0.75rem;"></div>
-            <div id="payment-history-section" style="margin-top: 0.75rem;"></div>
         `;
 
         content.querySelectorAll('.show-payment-options-btn').forEach(btn => {
@@ -902,14 +903,20 @@ const AttendeeDashboard = {
      */
     async loadFlexiblePlan() {
         const section = document.getElementById('flexible-plan-section');
+        const card = document.getElementById('flexible-plan-card');
         if (!section) return;
         try {
             const res = await API.get('/payments/flexible-plan');
             if (!res || !res.plan) {
                 section.innerHTML = '';
+                if (card) card.style.display = 'none';
                 return;
             }
             this.renderFlexiblePlan(res.plan, res.installments || []);
+            // Reveal the wrapper card now that there's content to show.
+            // It starts hidden in the template so no empty card appears
+            // on attendees who never set up a custom plan.
+            if (card) card.style.display = '';
 
             // If a plan is active, hide the banner's "Set up" CTA since the
             // schedule now lives in the dashboard card. Keep "Pay Now" too
@@ -923,6 +930,7 @@ const AttendeeDashboard = {
         } catch (err) {
             // Not fatal — older deployments without the endpoint will 404 here.
             console.warn('flexible plan load failed', err);
+            if (card) card.style.display = 'none';
         }
     },
 
@@ -1450,8 +1458,19 @@ const AttendeeDashboard = {
             const response = await API.get('/payments/history');
             const payments = response.payments || [];
 
-            if (payments.length === 0) return;
+            if (payments.length === 0) {
+                section.innerHTML = `
+                    <div style="padding: 1.5rem; text-align: center; color: var(--text-tertiary);">
+                        <i class="fas fa-receipt" style="font-size:1.5rem; opacity:0.5; display:block; margin-bottom:0.5rem;"></i>
+                        <div style="font-size: 0.85rem;">No payments yet.</div>
+                    </div>
+                `;
+                return;
+            }
 
+            // Now renders in the dedicated right-hand column with the
+            // section title already provided by the parent panel — so no
+            // need for an inline "Payment History" header here.
             const rows = payments.map(p => {
                 const amount = (p.amount / 100).toFixed(2);
                 const statusBadge = {
@@ -1460,25 +1479,23 @@ const AttendeeDashboard = {
                     'failed': '<span class="badge badge-danger">Failed</span>',
                     'cancelled': '<span class="badge badge-secondary">Cancelled</span>',
                 }[p.status] || '<span class="badge badge-secondary">' + p.status + '</span>';
-
+                const isStripe = !!p.stripe_checkout_session_id;
+                const methodBadge = isStripe
+                    ? '<span class="badge badge-secondary" style="font-size:0.65rem;"><i class="fas fa-credit-card"></i> Card</span>'
+                    : '<span class="badge badge-secondary" style="font-size:0.65rem;"><i class="fas fa-building-columns"></i> Bank</span>';
                 const date = p.paid_at || p.created_at;
                 const dateStr = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-                return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
-                    <div>
-                        <div style="font-size: 0.85rem; font-weight: 500;">£${amount}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-tertiary);">${dateStr}</div>
+                return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--border);">
+                    <div style="min-width: 0;">
+                        <div style="font-size: 0.95rem; font-weight: 600; color: #fff;">£${amount}</div>
+                        <div style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.15rem;">${dateStr} &middot; ${methodBadge}</div>
                     </div>
                     ${statusBadge}
                 </div>`;
             }).join('');
 
-            section.innerHTML = `
-                <div style="padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
-                    <div class="info-label" style="margin-bottom: 0.5rem;">Payment History</div>
-                    ${rows}
-                </div>
-            `;
+            section.innerHTML = rows;
         } catch (error) {
             // Silently fail - payment history is supplementary
             console.warn('Could not load payment history:', error);
