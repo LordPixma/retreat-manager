@@ -2303,3 +2303,180 @@ select.form-input option,
     padding: 1.25rem 1rem;
   }
 }
+
+/* ==========================================================================
+   ATTENDEE DASHBOARD — vertical sidebar layout
+   Used by the revamped attendee portal. Sidebar + view-panel pattern,
+   collapses to a hamburger-drawer on narrow viewports.
+   ========================================================================== */
+
+.attendee-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--bg-app, #0b1020);
+}
+
+.attendee-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.6);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1.5rem 1rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.att-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 1rem;
+}
+.att-brand > i {
+  font-size: 1.5rem;
+  color: #a78bfa;
+}
+.att-brand-name {
+  font-weight: 700;
+  color: #fff;
+  font-size: 1rem;
+}
+.att-brand-user {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-top: 0.15rem;
+}
+
+.att-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+.att-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.att-nav-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+.att-nav-link.active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(118, 75, 162, 0.10));
+  color: #fff;
+  font-weight: 600;
+}
+.att-nav-link i {
+  width: 1.2rem;
+  text-align: center;
+  color: #a78bfa;
+}
+.att-nav-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  font-weight: 600;
+}
+.att-nav-badge:empty {
+  display: none;
+}
+
+.att-sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 1rem;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.attendee-main {
+  padding: 2rem 2.5rem;
+  min-width: 0;     /* allow children to shrink in grid */
+}
+
+.att-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+.att-view-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.att-view {
+  display: none;
+}
+.att-view.active {
+  display: block;
+}
+
+.att-sidebar-toggle-btn {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .attendee-layout {
+    grid-template-columns: 1fr;
+  }
+  .attendee-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
+  }
+  .attendee-sidebar.open {
+    transform: translateX(0);
+  }
+  .att-sidebar-toggle-btn {
+    display: block;
+  }
+  .attendee-main {
+    padding: 4rem 1rem 2rem;       /* extra top padding clears the toggle btn */
+  }
+  /* Backdrop so tapping outside the open sidebar closes it. */
+  .attendee-sidebar.open::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 260px;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: -1;
+  }
+}

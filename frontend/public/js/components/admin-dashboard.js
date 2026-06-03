@@ -940,6 +940,9 @@ const AdminDashboard = {
                             <button class="btn btn-sm btn-primary edit-group" data-id="${group.id}" title="Edit Group">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            <button class="btn btn-sm btn-warning set-group-lead" data-id="${group.id}" data-name="${Utils.escapeHtml(group.name)}" title="Set family lead" ${memberCount > 0 ? '' : 'disabled'}>
+                                <i class="fas fa-crown"></i>
+                            </button>
                             <button class="btn btn-sm btn-danger delete-group" data-id="${group.id}" title="Delete Group" ${memberCount > 0 ? 'disabled' : ''}>
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -948,6 +951,102 @@ const AdminDashboard = {
                 </tr>
             `;
         }).join('');
+
+        // Wire the set-lead buttons. Existing edit-group / delete-group bindings
+        // live in bindEvents() and use event delegation, so we only add the
+        // new affordance here.
+        tbody.querySelectorAll('.set-group-lead').forEach((btn) => {
+            btn.addEventListener('click', () => this.openGroupLeadModal(parseInt(btn.dataset.id, 10), btn.dataset.name));
+        });
+    },
+
+    /**
+     * Modal: pick which member of a group is the family lead. Members
+     * are loaded fresh per click so the admin always sees current state.
+     * One-radio selection; PUT to the lead endpoint enforces single-lead
+     * invariant server-side.
+     */
+    async openGroupLeadModal(groupId, groupName) {
+        let memberList;
+        try {
+            const res = await API.get(`/admin/groups/${groupId}/lead`);
+            memberList = res.members || [];
+        } catch (err) {
+            Utils.showAlert(err.message || 'Failed to load members', 'error');
+            return;
+        }
+        if (memberList.length === 0) {
+            Utils.showAlert('Group has no members to lead.', 'info');
+            return;
+        }
+        const currentLead = memberList.find((m) => m.is_group_lead);
+        const rowsHtml = memberList.map((m) => `
+            <label style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0; border-bottom:1px solid var(--border); cursor:pointer;">
+                <input type="radio" name="lead-pick" value="${m.id}" ${m.is_group_lead ? 'checked' : ''} style="width:1rem; height:1rem; accent-color:#fbbf24;">
+                <span style="flex:1; color:#fff;">${Utils.escapeHtml(m.name)} <small style="color: var(--text-tertiary);">${Utils.escapeHtml(m.ref_number)}</small></span>
+                ${m.is_group_lead ? '<span class="badge badge-success"><i class="fas fa-crown"></i> Current</span>' : ''}
+            </label>
+        `).join('');
+        const html = `
+            <div class="modal-overlay" id="group-lead-modal" style="z-index:500;">
+                <div class="modal" style="max-width:480px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title"><i class="fas fa-crown"></i> Family Lead — ${Utils.escapeHtml(groupName)}</h3>
+                        <button type="button" class="modal-close" id="lead-close"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body" style="padding:1.5rem;">
+                        <p style="font-size:0.82rem; color: var(--text-secondary); margin:0 0 1rem;">The family lead can edit other members' contact info, dietary, allergies and display name from the attendee portal.</p>
+                        <div>${rowsHtml}</div>
+                        <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
+                            ${currentLead ? '<button class="btn btn-ghost" id="lead-clear" style="flex:1;"><i class="fas fa-eraser"></i> Clear lead</button>' : ''}
+                            <button class="btn btn-success" id="lead-save" style="flex:1;"><i class="fas fa-check"></i> Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
+        const modal = document.getElementById('group-lead-modal');
+        const close = () => modal.remove();
+        document.getElementById('lead-close').addEventListener('click', close);
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+        document.getElementById('lead-save').addEventListener('click', async () => {
+            const picked = modal.querySelector('input[name="lead-pick"]:checked');
+            if (!picked) return;
+            const btn = document.getElementById('lead-save');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            try {
+                await API.put(`/admin/groups/${groupId}/lead`, { attendee_id: parseInt(picked.value, 10) });
+                Utils.showAlert('Family lead updated.', 'success');
+                close();
+                await this.loadGroups();
+                this.updateGroupsDisplay();
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Save';
+                Utils.showAlert(err.message || 'Failed to update', 'error');
+            }
+        });
+
+        const clearBtn = document.getElementById('lead-clear');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', async () => {
+                if (!confirm('Clear the family lead? No member will have edit access until you assign a new one.')) return;
+                clearBtn.disabled = true;
+                try {
+                    await API.delete(`/admin/groups/${groupId}/lead`);
+                    Utils.showAlert('Lead cleared.', 'success');
+                    close();
+                    await this.loadGroups();
+                    this.updateGroupsDisplay();
+                } catch (err) {
+                    clearBtn.disabled = false;
+                    Utils.showAlert(err.message || 'Failed to clear', 'error');
+                }
+            });
+        }
     },
 
     /**

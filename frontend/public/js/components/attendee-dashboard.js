@@ -10,6 +10,7 @@ const AttendeeDashboard = {
             await this.render();
             await this.loadData();
             this.bindEvents();
+            this.bindViewNav();
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -125,22 +126,27 @@ const AttendeeDashboard = {
     updateDisplay() {
         if (!this.data) return;
 
-        // Update name
+        // Update name (visible in topbar + sidebar brand)
         const nameDisplay = document.getElementById('attendee-name-display');
         if (nameDisplay) nameDisplay.textContent = this.data.name;
+        const brandUser = document.getElementById('att-brand-user');
+        if (brandUser) brandUser.textContent = `${this.data.name} · ${this.data.ref_number || ''}`;
 
         // Update announcements (new)
         this.updateAnnouncementsDisplay();
-        
+
         // Update room information
         this.updateRoomInfo();
-        
+
         // Update payment information
         this.updatePaymentInfo();
-        
+
         // Update group information
         this.updateGroupInfo();
-        
+        // The Overview tab also shows a compact group card; render that
+        // alongside the dedicated Family view rendering.
+        this.updateOverviewGroupCard();
+
         // Update detailed information
         this.updateDetailedInfo();
 
@@ -154,6 +160,267 @@ const AttendeeDashboard = {
         this.updatePackingChecklist();
         this.bindProfileEdit();
         this.bindDownloadConfirmation();
+
+        // Payments badge in sidebar — show "due" indicator if there's a balance.
+        const badge = document.getElementById('att-nav-payments-badge');
+        if (badge) {
+            const due = this.data.payment_due || 0;
+            badge.textContent = due > 0 ? '!' : '';
+        }
+    },
+
+    /**
+     * Compact group card on the Overview tab. Shows total members,
+     * total family outstanding, and a CTA to the Family tab. Distinct
+     * from updateGroupInfo() which targets the legacy detail panel id
+     * that doesn't exist in the new template.
+     */
+    updateOverviewGroupCard() {
+        const card = document.getElementById('overview-group-content');
+        if (!card) return;
+        const grp = this.data.group;
+        if (!grp) {
+            card.innerHTML = '<div style="font-size:0.8rem; color: var(--text-tertiary);">Not in a family group.</div>';
+            return;
+        }
+        const totalMembers = grp.financial?.totalMembers ?? ((grp.members?.length || 0) + 1);
+        const totalOutstanding = grp.financial?.totalOutstanding ?? 0;
+        const dueLine = totalOutstanding > 0
+            ? `<div style="font-size:0.8rem; color:#fbbf24; margin-bottom:0.4rem;">£${totalOutstanding.toFixed(2)} outstanding across family</div>`
+            : `<div style="font-size:0.8rem; color:#6ee7b7; margin-bottom:0.4rem;">Family fully paid</div>`;
+        card.innerHTML = `
+            <div style="font-size:1rem; font-weight:600; color:#fff; margin-bottom:0.25rem;">${this._escape(grp.name)}</div>
+            <div style="font-size:0.78rem; color: var(--text-tertiary); margin-bottom:0.5rem;">${totalMembers} member${totalMembers === 1 ? '' : 's'}${this.data.is_group_lead ? ' · you\'re the lead' : ''}</div>
+            ${dueLine}
+            <button class="btn btn-sm btn-ghost" data-go-view="family" style="width:100%;"><i class="fas fa-arrow-right"></i> Open Family</button>
+        `;
+        const btn = card.querySelector('[data-go-view="family"]');
+        if (btn) btn.addEventListener('click', () => this.showView('family'));
+    },
+
+    /**
+     * Wire up the sidebar nav links: switching panels, lazy-loading
+     * family / my-details data on first open, and the mobile drawer.
+     */
+    bindViewNav() {
+        document.querySelectorAll('.att-nav-link').forEach((a) => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const view = a.dataset.view;
+                if (view) this.showView(view);
+            });
+        });
+        const toggle = document.getElementById('att-sidebar-toggle');
+        const sidebar = document.getElementById('att-sidebar');
+        if (toggle && sidebar) {
+            toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+            // Tap outside the sidebar (on mobile backdrop) closes it.
+            document.addEventListener('click', (e) => {
+                if (!sidebar.classList.contains('open')) return;
+                if (sidebar.contains(e.target) || toggle.contains(e.target)) return;
+                sidebar.classList.remove('open');
+            });
+        }
+    },
+
+    showView(name) {
+        document.querySelectorAll('.att-nav-link').forEach((a) => {
+            a.classList.toggle('active', a.dataset.view === name);
+        });
+        document.querySelectorAll('.att-view').forEach((s) => {
+            s.classList.toggle('active', s.dataset.viewPanel === name);
+        });
+        // Auto-close mobile drawer on view switch.
+        const sidebar = document.getElementById('att-sidebar');
+        if (sidebar) sidebar.classList.remove('open');
+
+        // Lazy-load per-view data.
+        if (name === 'family') this.loadFamilyView();
+        if (name === 'my-details') this.renderMyDetailsView();
+    },
+
+    async loadFamilyView() {
+        const container = document.getElementById('family-content');
+        const leadBadge = document.getElementById('family-lead-badge');
+        if (!container) return;
+        try {
+            const res = await API.get('/family/members');
+            if (!res || !res.group) {
+                container.innerHTML = '<div style="padding: 1.5rem; color: var(--text-tertiary);">You are not in a family group.</div>';
+                if (leadBadge) leadBadge.style.display = 'none';
+                return;
+            }
+            if (leadBadge) leadBadge.style.display = res.is_lead ? '' : 'none';
+            this.renderFamilyMembers(res);
+        } catch (err) {
+            container.innerHTML = `<div style="padding: 1.5rem; color: var(--text-tertiary);">Failed to load family: ${this._escape(err.message || '')}</div>`;
+        }
+    },
+
+    renderFamilyMembers(res) {
+        const container = document.getElementById('family-content');
+        if (!container) return;
+        const fmtMoney = (p) => `£${Number(p || 0).toFixed(2)}`;
+
+        container.innerHTML = res.members.map((m) => {
+            const leadTag = m.is_group_lead ? '<span class="badge badge-success" style="margin-left:0.4rem;"><i class="fas fa-crown"></i> Lead</span>' : '';
+            const selfTag = m.is_self ? '<span class="badge badge-secondary" style="margin-left:0.4rem;">You</span>' : '';
+            const dueLine = m.payment_due > 0
+                ? `<span class="badge badge-warning">${fmtMoney(m.payment_due)} due</span>`
+                : `<span class="badge badge-success">Paid</span>`;
+            const editBtn = m.editable && !m.is_self
+                ? `<button class="btn btn-sm btn-ghost edit-family-btn" data-id="${m.id}"><i class="fas fa-pen"></i> Edit</button>`
+                : m.is_self
+                ? `<button class="btn btn-sm btn-ghost" data-go-view="my-details"><i class="fas fa-pen"></i> Edit</button>`
+                : '';
+            return `
+                <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <strong style="color: #fff;">${this._escape(m.name)}</strong>${leadTag}${selfTag}
+                            <div style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.15rem;">${this._escape(m.ref_number)}</div>
+                        </div>
+                        <div style="display: flex; gap: 0.4rem; align-items: center;">
+                            ${dueLine}
+                            ${editBtn}
+                        </div>
+                    </div>
+                    <div style="margin-top: 0.5rem; font-size: 0.78rem; color: var(--text-secondary); display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.4rem 1rem;">
+                        ${m.email ? `<div><i class="fas fa-envelope" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.email)}</div>` : ''}
+                        ${m.phone ? `<div><i class="fas fa-phone" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.phone)}</div>` : ''}
+                        ${m.emergency_contact ? `<div><i class="fas fa-life-ring" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.emergency_contact)}</div>` : ''}
+                        ${m.dietary_requirements ? `<div style="grid-column:1/-1;"><i class="fas fa-utensils" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.dietary_requirements)}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.edit-family-btn').forEach((btn) => {
+            btn.addEventListener('click', () => this.openFamilyEditModal(parseInt(btn.dataset.id, 10), res.members));
+        });
+        container.querySelectorAll('[data-go-view]').forEach((btn) => {
+            btn.addEventListener('click', () => this.showView(btn.dataset.goView));
+        });
+    },
+
+    openFamilyEditModal(memberId, allMembers) {
+        const m = allMembers.find((x) => x.id === memberId);
+        if (!m) return;
+        const html = `
+            <div class="modal-overlay" id="family-edit-modal" style="z-index:500;">
+                <div class="modal" style="max-width:520px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Edit ${this._escape(m.name)}</h3>
+                        <button type="button" class="modal-close" id="family-edit-close"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body" style="padding: 1.5rem;">
+                        ${this._editField('name', 'Name', m.name)}
+                        ${this._editField('email', 'Email', m.email, 'email')}
+                        ${this._editField('phone', 'Phone', m.phone)}
+                        ${this._editField('emergency_contact', 'Emergency contact', m.emergency_contact)}
+                        ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', m.dietary_requirements)}
+                        <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                            <button class="btn btn-ghost" id="family-edit-cancel" style="flex:1;">Cancel</button>
+                            <button class="btn btn-success" id="family-edit-save" style="flex:1;"><i class="fas fa-check"></i> Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
+        const modal = document.getElementById('family-edit-modal');
+        const close = () => modal.remove();
+        document.getElementById('family-edit-close').addEventListener('click', close);
+        document.getElementById('family-edit-cancel').addEventListener('click', close);
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+        document.getElementById('family-edit-save').addEventListener('click', async () => {
+            const body = this._collectEditFields(modal, ['name', 'email', 'phone', 'emergency_contact', 'dietary_requirements']);
+            const btn = document.getElementById('family-edit-save');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            try {
+                await API.put(`/family/members/${memberId}`, body);
+                Utils.showAlert('Updated.', 'success');
+                close();
+                await this.loadFamilyView();
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Save';
+                Utils.showAlert(err.message || 'Failed to save', 'error');
+            }
+        });
+    },
+
+    /**
+     * Render the My Details editable form. Uses /me data already in
+     * memory — no separate fetch.
+     */
+    renderMyDetailsView() {
+        const container = document.getElementById('my-details-content');
+        if (!container || !this.data) return;
+        const d = this.data;
+        container.innerHTML = `
+            <form id="my-details-form" style="display: grid; gap: 0.85rem; max-width: 600px;">
+                ${this._editField('name', 'Name', d.name)}
+                ${this._editField('email', 'Email', d.email, 'email')}
+                ${this._editField('phone', 'Phone', d.phone)}
+                ${this._editField('emergency_contact', 'Emergency contact', d.emergency_contact)}
+                ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', d.dietary_requirements)}
+                ${this._editTextarea('special_requests', 'Special requests', d.special_requests)}
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save changes</button>
+                </div>
+            </form>
+        `;
+        const form = document.getElementById('my-details-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const body = this._collectEditFields(form, ['name', 'email', 'phone', 'emergency_contact', 'dietary_requirements', 'special_requests']);
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            try {
+                await API.put('/attendee/profile', body);
+                this.data = await API.get('/me');
+                this.updateDisplay();
+                this.renderMyDetailsView();
+                Utils.showAlert('Profile updated.', 'success');
+            } catch (err) {
+                Utils.showAlert(err.message || 'Failed to save', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Save changes';
+            }
+        });
+    },
+
+    _editField(name, label, value, type = 'text') {
+        const v = value == null ? '' : value;
+        return `
+            <label style="display:block;">
+                <span style="display:block; font-size:0.75rem; font-weight:600; color: var(--text-secondary); margin-bottom:0.3rem;">${label}</span>
+                <input name="${name}" type="${type}" value="${this._escape(v)}" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem;">
+            </label>
+        `;
+    },
+
+    _editTextarea(name, label, value) {
+        const v = value == null ? '' : value;
+        return `
+            <label style="display:block;">
+                <span style="display:block; font-size:0.75rem; font-weight:600; color: var(--text-secondary); margin-bottom:0.3rem;">${label}</span>
+                <textarea name="${name}" rows="3" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem; font-family: inherit; resize: vertical;">${this._escape(v)}</textarea>
+            </label>
+        `;
+    },
+
+    _collectEditFields(scope, fields) {
+        const body = {};
+        for (const f of fields) {
+            const el = scope.querySelector(`[name="${f}"]`);
+            if (el) body[f] = el.value;
+        }
+        return body;
     },
 
     /**

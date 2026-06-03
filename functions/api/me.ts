@@ -20,6 +20,9 @@ interface AttendeeRow {
   room_description: string | null;
   group_name: string | null;
   group_id: number | null;
+  // Migration 022. May be undefined on deployments that haven't applied it
+  // yet — coerced to 0 in the response so the frontend always sees a boolean.
+  is_group_lead?: number | null;
 }
 
 interface MemberRow {
@@ -27,6 +30,7 @@ interface MemberRow {
   ref_number: string;
   payment_due: number;
   email: string | null;
+  is_group_lead?: number | null;
 }
 
 interface AnnouncementRow {
@@ -80,6 +84,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         a.payment_due,
         a.payment_option,
         a.payment_status,
+        a.is_group_lead,
         r.number AS room_number,
         r.description AS room_description,
         g.name AS group_name,
@@ -102,7 +107,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
 
     if (attendeeData.group_id) {
       const { results: memberResults } = await context.env.DB.prepare(`
-        SELECT name, ref_number, payment_due, email
+        SELECT name, ref_number, payment_due, email, is_group_lead
         FROM attendees
         WHERE group_id = ? AND ref_number != ?
         ORDER BY name
@@ -112,7 +117,8 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         name: member.name,
         ref_number: member.ref_number,
         payment_due: member.payment_due || 0,
-        email: member.email
+        email: member.email,
+        is_group_lead: member.is_group_lead === 1,
       }));
 
       // Calculate group financial summary (including current user)
@@ -206,11 +212,15 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       payment_due: attendeeData.payment_due || 0,
       payment_option: attendeeData.payment_option || 'full',
       payment_status: attendeeData.payment_status || 'pending',
+      // Boolean coerced from the optional column so the frontend can guard
+      // lead-only UI without null-checks. Undefined on pre-migration-022 = false.
+      is_group_lead: attendeeData.is_group_lead === 1,
       room: attendeeData.room_number ? {
         number: attendeeData.room_number,
         description: attendeeData.room_description || ''
       } : null,
       group: attendeeData.group_name ? {
+        id: attendeeData.group_id,
         name: attendeeData.group_name,
         members: members,
         financial: groupFinancial
