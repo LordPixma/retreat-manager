@@ -2412,6 +2412,16 @@ select.form-input option,
   min-width: 0;     /* allow children to shrink in grid */
 }
 
+/* Cap the readable measure on ultra-wide monitors so content doesn't
+   spread across 3400px+ panels. 1280px gives ~80ch of comfortable
+   reading width; centred so the eye doesn't have to jump left. */
+.attendee-main > .att-view,
+.attendee-main > .att-topbar {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .att-topbar {
   display: flex;
   justify-content: space-between;

@@ -11,6 +11,10 @@ const AttendeeDashboard = {
             await this.loadData();
             this.bindEvents();
             this.bindViewNav();
+            // Set the initial title via showView so the eyebrow + heading
+            // match the default Overview panel (matches what every
+            // subsequent navigation does).
+            this.showView('overview');
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -234,6 +238,24 @@ const AttendeeDashboard = {
         const sidebar = document.getElementById('att-sidebar');
         if (sidebar) sidebar.classList.remove('open');
 
+        // Topbar title per view so the user always knows where they are.
+        // Overview is the personalised landing page (welcome + name); the
+        // rest get a plain section heading.
+        const titles = {
+            overview: ['Welcome back', this.data?.name || ''],
+            payments: ['Your retreat balance', 'Payments'],
+            family: ['Your group', 'Family'],
+            'my-details': ['Account', 'My Details'],
+            schedule: ['Plan your weekend', 'Schedule'],
+            activities: ['Get involved', 'Activities'],
+            checkin: ['Arrive ready', 'Check-in'],
+        };
+        const [eyebrow, heading] = titles[name] || ['', ''];
+        const eyebrowEl = document.querySelector('.att-topbar > div > div:first-child');
+        const titleEl = document.getElementById('att-view-title');
+        if (eyebrowEl) eyebrowEl.textContent = eyebrow;
+        if (titleEl) titleEl.textContent = heading;
+
         // Lazy-load per-view data.
         if (name === 'family') this.loadFamilyView();
         if (name === 'my-details') this.renderMyDetailsView();
@@ -262,38 +284,43 @@ const AttendeeDashboard = {
         if (!container) return;
         const fmtMoney = (p) => `£${Number(p || 0).toFixed(2)}`;
 
-        container.innerHTML = res.members.map((m) => {
-            const leadTag = m.is_group_lead ? '<span class="badge badge-success" style="margin-left:0.4rem;"><i class="fas fa-crown"></i> Lead</span>' : '';
-            const selfTag = m.is_self ? '<span class="badge badge-secondary" style="margin-left:0.4rem;">You</span>' : '';
-            const dueLine = m.payment_due > 0
-                ? `<span class="badge badge-warning">${fmtMoney(m.payment_due)} due</span>`
-                : `<span class="badge badge-success">Paid</span>`;
-            const editBtn = m.editable && !m.is_self
-                ? `<button class="btn btn-sm btn-ghost edit-family-btn" data-id="${m.id}"><i class="fas fa-pen"></i> Edit</button>`
-                : m.is_self
-                ? `<button class="btn btn-sm btn-ghost" data-go-view="my-details"><i class="fas fa-pen"></i> Edit</button>`
-                : '';
-            return `
-                <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                        <div>
-                            <strong style="color: #fff;">${this._escape(m.name)}</strong>${leadTag}${selfTag}
-                            <div style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.15rem;">${this._escape(m.ref_number)}</div>
+        // Render members as a responsive card grid. Each card stays compact
+        // so contact info doesn't stretch across the full width on ultra-
+        // wide screens — `auto-fill` plus a minmax floor at 320px gives
+        // 1 column on mobile, 2 columns above ~720px, 3 above ~1080px.
+        container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.85rem; padding: 1rem 1.25rem;">${
+            res.members.map((m) => {
+                const leadTag = m.is_group_lead ? '<span class="badge badge-success" style="margin-left:0.4rem;"><i class="fas fa-crown"></i> Lead</span>' : '';
+                const selfTag = m.is_self ? '<span class="badge badge-secondary" style="margin-left:0.4rem;">You</span>' : '';
+                const dueLine = m.payment_due > 0
+                    ? `<span class="badge badge-warning">${fmtMoney(m.payment_due)} due</span>`
+                    : `<span class="badge badge-success">Paid</span>`;
+                const editBtn = m.editable && !m.is_self
+                    ? `<button class="btn btn-sm btn-ghost edit-family-btn" data-id="${m.id}"><i class="fas fa-pen"></i> Edit</button>`
+                    : m.is_self
+                    ? `<button class="btn btn-sm btn-ghost" data-go-view="my-details"><i class="fas fa-pen"></i> Edit</button>`
+                    : '';
+                return `
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 700; color: #fff; line-height: 1.3;">${this._escape(m.name)}</div>
+                                <div style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.15rem;">${this._escape(m.ref_number)}</div>
+                                <div style="margin-top: 0.35rem; display: flex; gap: 0.3rem; flex-wrap: wrap;">${leadTag}${selfTag}</div>
+                            </div>
+                            <div>${dueLine}</div>
                         </div>
-                        <div style="display: flex; gap: 0.4rem; align-items: center;">
-                            ${dueLine}
-                            ${editBtn}
+                        <div style="font-size: 0.78rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.3rem;">
+                            ${m.email ? `<div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><i class="fas fa-envelope" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.email)}</div>` : ''}
+                            ${m.phone ? `<div><i class="fas fa-phone" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.phone)}</div>` : ''}
+                            ${m.emergency_contact ? `<div><i class="fas fa-life-ring" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.emergency_contact)}</div>` : ''}
+                            ${m.dietary_requirements ? `<div><i class="fas fa-utensils" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.dietary_requirements)}</div>` : ''}
                         </div>
+                        ${editBtn ? `<div style="margin-top: 0.25rem;">${editBtn}</div>` : ''}
                     </div>
-                    <div style="margin-top: 0.5rem; font-size: 0.78rem; color: var(--text-secondary); display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.4rem 1rem;">
-                        ${m.email ? `<div><i class="fas fa-envelope" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.email)}</div>` : ''}
-                        ${m.phone ? `<div><i class="fas fa-phone" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.phone)}</div>` : ''}
-                        ${m.emergency_contact ? `<div><i class="fas fa-life-ring" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.emergency_contact)}</div>` : ''}
-                        ${m.dietary_requirements ? `<div style="grid-column:1/-1;"><i class="fas fa-utensils" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.dietary_requirements)}</div>` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('')
+        }</div>`;
 
         container.querySelectorAll('.edit-family-btn').forEach((btn) => {
             btn.addEventListener('click', () => this.openFamilyEditModal(parseInt(btn.dataset.id, 10), res.members));
@@ -359,15 +386,19 @@ const AttendeeDashboard = {
         const container = document.getElementById('my-details-content');
         if (!container || !this.data) return;
         const d = this.data;
+        // Two-column layout for the short fields (name/email/phone/emergency)
+        // since they each only need ~30-40 chars. Textareas stay full width.
         container.innerHTML = `
-            <form id="my-details-form" style="display: grid; gap: 0.85rem; max-width: 600px;">
-                ${this._editField('name', 'Name', d.name)}
-                ${this._editField('email', 'Email', d.email, 'email')}
-                ${this._editField('phone', 'Phone', d.phone)}
-                ${this._editField('emergency_contact', 'Emergency contact', d.emergency_contact)}
+            <form id="my-details-form" style="display: grid; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    ${this._editField('name', 'Name', d.name)}
+                    ${this._editField('email', 'Email', d.email, 'email')}
+                    ${this._editField('phone', 'Phone', d.phone)}
+                    ${this._editField('emergency_contact', 'Emergency contact', d.emergency_contact)}
+                </div>
                 ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', d.dietary_requirements)}
                 ${this._editTextarea('special_requests', 'Special requests', d.special_requests)}
-                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
                     <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save changes</button>
                 </div>
             </form>
@@ -1714,26 +1745,30 @@ const AttendeeDashboard = {
 
         const teams = this.data.activity_teams || [];
         if (teams.length === 0) {
-            container.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-tertiary);">No activity teams assigned yet</div>';
+            container.innerHTML = '<div style="font-size: 0.85rem; color: var(--text-tertiary); text-align: center; padding: 1rem;">No activity teams assigned yet</div>';
             return;
         }
 
-        container.innerHTML = teams.map(team => `
-            <div style="margin-bottom: 0.75rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
-                <div style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem;">
-                    ${Utils.escapeHtml(team.name)}
-                    ${team.is_leader ? ' <span class="badge badge-primary" style="font-size: 0.55rem;"><i class="fas fa-crown"></i> Leader</span>' : ''}
+        // Card grid so multiple teams sit side-by-side on wide screens
+        // instead of stacking in a narrow column.
+        container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.85rem;">${
+            teams.map(team => `
+                <div style="padding: 1rem 1.1rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 0.4rem;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #fff;">${Utils.escapeHtml(team.name)}</div>
+                        ${team.is_leader ? '<span class="badge badge-primary"><i class="fas fa-crown"></i> Leader</span>' : ''}
+                    </div>
+                    ${team.description ? `<div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">${Utils.escapeHtml(team.description)}</div>` : ''}
+                    <div style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: auto;">
+                        <i class="fas fa-user-shield"></i> Leader: <strong style="color: var(--text-secondary);">${Utils.escapeHtml(team.leader_name || 'TBD')}</strong>
+                        &nbsp;&middot;&nbsp; ${team.members.length} member${team.members.length === 1 ? '' : 's'}
+                    </div>
+                    ${team.members.length ? `<div style="font-size: 0.72rem; color: var(--text-tertiary); padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.06); line-height: 1.5;">
+                        ${team.members.map(n => Utils.escapeHtml(n)).join(', ')}
+                    </div>` : ''}
                 </div>
-                ${team.description ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem;">${Utils.escapeHtml(team.description)}</div>` : ''}
-                <div style="font-size: 0.7rem; color: var(--text-tertiary);">
-                    <i class="fas fa-user-shield"></i> Leader: ${Utils.escapeHtml(team.leader_name || 'TBD')}
-                    &nbsp;&middot;&nbsp; ${team.members.length} members
-                </div>
-                <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.2rem;">
-                    ${team.members.map(n => Utils.escapeHtml(n)).join(', ')}
-                </div>
-            </div>
-        `).join('');
+            `).join('')
+        }</div>`;
     },
 
     updatePackingChecklist() {
