@@ -14,6 +14,11 @@ interface GroupRow {
   member_refs: string | null;
   total_outstanding: number;
   members_with_payments: number;
+  // Migration 022. Null/undefined when no one in the group is flagged
+  // as lead, or on deployments where the migration hasn't been applied.
+  lead_id: number | null;
+  lead_name: string | null;
+  lead_ref: string | null;
 }
 
 interface CountResult {
@@ -44,7 +49,10 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     ).all();
     const total = (countResult[0] as unknown as CountResult).total;
 
-    // Get groups with member information, financials, and pagination
+    // Get groups with member information, financials, and pagination.
+    // Lead info via correlated subqueries so the main GROUP BY doesn't
+    // get polluted with a second JOIN — the lead is at most one row per
+    // group, so a per-group lookup is cheap.
     const { results } = await context.env.DB.prepare(`
       SELECT
         g.id,
@@ -53,7 +61,13 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         GROUP_CONCAT(a.name, ', ') as members,
         GROUP_CONCAT(a.ref_number, ', ') as member_refs,
         COALESCE(SUM(a.payment_due), 0) as total_outstanding,
-        SUM(CASE WHEN a.payment_due > 0 THEN 1 ELSE 0 END) as members_with_payments
+        SUM(CASE WHEN a.payment_due > 0 THEN 1 ELSE 0 END) as members_with_payments,
+        (SELECT id FROM attendees WHERE group_id = g.id AND is_group_lead = 1
+           AND (is_archived = 0 OR is_archived IS NULL) LIMIT 1) AS lead_id,
+        (SELECT name FROM attendees WHERE group_id = g.id AND is_group_lead = 1
+           AND (is_archived = 0 OR is_archived IS NULL) LIMIT 1) AS lead_name,
+        (SELECT ref_number FROM attendees WHERE group_id = g.id AND is_group_lead = 1
+           AND (is_archived = 0 OR is_archived IS NULL) LIMIT 1) AS lead_ref
       FROM groups g
       LEFT JOIN attendees a ON g.id = a.group_id AND (a.is_archived = 0 OR a.is_archived IS NULL)
       GROUP BY g.id, g.name
@@ -75,6 +89,11 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         name: group.name,
         member_count: group.member_count || 0,
         members,
+        lead: group.lead_id ? {
+          id: group.lead_id,
+          name: group.lead_name,
+          ref_number: group.lead_ref,
+        } : null,
         financial: {
           totalOutstanding: group.total_outstanding || 0,
           membersWithPayments: group.members_with_payments || 0,

@@ -916,9 +916,17 @@ const AdminDashboard = {
                 (group.members.length > 3 ? ` +${group.members.length - 3} more` : '')
                 : '<span class="text-secondary">No members</span>';
                 
+            const leadLine = group.lead
+                ? `<div style="font-size:0.72rem; color:#fbbf24; margin-top:0.15rem;"><i class="fas fa-crown"></i> Lead: ${Utils.escapeHtml(group.lead.name)}</div>`
+                : (memberCount > 0
+                    ? `<div style="font-size:0.72rem; color: var(--text-tertiary); margin-top:0.15rem;"><i class="fas fa-user-slash"></i> No lead assigned</div>`
+                    : '');
             return `
                 <tr data-group-id="${group.id}">
-                    <td><strong>${Utils.escapeHtml(group.name)}</strong></td>
+                    <td>
+                        <strong>${Utils.escapeHtml(group.name)}</strong>
+                        ${leadLine}
+                    </td>
                     <td><span class="badge badge-secondary">${memberCount} members</span></td>
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${membersList}</td>
                     <td>
