@@ -124,6 +124,43 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     }
 
     if (body.action === 'approve') {
+      // Idempotency / safety guard. Approval creates UNIQUE-constrained
+      // attendee rows (ref_number, and email for the primary member), so
+      // running it twice for the same registration collides on those
+      // constraints and surfaces as a confusing 409 "Resource already exists".
+      // Two situations lead here: the registration was already approved (admin
+      // double-clicked, or reopened the detail modal), or a previous approval
+      // created some attendees then failed partway and left the registration
+      // un-marked. Detect both up front and return a clear message.
+      const existingForReg = await context.env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM attendees WHERE registration_id = ?`
+      ).bind(registration.id).first<{ n: number }>();
+      if ((existingForReg?.n ?? 0) > 0) {
+        return createErrorResponse(errors.conflict(
+          `This registration has already been approved — ${existingForReg!.n} attendee account(s) already exist for it. ` +
+          `To re-issue credentials, delete the existing attendee account(s) first, then approve again.`,
+          requestId
+        ));
+      }
+
+      // The primary attendee carries the registration email, which is UNIQUE
+      // across attendees. If that email is already taken by an account from a
+      // different registration (same person registered twice, or a hand-created
+      // account), the INSERT would fail the same way — catch it with a precise
+      // message rather than a generic conflict.
+      if (registration.email) {
+        const emailTaken = await context.env.DB.prepare(
+          `SELECT id FROM attendees WHERE email = ? LIMIT 1`
+        ).bind(registration.email).first<{ id: number }>();
+        if (emailTaken) {
+          return createErrorResponse(errors.conflict(
+            `An attendee account already uses the email ${registration.email}. ` +
+            `Approval aborted to avoid creating a duplicate account.`,
+            requestId
+          ));
+        }
+      }
+
       // Parse family members from registration
       let familyMembers: FamilyMember[] = [];
       try {
@@ -202,7 +239,11 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
             break; // success
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            if (msg.includes('UNIQUE') && attemptIdx < MAX_REF_ATTEMPTS - 1) {
+            // Only retry on a ref_number race (two concurrent approvals reading
+            // the same MAX). A collision on any other UNIQUE column — notably
+            // email — can't be resolved by bumping the ref number, so rethrow
+            // immediately instead of burning all attempts on the same failure.
+            if (msg.includes('ref_number') && attemptIdx < MAX_REF_ATTEMPTS - 1) {
               continue; // collision — try a higher ref number
             }
             throw err;
