@@ -126,32 +126,81 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     if (body.action === 'approve') {
       console.log(`[${requestId}] APPROVE start: reg_id=${registration.id} status=${registration.status} email=${registration.email} has_family_members=${!!registration.family_members} member_count=${registration.member_count}`);
 
-      // Idempotency / safety guard. Approval creates UNIQUE-constrained
-      // attendee rows (ref_number, and email for the primary member), so
-      // running it twice for the same registration collides on those
-      // constraints and surfaces as a confusing 409 "Resource already exists".
-      // Two situations lead here: the registration was already approved (admin
-      // double-clicked, or reopened the detail modal), or a previous approval
-      // created some attendees then failed partway and left the registration
-      // un-marked. Detect both up front and return a clear message.
+      // Has a previous approval already created accounts for this registration?
+      // Approval used to insert the attendee rows and flip the registration
+      // status as separate writes. If the request died in between — a
+      // ref_number race on a later family member, a worker timeout, a hung
+      // email — some attendee rows committed while the registration stayed
+      // 'pending'. The registration then kept showing an "Approve" button, and
+      // every retry re-ran the INSERTs straight into the UNIQUE(ref_number) /
+      // UNIQUE(email) constraints, surfacing as the confusing 409 "Resource
+      // already exists" the admin sees.
       const existingForReg = await context.env.DB.prepare(
-        `SELECT COUNT(*) AS n FROM attendees WHERE registration_id = ?`
+        `SELECT COUNT(*) AS n FROM attendees WHERE registration_id = ? AND (is_archived = 0 OR is_archived IS NULL)`
       ).bind(registration.id).first<{ n: number }>();
-      console.log(`[${requestId}] APPROVE guard: existing attendees for reg_id=${registration.id} -> ${existingForReg?.n ?? 0}`);
-      if ((existingForReg?.n ?? 0) > 0) {
-        console.warn(`[${requestId}] APPROVE blocked: registration already has ${existingForReg!.n} attendee(s)`);
-        return createErrorResponse(errors.conflict(
-          `This registration has already been approved — ${existingForReg!.n} attendee account(s) already exist for it. ` +
-          `To re-issue credentials, delete the existing attendee account(s) first, then approve again.`,
-          requestId
-        ));
+      const existingCount = existingForReg?.n ?? 0;
+      console.log(`[${requestId}] APPROVE guard: existing active attendees for reg_id=${registration.id} -> ${existingCount}`);
+
+      if (existingCount > 0) {
+        if (registration.status === 'approved') {
+          // Genuinely already approved (double-click or a stale tab). Leave the
+          // existing credentials untouched and steer the admin to Re-issue.
+          console.warn(`[${requestId}] APPROVE blocked: reg already approved with ${existingCount} attendee(s)`);
+          return createErrorResponse(errors.conflict(
+            `This registration is already approved and has ${existingCount} attendee account(s). ` +
+            `Use "Re-issue credentials" if the family needs their login details resent.`,
+            requestId
+          ));
+        }
+
+        // Accounts exist but the registration never reached 'approved' — an
+        // interrupted approval. Resume it: reset those accounts to fresh
+        // credentials, mark the registration approved and email, all in one
+        // atomic batch so it cannot wedge again. (The original temp passwords
+        // are hashed and unrecoverable, and the family never received working
+        // credentials, so re-issuing is the correct recovery.)
+        console.warn(`[${requestId}] APPROVE resume: reg_id=${registration.id} has ${existingCount} orphaned attendee(s), status=${registration.status} — reconciling`);
+
+        const { statements, reissued } = await buildCredentialResetBatch(context.env.DB, registration);
+        statements.push(
+          context.env.DB.prepare(`
+            UPDATE registrations
+            SET status = 'approved', notes = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?
+            WHERE id = ?
+          `).bind(body.notes || null, admin.user || 'Admin', registrationId)
+        );
+        await context.env.DB.batch(statements);
+
+        await writeAuditLog(context.env.DB, admin.user || 'Admin', 'approve_resume', registrationId, {
+          accounts_recovered: reissued.length,
+          primary_email: registration.email
+        }, requestId);
+
+        const { emailSent, emailError } = await trySendApprovalEmail(context.env, registration, reissued, requestId);
+        console.log(`[${requestId}] APPROVE resume success: reg_id=${registration.id} accounts=${reissued.length} email_sent=${emailSent}`);
+
+        const expected = registration.member_count || reissued.length;
+        const shortfall = reissued.length < expected
+          ? ` Note: this registration lists ${expected} member(s) but only ${reissued.length} account(s) were found — please verify the family is complete.`
+          : '';
+
+        return createResponse({
+          success: true,
+          message: (emailSent
+            ? `A previous approval for this registration was interrupted. Recovered its ${reissued.length} existing account(s) with fresh credentials and emailed them to ${registration.email}.`
+            : `A previous approval for this registration was interrupted. Recovered its ${reissued.length} existing account(s) with fresh credentials, but email delivery to ${registration.email} FAILED — please copy them manually.`) + shortfall,
+          email_sent: emailSent,
+          email_error: emailError,
+          attendees: reissued
+        });
       }
 
-      // The primary attendee carries the registration email, which is UNIQUE
-      // across attendees. If that email is already taken by an account from a
-      // different registration (same person registered twice, or a hand-created
-      // account), the INSERT would fail the same way — catch it with a precise
-      // message rather than a generic conflict.
+      // No accounts yet — a normal first-time approval. The primary attendee
+      // carries the registration email, which is UNIQUE across attendees. If
+      // that email is already taken by an account from a different registration
+      // (same person registered twice, or a hand-created account), the INSERT
+      // would fail the same way — catch it with a precise message rather than a
+      // generic conflict.
       if (registration.email) {
         const emailTaken = await context.env.DB.prepare(
           `SELECT id, ref_number, registration_id FROM attendees WHERE email = ? LIMIT 1`
@@ -186,130 +235,32 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
         }];
       }
 
-      // Get group_id if specified
-      const groupId: number | null = body.group_id || null;
-      console.log(`[${requestId}] APPROVE creating ${familyMembers.length} attendee(s): ${familyMembers.map(m => m.name).join(', ')} | room_id=${body.room_id || null} group_id=${groupId}`);
+      console.log(`[${requestId}] APPROVE creating ${familyMembers.length} attendee(s): ${familyMembers.map(m => m.name).join(', ')} | room_id=${body.room_id || null} group_id=${body.group_id || null}`);
 
-      // Create attendee accounts for ALL family members
-      const createdAttendees: CreatedAttendee[] = [];
+      // Create every attendee AND mark the registration approved as a single
+      // atomic batch (see approveWithNewAttendees). An all-or-nothing commit is
+      // what stops a partial failure from stranding orphan accounts behind a
+      // still-'pending' registration ever again.
+      const createdAttendees = await approveWithNewAttendees(
+        context.env.DB,
+        registration,
+        familyMembers,
+        body.room_id || null,
+        body.group_id || null,
+        admin.user || 'Admin',
+        body.notes || null,
+        requestId
+      );
 
-      for (let i = 0; i < familyMembers.length; i++) {
-        const member = familyMembers[i];
-        const tempPassword = generateTempPassword();
-        const passwordHash = await hashPassword(tempPassword);
+      await writeAuditLog(context.env.DB, admin.user || 'Admin', 'approve', registrationId, {
+        attendees_created: createdAttendees.length,
+        primary_email: registration.email
+      }, requestId);
 
-        // First member is primary - gets email and phone
-        const isPrimary = i === 0;
-        const memberName = member.name.trim();
-        const { first: firstName, last: lastName } = splitFullName(memberName);
-
-        // Retry the INSERT on UNIQUE-constraint collision so two concurrent
-        // approvals don't fail one another. Each retry generates a fresh
-        // ref_number with an offset.
-        let refNumber = '';
-        const MAX_REF_ATTEMPTS = 5;
-        let attemptIdx = 0;
-        for (; attemptIdx < MAX_REF_ATTEMPTS; attemptIdx++) {
-          refNumber = await generateRefNumber(context.env.DB, attemptIdx);
-          try {
-            const attendeeResult = await context.env.DB.prepare(`
-              INSERT INTO attendees (
-                ref_number, name, first_name, last_name, date_of_birth,
-                email, password_hash, phone,
-                emergency_contact, dietary_requirements, special_requests,
-                room_id, group_id, payment_due, payment_status, payment_option,
-                registration_id
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-            `).bind(
-              refNumber,
-              memberName,
-              firstName,
-              lastName,
-              member.date_of_birth?.trim() || null,
-              isPrimary ? registration.email : null, // Only primary gets email
-              passwordHash,
-              isPrimary ? registration.phone : null, // Only primary gets phone
-              isPrimary ? registration.emergency_contact : null,
-              member.dietary_requirements || member.special_needs || null,
-              isPrimary ? registration.special_requests : null,
-              body.room_id || null,
-              groupId,
-              member.price || 0,
-              registration.payment_option || 'full',
-              registration.id
-            ).run();
-
-            if (!attendeeResult.success) {
-              throw new Error(`Failed to create attendee for ${member.name}`);
-            }
-            console.log(`[${requestId}] APPROVE inserted attendee #${i + 1}/${familyMembers.length} ref=${refNumber} name="${memberName}"${isPrimary ? ' (primary)' : ''}`);
-            break; // success
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error(`[${requestId}] APPROVE insert failed (member #${i + 1} "${memberName}", attempt ${attemptIdx + 1}/${MAX_REF_ATTEMPTS}, ref=${refNumber}): ${msg}`);
-            // Only retry on a ref_number race (two concurrent approvals reading
-            // the same MAX). A collision on any other UNIQUE column — notably
-            // email — can't be resolved by bumping the ref number, so rethrow
-            // immediately instead of burning all attempts on the same failure.
-            if (msg.includes('ref_number') && attemptIdx < MAX_REF_ATTEMPTS - 1) {
-              continue; // collision — try a higher ref number
-            }
-            throw err;
-          }
-        }
-
-        createdAttendees.push({
-          name: member.name,
-          ref_number: refNumber,
-          temp_password: tempPassword,
-          member_type: member.member_type,
-          payment_due: member.price || 0
-        });
-      }
-
-      // Update registration status
-      await context.env.DB.prepare(`
-        UPDATE registrations
-        SET status = 'approved', notes = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?
-        WHERE id = ?
-      `).bind(body.notes || null, admin.user || 'Admin', registrationId).run();
-
-      try {
-        await context.env.DB.prepare(
-          `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
-           VALUES (?, 'approve', 'registration', ?, ?)`
-        ).bind(
-          admin.user || 'Admin',
-          parseInt(registrationId),
-          JSON.stringify({ attendees_created: createdAttendees.length, primary_email: registration.email })
-        ).run();
-      } catch (err) {
-        console.warn(`[${requestId}] audit_log write failed`, err);
-      }
-
-      // Send approval email with all credentials. We await the result so the
-      // response can tell the admin whether credentials were actually
-      // delivered — the UI must not claim "Credentials sent to X" when the
-      // email transport fails. The send itself is fast enough (Cloudflare
-      // Email Send returns a messageId quickly) that this doesn't materially
-      // delay the response.
-      let emailSent = false;
-      let emailError: string | null = null;
-      try {
-        await sendApprovalEmail(
-          context.env,
-          registration.email,
-          registration.name,
-          createdAttendees,
-          registration.total_amount || 0,
-          registration.payment_option
-        );
-        emailSent = true;
-      } catch (err) {
-        emailError = err instanceof Error ? err.message : 'Unknown email failure';
-        console.error(`[${requestId}] Failed to send approval email:`, err);
-      }
-
+      // Send approval email with all credentials. We report delivery back to
+      // the admin (rather than claiming success blindly) so the UI never says
+      // "Credentials sent to X" when the email transport actually failed.
+      const { emailSent, emailError } = await trySendApprovalEmail(context.env, registration, createdAttendees, requestId);
       console.log(`[${requestId}] APPROVE success: reg_id=${registration.id} created=${createdAttendees.length} refs=[${createdAttendees.map(a => a.ref_number).join(', ')}] email_sent=${emailSent}`);
 
       const message = emailSent
@@ -332,14 +283,9 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       // UNIQUE collisions that block a second 'approve'.
       console.log(`[${requestId}] REISSUE start: reg_id=${registration.id} status=${registration.status} email=${registration.email}`);
 
-      const { results: attendeeRows } = await context.env.DB.prepare(`
-        SELECT id, ref_number, name, email, payment_due
-        FROM attendees
-        WHERE registration_id = ? AND (is_archived = 0 OR is_archived IS NULL)
-        ORDER BY (email IS NULL), id
-      `).bind(registration.id).all();
+      const { statements, reissued } = await buildCredentialResetBatch(context.env.DB, registration);
 
-      if (attendeeRows.length === 0) {
+      if (reissued.length === 0) {
         console.warn(`[${requestId}] REISSUE blocked: no active attendees linked to reg_id=${registration.id}`);
         return createErrorResponse(errors.badRequest(
           'No active attendee accounts are linked to this registration, so there are no credentials to re-issue. ' +
@@ -348,70 +294,17 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
         ));
       }
 
-      // member_type isn't stored on the attendee row — recover it from the
-      // registration's family_members JSON for the email's per-person label.
-      let familyForTypes: FamilyMember[] = [];
-      try {
-        if (registration.family_members) familyForTypes = JSON.parse(registration.family_members);
-      } catch {
-        // non-fatal — labels just fall back to 'adult'
-      }
-      const typeByName = new Map(
-        familyForTypes.map(m => [m.name.trim().toLowerCase(), m.member_type])
-      );
+      // One atomic batch so a partial reset can't leave some of the family on
+      // old passwords and some on new ones.
+      await context.env.DB.batch(statements);
+      console.log(`[${requestId}] REISSUE reset ${reissued.length} password(s) for reg_id=${registration.id}`);
 
-      const reissued: CreatedAttendee[] = [];
-      for (const row of attendeeRows as unknown as Array<{ id: number; ref_number: string; name: string; email: string | null; payment_due: number | null }>) {
-        const tempPassword = generateTempPassword();
-        const passwordHash = await hashPassword(tempPassword);
-        // Clear must_reset_password so the freshly issued temp password logs in
-        // directly, matching the behaviour of credentials created at approval.
-        const upd = await context.env.DB.prepare(
-          `UPDATE attendees SET password_hash = ?, must_reset_password = 0 WHERE id = ?`
-        ).bind(passwordHash, row.id).run();
-        if (!upd.success) {
-          throw new Error(`Failed to reset password for attendee ${row.ref_number}`);
-        }
-        console.log(`[${requestId}] REISSUE reset password for ref=${row.ref_number} name="${row.name}"`);
-        reissued.push({
-          name: row.name,
-          ref_number: row.ref_number,
-          temp_password: tempPassword,
-          member_type: typeByName.get(row.name.trim().toLowerCase()) || 'adult',
-          payment_due: row.payment_due || 0,
-        });
-      }
+      await writeAuditLog(context.env.DB, admin.user || 'Admin', 'reissue_credentials', registrationId, {
+        accounts: reissued.length,
+        primary_email: registration.email
+      }, requestId);
 
-      try {
-        await context.env.DB.prepare(
-          `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
-           VALUES (?, 'reissue_credentials', 'registration', ?, ?)`
-        ).bind(
-          admin.user || 'Admin',
-          parseInt(registrationId),
-          JSON.stringify({ accounts: reissued.length, primary_email: registration.email })
-        ).run();
-      } catch (err) {
-        console.warn(`[${requestId}] audit_log write failed`, err);
-      }
-
-      let emailSent = false;
-      let emailError: string | null = null;
-      try {
-        await sendApprovalEmail(
-          context.env,
-          registration.email,
-          registration.name,
-          reissued,
-          registration.total_amount || 0,
-          registration.payment_option
-        );
-        emailSent = true;
-      } catch (err) {
-        emailError = err instanceof Error ? err.message : 'Unknown email failure';
-        console.error(`[${requestId}] Failed to send re-issue email:`, err);
-      }
-
+      const { emailSent, emailError } = await trySendApprovalEmail(context.env, registration, reissued, requestId);
       console.log(`[${requestId}] REISSUE success: reg_id=${registration.id} accounts=${reissued.length} email_sent=${emailSent}`);
 
       return createResponse({
@@ -480,12 +373,11 @@ export async function onRequestDelete(context: PagesContext<IdParams>): Promise<
   }
 }
 
-// Helper: Generate unique reference number.
-// Concurrent approvals previously raced — both readers got the same MAX, both
-// computed the same +1, and the second INSERT failed on the UNIQUE constraint.
-// We now retry a few times with a fresh MAX read before giving up; the
-// downstream INSERT is what definitively claims the slot.
-async function generateRefNumber(db: D1Database, attempt = 0): Promise<string> {
+// Helper: read the current highest REF<YY>#### suffix for this year. Callers
+// add their own per-row and per-retry offsets to allocate fresh numbers; the
+// INSERT batch is what actually claims them, so concurrent approvals reconcile
+// by retrying the batch from a freshly-read (and therefore higher) base.
+async function nextRefNumberBase(db: D1Database): Promise<number> {
   const prefix = 'REF';
   const year = new Date().getFullYear().toString().slice(-2);
 
@@ -496,18 +388,225 @@ async function generateRefNumber(db: D1Database, attempt = 0): Promise<string> {
     LIMIT 1
   `).bind(`${prefix}${year}%`).all();
 
-  let nextNumber = 1;
   if (results.length > 0) {
     const lastRef = (results[0] as unknown as { ref_number: string }).ref_number;
     const numPart = parseInt(lastRef.slice(5), 10);
-    if (!isNaN(numPart)) {
-      nextNumber = numPart + 1;
+    if (!isNaN(numPart)) return numPart;
+  }
+  return 0;
+}
+
+// Helper: approve a registration that has NO attendee accounts yet. Inserts a
+// row for every family member AND flips the registration to 'approved' as one
+// atomic D1 batch (a single implicit transaction). Because the inserts and the
+// status update commit together, an interrupted or failed approval can no
+// longer leave orphaned attendee rows behind a still-'pending' registration —
+// the exact state that used to wedge re-approval behind a UNIQUE-constraint 409.
+async function approveWithNewAttendees(
+  db: D1Database,
+  registration: RegistrationRow,
+  familyMembers: FamilyMember[],
+  roomId: number | null,
+  groupId: number | null,
+  adminUser: string,
+  notes: string | null,
+  requestId: string
+): Promise<CreatedAttendee[]> {
+  // Hash every temp password up front so a ref-number retry doesn't redo the
+  // (expensive) hashing or change the password the family will be emailed.
+  const plans = await Promise.all(familyMembers.map(async (member, i) => {
+    const tempPassword = generateTempPassword();
+    return {
+      member,
+      isPrimary: i === 0, // first member is primary — gets email and phone
+      tempPassword,
+      passwordHash: await hashPassword(tempPassword),
+    };
+  }));
+
+  const year = new Date().getFullYear().toString().slice(-2);
+  const MAX_ATTEMPTS = 5;
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const base = await nextRefNumberBase(db);
+    const created: CreatedAttendee[] = [];
+    const statements: D1PreparedStatement[] = [];
+
+    plans.forEach((plan, idx) => {
+      // Space refs within the batch (idx) and bump them every retry (attempt)
+      // so a concurrent approval that grabbed the same MAX stops colliding.
+      const num = base + 1 + idx + attempt;
+      const refNumber = `REF${year}${num.toString().padStart(4, '0')}`;
+      const memberName = plan.member.name.trim();
+      const { first: firstName, last: lastName } = splitFullName(memberName);
+
+      statements.push(
+        db.prepare(`
+          INSERT INTO attendees (
+            ref_number, name, first_name, last_name, date_of_birth,
+            email, password_hash, phone,
+            emergency_contact, dietary_requirements, special_requests,
+            room_id, group_id, payment_due, payment_status, payment_option,
+            registration_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+        `).bind(
+          refNumber,
+          memberName,
+          firstName,
+          lastName,
+          plan.member.date_of_birth?.trim() || null,
+          plan.isPrimary ? registration.email : null, // Only primary gets email
+          plan.passwordHash,
+          plan.isPrimary ? registration.phone : null, // Only primary gets phone
+          plan.isPrimary ? registration.emergency_contact : null,
+          plan.member.dietary_requirements || plan.member.special_needs || null,
+          plan.isPrimary ? registration.special_requests : null,
+          roomId,
+          groupId,
+          plan.member.price || 0,
+          registration.payment_option || 'full',
+          registration.id
+        )
+      );
+
+      created.push({
+        name: plan.member.name,
+        ref_number: refNumber,
+        temp_password: plan.tempPassword,
+        member_type: plan.member.member_type,
+        payment_due: plan.member.price || 0,
+      });
+    });
+
+    // Same transaction: mark the registration approved. All-or-nothing.
+    statements.push(
+      db.prepare(`
+        UPDATE registrations
+        SET status = 'approved', notes = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?
+        WHERE id = ?
+      `).bind(notes, adminUser, registration.id)
+    );
+
+    try {
+      await db.batch(statements);
+      console.log(`[${requestId}] APPROVE batch committed ${created.length} attendee(s) atomically: refs=[${created.map(a => a.ref_number).join(', ')}]`);
+      return created;
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[${requestId}] APPROVE batch failed (attempt ${attempt + 1}/${MAX_ATTEMPTS}): ${msg}`);
+      // A ref_number race is the only failure a retry can fix (bump the number).
+      // Any other UNIQUE collision — notably the primary email — won't resolve
+      // by retrying, so rethrow immediately for the caller's error handling.
+      if (msg.includes('ref_number') && attempt < MAX_ATTEMPTS - 1) continue;
+      throw err;
     }
   }
-  // Stagger retries so two parallel approvals don't keep colliding.
-  nextNumber += attempt;
 
-  return `${prefix}${year}${nextNumber.toString().padStart(4, '0')}`;
+  // Exhausted retries on ref_number races.
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Failed to allocate a unique reference number after multiple attempts');
+}
+
+// Helper: build the password-reset statements for every active attendee linked
+// to a registration, plus the credential metadata to email. Shared by the
+// 'reissue' action and the approve-resume path (an interrupted approval whose
+// accounts already exist). The caller runs the statements in one atomic batch —
+// optionally alongside a status update — so a partial reset can't strand the
+// family again. Rows are ordered primary-first (email-bearing) to match the
+// approval email layout.
+async function buildCredentialResetBatch(
+  db: D1Database,
+  registration: RegistrationRow
+): Promise<{ statements: D1PreparedStatement[]; reissued: CreatedAttendee[] }> {
+  const { results: attendeeRows } = await db.prepare(`
+    SELECT id, ref_number, name, email, payment_due
+    FROM attendees
+    WHERE registration_id = ? AND (is_archived = 0 OR is_archived IS NULL)
+    ORDER BY (email IS NULL), id
+  `).bind(registration.id).all();
+
+  // member_type isn't stored on the attendee row — recover it from the
+  // registration's family_members JSON for the email's per-person label.
+  let familyForTypes: FamilyMember[] = [];
+  try {
+    if (registration.family_members) familyForTypes = JSON.parse(registration.family_members);
+  } catch {
+    // non-fatal — labels just fall back to 'adult'
+  }
+  const typeByName = new Map(
+    familyForTypes.map(m => [m.name.trim().toLowerCase(), m.member_type])
+  );
+
+  const statements: D1PreparedStatement[] = [];
+  const reissued: CreatedAttendee[] = [];
+  for (const row of attendeeRows as unknown as Array<{ id: number; ref_number: string; name: string; email: string | null; payment_due: number | null }>) {
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+    // Clear must_reset_password so the freshly issued temp password logs in
+    // directly, matching the behaviour of credentials created at approval.
+    statements.push(
+      db.prepare(`UPDATE attendees SET password_hash = ?, must_reset_password = 0 WHERE id = ?`)
+        .bind(passwordHash, row.id)
+    );
+    reissued.push({
+      name: row.name,
+      ref_number: row.ref_number,
+      temp_password: tempPassword,
+      member_type: typeByName.get(row.name.trim().toLowerCase()) || 'adult',
+      payment_due: row.payment_due || 0,
+    });
+  }
+
+  return { statements, reissued };
+}
+
+// Helper: best-effort audit-log write. Never throws — an audit failure must not
+// fail the operation it records, so any error is logged and swallowed.
+async function writeAuditLog(
+  db: D1Database,
+  adminUser: string,
+  action: string,
+  registrationId: string,
+  details: Record<string, unknown>,
+  requestId: string
+): Promise<void> {
+  try {
+    await db.prepare(
+      `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+       VALUES (?, ?, 'registration', ?, ?)`
+    ).bind(adminUser, action, parseInt(registrationId), JSON.stringify(details)).run();
+  } catch (err) {
+    console.warn(`[${requestId}] audit_log write failed`, err);
+  }
+}
+
+// Helper: send the approval/credentials email, capturing whether it actually
+// went out. We report delivery back to the admin rather than throwing, so the
+// account changes (which have already committed) stand even when email fails.
+async function trySendApprovalEmail(
+  env: Env,
+  registration: RegistrationRow,
+  attendees: CreatedAttendee[],
+  requestId: string
+): Promise<{ emailSent: boolean; emailError: string | null }> {
+  try {
+    await sendApprovalEmail(
+      env,
+      registration.email,
+      registration.name,
+      attendees,
+      registration.total_amount || 0,
+      registration.payment_option
+    );
+    return { emailSent: true, emailError: null };
+  } catch (err) {
+    const emailError = err instanceof Error ? err.message : 'Unknown email failure';
+    console.error(`[${requestId}] Failed to send approval email:`, err);
+    return { emailSent: false, emailError };
+  }
 }
 
 // Helper: Generate cryptographically random temporary password.
