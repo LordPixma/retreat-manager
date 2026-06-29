@@ -42,7 +42,7 @@ interface FamilyMember {
 }
 
 interface ApprovalInput {
-  action: 'approve' | 'reject' | 'waitlist';
+  action: 'approve' | 'reject' | 'waitlist' | 'reissue';
   notes?: string;
   room_id?: number;
   group_id?: number;
@@ -119,8 +119,8 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     const registration = results[0] as unknown as RegistrationRow;
     const body = await context.request.json() as ApprovalInput;
 
-    if (!body.action || !['approve', 'reject', 'waitlist'].includes(body.action)) {
-      return createErrorResponse(errors.badRequest('Valid action is required (approve, reject, waitlist)', requestId));
+    if (!body.action || !['approve', 'reject', 'waitlist', 'reissue'].includes(body.action)) {
+      return createErrorResponse(errors.badRequest('Valid action is required (approve, reject, waitlist, reissue)', requestId));
     }
 
     if (body.action === 'approve') {
@@ -322,6 +322,106 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
         email_sent: emailSent,
         email_error: emailError,
         attendees: createdAttendees
+      });
+
+    } else if (body.action === 'reissue') {
+      // Re-issue credentials for a registration whose attendee accounts already
+      // exist (e.g. an approved family that lost their welcome email). This
+      // resets each linked attendee to a fresh temp password and re-sends the
+      // credentials email — no new accounts are created, so it sidesteps the
+      // UNIQUE collisions that block a second 'approve'.
+      console.log(`[${requestId}] REISSUE start: reg_id=${registration.id} status=${registration.status} email=${registration.email}`);
+
+      const { results: attendeeRows } = await context.env.DB.prepare(`
+        SELECT id, ref_number, name, email, payment_due
+        FROM attendees
+        WHERE registration_id = ? AND (is_archived = 0 OR is_archived IS NULL)
+        ORDER BY (email IS NULL), id
+      `).bind(registration.id).all();
+
+      if (attendeeRows.length === 0) {
+        console.warn(`[${requestId}] REISSUE blocked: no active attendees linked to reg_id=${registration.id}`);
+        return createErrorResponse(errors.badRequest(
+          'No active attendee accounts are linked to this registration, so there are no credentials to re-issue. ' +
+          'Approve the registration first (or its accounts may have been deleted).',
+          requestId
+        ));
+      }
+
+      // member_type isn't stored on the attendee row — recover it from the
+      // registration's family_members JSON for the email's per-person label.
+      let familyForTypes: FamilyMember[] = [];
+      try {
+        if (registration.family_members) familyForTypes = JSON.parse(registration.family_members);
+      } catch {
+        // non-fatal — labels just fall back to 'adult'
+      }
+      const typeByName = new Map(
+        familyForTypes.map(m => [m.name.trim().toLowerCase(), m.member_type])
+      );
+
+      const reissued: CreatedAttendee[] = [];
+      for (const row of attendeeRows as unknown as Array<{ id: number; ref_number: string; name: string; email: string | null; payment_due: number | null }>) {
+        const tempPassword = generateTempPassword();
+        const passwordHash = await hashPassword(tempPassword);
+        // Clear must_reset_password so the freshly issued temp password logs in
+        // directly, matching the behaviour of credentials created at approval.
+        const upd = await context.env.DB.prepare(
+          `UPDATE attendees SET password_hash = ?, must_reset_password = 0 WHERE id = ?`
+        ).bind(passwordHash, row.id).run();
+        if (!upd.success) {
+          throw new Error(`Failed to reset password for attendee ${row.ref_number}`);
+        }
+        console.log(`[${requestId}] REISSUE reset password for ref=${row.ref_number} name="${row.name}"`);
+        reissued.push({
+          name: row.name,
+          ref_number: row.ref_number,
+          temp_password: tempPassword,
+          member_type: typeByName.get(row.name.trim().toLowerCase()) || 'adult',
+          payment_due: row.payment_due || 0,
+        });
+      }
+
+      try {
+        await context.env.DB.prepare(
+          `INSERT INTO audit_log (admin_user, action, entity_type, entity_id, details)
+           VALUES (?, 'reissue_credentials', 'registration', ?, ?)`
+        ).bind(
+          admin.user || 'Admin',
+          parseInt(registrationId),
+          JSON.stringify({ accounts: reissued.length, primary_email: registration.email })
+        ).run();
+      } catch (err) {
+        console.warn(`[${requestId}] audit_log write failed`, err);
+      }
+
+      let emailSent = false;
+      let emailError: string | null = null;
+      try {
+        await sendApprovalEmail(
+          context.env,
+          registration.email,
+          registration.name,
+          reissued,
+          registration.total_amount || 0,
+          registration.payment_option
+        );
+        emailSent = true;
+      } catch (err) {
+        emailError = err instanceof Error ? err.message : 'Unknown email failure';
+        console.error(`[${requestId}] Failed to send re-issue email:`, err);
+      }
+
+      console.log(`[${requestId}] REISSUE success: reg_id=${registration.id} accounts=${reissued.length} email_sent=${emailSent}`);
+
+      return createResponse({
+        success: true,
+        message: emailSent
+          ? `Credentials re-issued for ${reissued.length} account(s) and emailed to ${registration.email}.`
+          : `Credentials re-issued for ${reissued.length} account(s), but email delivery to ${registration.email} FAILED — please copy them manually.`,
+        email_sent: emailSent,
+        email_error: emailError,
+        attendees: reissued
       });
 
     } else {

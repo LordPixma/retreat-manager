@@ -737,6 +737,11 @@ const AdminDashboard = {
                                 <i class="fas fa-times"></i>
                             </button>
                             ` : ''}
+                            ${reg.status === 'approved' ? `
+                            <button class="btn btn-sm btn-warning reissue-registration" data-id="${reg.id}" title="Re-issue credentials (reset passwords & resend login email)">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            ` : ''}
                             <button class="btn btn-sm btn-danger delete-registration" data-id="${reg.id}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -1736,6 +1741,8 @@ const AdminDashboard = {
                 await this.approveRegistration(id);
             } else if (target.classList.contains('reject-registration')) {
                 await this.rejectRegistration(id);
+            } else if (target.classList.contains('reissue-registration')) {
+                await this.reissueCredentials(id);
             } else if (target.classList.contains('delete-registration')) {
                 await this.deleteRegistration(id);
             } else if (target.classList.contains('edit-announcement')) {
@@ -2268,7 +2275,9 @@ const AdminDashboard = {
 
             // Show credentials for all created attendees
             if (result.attendees && result.attendees.length > 0) {
-                this.showCredentialsModal(result.attendees, registration.email);
+                this.showCredentialsModal(result.attendees, registration.email, {
+                    emailSent: result.email_sent !== false
+                });
             } else {
                 Utils.showAlert('Registration approved successfully', 'success');
             }
@@ -2286,9 +2295,47 @@ const AdminDashboard = {
     },
 
     /**
-     * Show modal with created credentials
+     * Re-issue login credentials for an already-approved registration.
+     * Resets every linked attendee to a fresh temp password and re-sends the
+     * credentials email — used when a family lost their original welcome email.
      */
-    showCredentialsModal(attendees, email) {
+    async reissueCredentials(id) {
+        const registration = this.data.registrations.find(r => r.id == id);
+        if (!registration) return;
+
+        if (!confirm(`Re-issue credentials for ${registration.name}?\n\nThis resets the password for every account on this registration and emails the new login details to ${registration.email}. Their existing passwords will stop working.`)) {
+            return;
+        }
+
+        Utils.showGlobalLoading('Re-issuing credentials...');
+        try {
+            const result = await API.put(`/admin/registrations/${id}`, { action: 'reissue' });
+            Utils.hideGlobalLoading();
+
+            if (result.attendees && result.attendees.length > 0) {
+                this.showCredentialsModal(result.attendees, registration.email, {
+                    title: 'Credentials Re-issued',
+                    emailSent: result.email_sent !== false
+                });
+            } else {
+                Utils.showAlert(result.message || 'Credentials re-issued', 'success');
+            }
+        } catch (error) {
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to re-issue credentials: ' + error.message, 'error');
+        }
+    },
+
+    /**
+     * Show modal with created / re-issued credentials.
+     * opts.title overrides the header; opts.emailSent=false shows a manual-copy warning.
+     */
+    showCredentialsModal(attendees, email, opts = {}) {
+        const title = opts.title || 'Registration Approved!';
+        const emailSent = opts.emailSent !== false;
+        const emailNotice = emailSent
+            ? `<div class="alert alert-success" style="margin-bottom: 1rem;"><i class="fas fa-envelope"></i> Credentials have been emailed to <strong>${Utils.escapeHtml(email)}</strong></div>`
+            : `<div class="alert alert-warning" style="margin-bottom: 1rem;"><i class="fas fa-exclamation-triangle"></i> Email delivery to <strong>${Utils.escapeHtml(email)}</strong> failed — copy these credentials and share them manually.</div>`;
         const credentialsRows = attendees.map((a, i) => `
             <tr ${i === 0 ? 'style="background: rgba(102, 126, 234, 0.1);"' : ''}>
                 <td style="padding: 0.75rem;">${Utils.escapeHtml(a.name)}${i === 0 ? ' <span class="badge badge-primary">Primary</span>' : ''}</td>
@@ -2302,17 +2349,15 @@ const AdminDashboard = {
             <div class="modal-overlay" id="credentials-modal">
                 <div class="modal" style="max-width: 650px;">
                     <div class="modal-header" style="background: var(--gradient-primary); color: white;">
-                        <h2 style="color: white; margin: 0;"><i class="fas fa-check-circle"></i> Registration Approved!</h2>
+                        <h2 style="color: white; margin: 0;"><i class="fas fa-check-circle"></i> ${title}</h2>
                         <button class="modal-close" onclick="document.getElementById('credentials-modal').remove()" style="color: white;">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     <div class="modal-body">
-                        <div class="alert alert-success" style="margin-bottom: 1rem;">
-                            <i class="fas fa-envelope"></i> Credentials have been emailed to <strong>${Utils.escapeHtml(email)}</strong>
-                        </div>
+                        ${emailNotice}
 
-                        <h4 style="margin: 0 0 1rem 0;">Created ${attendees.length} Attendee Account${attendees.length > 1 ? 's' : ''}</h4>
+                        <h4 style="margin: 0 0 1rem 0;">${attendees.length} Attendee Account${attendees.length > 1 ? 's' : ''}</h4>
 
                         <div class="table-container">
                             <table class="table">
