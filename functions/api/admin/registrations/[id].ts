@@ -124,6 +124,8 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     }
 
     if (body.action === 'approve') {
+      console.log(`[${requestId}] APPROVE start: reg_id=${registration.id} status=${registration.status} email=${registration.email} has_family_members=${!!registration.family_members} member_count=${registration.member_count}`);
+
       // Idempotency / safety guard. Approval creates UNIQUE-constrained
       // attendee rows (ref_number, and email for the primary member), so
       // running it twice for the same registration collides on those
@@ -135,7 +137,9 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       const existingForReg = await context.env.DB.prepare(
         `SELECT COUNT(*) AS n FROM attendees WHERE registration_id = ?`
       ).bind(registration.id).first<{ n: number }>();
+      console.log(`[${requestId}] APPROVE guard: existing attendees for reg_id=${registration.id} -> ${existingForReg?.n ?? 0}`);
       if ((existingForReg?.n ?? 0) > 0) {
+        console.warn(`[${requestId}] APPROVE blocked: registration already has ${existingForReg!.n} attendee(s)`);
         return createErrorResponse(errors.conflict(
           `This registration has already been approved — ${existingForReg!.n} attendee account(s) already exist for it. ` +
           `To re-issue credentials, delete the existing attendee account(s) first, then approve again.`,
@@ -150,9 +154,10 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       // message rather than a generic conflict.
       if (registration.email) {
         const emailTaken = await context.env.DB.prepare(
-          `SELECT id FROM attendees WHERE email = ? LIMIT 1`
-        ).bind(registration.email).first<{ id: number }>();
+          `SELECT id, ref_number, registration_id FROM attendees WHERE email = ? LIMIT 1`
+        ).bind(registration.email).first<{ id: number; ref_number: string; registration_id: number | null }>();
         if (emailTaken) {
+          console.warn(`[${requestId}] APPROVE blocked: email ${registration.email} already used by attendee id=${emailTaken.id} ref=${emailTaken.ref_number} reg=${emailTaken.registration_id}`);
           return createErrorResponse(errors.conflict(
             `An attendee account already uses the email ${registration.email}. ` +
             `Approval aborted to avoid creating a duplicate account.`,
@@ -183,6 +188,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
       // Get group_id if specified
       const groupId: number | null = body.group_id || null;
+      console.log(`[${requestId}] APPROVE creating ${familyMembers.length} attendee(s): ${familyMembers.map(m => m.name).join(', ')} | room_id=${body.room_id || null} group_id=${groupId}`);
 
       // Create attendee accounts for ALL family members
       const createdAttendees: CreatedAttendee[] = [];
@@ -236,9 +242,11 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
             if (!attendeeResult.success) {
               throw new Error(`Failed to create attendee for ${member.name}`);
             }
+            console.log(`[${requestId}] APPROVE inserted attendee #${i + 1}/${familyMembers.length} ref=${refNumber} name="${memberName}"${isPrimary ? ' (primary)' : ''}`);
             break; // success
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[${requestId}] APPROVE insert failed (member #${i + 1} "${memberName}", attempt ${attemptIdx + 1}/${MAX_REF_ATTEMPTS}, ref=${refNumber}): ${msg}`);
             // Only retry on a ref_number race (two concurrent approvals reading
             // the same MAX). A collision on any other UNIQUE column — notably
             // email — can't be resolved by bumping the ref number, so rethrow
@@ -301,6 +309,8 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
         emailError = err instanceof Error ? err.message : 'Unknown email failure';
         console.error(`[${requestId}] Failed to send approval email:`, err);
       }
+
+      console.log(`[${requestId}] APPROVE success: reg_id=${registration.id} created=${createdAttendees.length} refs=[${createdAttendees.map(a => a.ref_number).join(', ')}] email_sent=${emailSent}`);
 
       const message = emailSent
         ? `Registration approved! Created ${createdAttendees.length} attendee account(s). Credentials sent to ${registration.email}`
