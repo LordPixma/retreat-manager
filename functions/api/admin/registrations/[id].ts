@@ -373,27 +373,35 @@ export async function onRequestDelete(context: PagesContext<IdParams>): Promise<
   }
 }
 
-// Helper: read the current highest REF<YY>#### suffix for this year. Callers
+// Helper: read the current highest REF<YY>#### number for this year. Callers
 // add their own per-row and per-retry offsets to allocate fresh numbers; the
 // INSERT batch is what actually claims them, so concurrent approvals reconcile
 // by retrying the batch from a freshly-read (and therefore higher) base.
+//
+// This MUST compute the true NUMERIC maximum, not a text one. Ref numbers are
+// `REF<YY><n>`; an earlier version did `ORDER BY ref_number DESC LIMIT 1` and
+// parsed the tail, but that sorts lexicographically. A single non-uniformly
+// padded or non-numeric legacy ref (e.g. "REF269" or "REF26ABC", from a bulk
+// import or hand-entry) then sorts ABOVE the real highest number, collapsing
+// the computed base to a tiny value (or 0 on a NaN parse). Every base+1..base+N
+// the caller tried already existed, so the INSERT batch failed the UNIQUE
+// ref_number constraint on all retries and approval was wedged for the whole
+// table. MAX(CAST(SUBSTR(...))) takes the highest actual number and is immune
+// to text ordering and stray formats — non-numeric tails CAST to 0 and simply
+// lose the MAX, so they can never drag the base down.
 async function nextRefNumberBase(db: D1Database): Promise<number> {
   const prefix = 'REF';
   const year = new Date().getFullYear().toString().slice(-2);
 
-  const { results } = await db.prepare(`
-    SELECT ref_number FROM attendees
+  // SUBSTR(ref_number, 6) is the digits after the 5-char "REF<YY>" prefix
+  // (SQLite SUBSTR is 1-indexed), matching the format this helper emits.
+  const row = await db.prepare(`
+    SELECT MAX(CAST(SUBSTR(ref_number, 6) AS INTEGER)) AS num_max
+    FROM attendees
     WHERE ref_number LIKE ?
-    ORDER BY ref_number DESC
-    LIMIT 1
-  `).bind(`${prefix}${year}%`).all();
+  `).bind(`${prefix}${year}%`).first<{ num_max: number | null }>();
 
-  if (results.length > 0) {
-    const lastRef = (results[0] as unknown as { ref_number: string }).ref_number;
-    const numPart = parseInt(lastRef.slice(5), 10);
-    if (!isNaN(numPart)) return numPart;
-  }
-  return 0;
+  return row?.num_max ?? 0;
 }
 
 // Helper: approve a registration that has NO attendee accounts yet. Inserts a
