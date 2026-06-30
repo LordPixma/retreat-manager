@@ -20,9 +20,11 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     }
 
     const { results } = await context.env.DB.prepare(`
-      SELECT id, day_label, time_label, title, description, location, sort_order, created_at, updated_at
+      SELECT id, event_date, start_time, end_time, day_label, time_label,
+             title, description, location, contact_name, event_type, audience,
+             priority, sort_order, created_at, updated_at
       FROM program_items
-      ORDER BY sort_order ASC, id ASC
+      ORDER BY event_date ASC, start_time ASC, sort_order ASC, id ASC
     `).all();
 
     return createResponse({ items: results });
@@ -51,18 +53,28 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     const {
-      day_label,
-      time_label,
+      event_date,
+      start_time,
+      end_time,
       title,
       description,
       location,
+      contact_name,
+      event_type,
+      audience,
+      priority,
       sort_order,
     } = body as {
-      day_label: string;
-      time_label?: string;
+      event_date: string;
+      start_time?: string;
+      end_time?: string;
       title: string;
       description?: string;
       location?: string;
+      contact_name?: string;
+      event_type?: string;
+      audience?: string;
+      priority?: string;
       sort_order?: number;
     };
 
@@ -75,14 +87,22 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     const result = await context.env.DB.prepare(`
-      INSERT INTO program_items (day_label, time_label, title, description, location, sort_order)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO program_items (
+        event_date, start_time, end_time, title, description, location,
+        contact_name, event_type, audience, priority, sort_order
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      day_label.trim(),
-      time_label?.trim() || null,
+      event_date.trim(),
+      start_time?.trim() || null,
+      end_time?.trim() || null,
       title.trim(),
       description?.trim() || null,
       location?.trim() || null,
+      contact_name?.trim() || null,
+      // event_type/audience/priority are NOT NULL with DB defaults; never bind null.
+      event_type || 'general',
+      audience || 'all',
+      priority || 'normal',
       order,
     ).run();
 

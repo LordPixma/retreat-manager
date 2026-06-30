@@ -63,15 +63,27 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       return createErrorResponse(errors.notFound('Program item', requestId));
     }
 
-    const allowedFields = ['day_label', 'time_label', 'title', 'description', 'location', 'sort_order'];
+    const allowedFields = [
+      'event_date', 'start_time', 'end_time', 'title', 'description', 'location',
+      'contact_name', 'event_type', 'audience', 'priority',
+      'day_label', 'time_label', 'sort_order',
+    ];
+    // event_type/audience/priority are NOT NULL — never write null to them.
+    const notNullFields = new Set(['event_type', 'audience', 'priority']);
     const updateFields: string[] = [];
     const updateValues: (string | number | null)[] = [];
 
     for (const [key, value] of Object.entries(updateData)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        updateFields.push(`${key} = ?`);
-        // Empty strings on optional text fields become NULL; sort_order stays numeric.
-        updateValues.push(value === '' ? null : (value as string | number | null));
+        if (notNullFields.has(key)) {
+          if (value === '' || value === null) continue; // skip rather than null out
+          updateFields.push(`${key} = ?`);
+          updateValues.push(value as string);
+        } else {
+          // Empty strings on optional text fields become NULL; sort_order stays numeric.
+          updateFields.push(`${key} = ?`);
+          updateValues.push(value === '' ? null : (value as string | number | null));
+        }
       }
     }
 

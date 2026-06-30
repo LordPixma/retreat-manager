@@ -347,22 +347,42 @@ export const registrationSchema: ValidationSchema = {
 };
 
 // Retreat program / schedule items (admin-managed, shown in the attendee portal)
+export const PROGRAM_EVENT_TYPES = ['meal', 'general', 'breakout', 'team', 'worship', 'activity', 'free', 'custom'] as const;
+export const PROGRAM_AUDIENCES = ['all', 'adults', 'family', 'children', 'teens', 'leaders'] as const;
+export const PROGRAM_PRIORITIES = ['low', 'normal', 'high'] as const;
+
 export const programItemCreateSchema: ValidationSchema = {
-  day_label: { validators: [validators.required, validators.maxLength(100)] },
-  time_label: { validators: [validators.maxLength(50)], optional: true },
+  // event_date (YYYY-MM-DD from the date picker) is the canonical "day".
+  event_date: { validators: [validators.required, validators.maxLength(20)] },
+  start_time: { validators: [validators.maxLength(10)], optional: true },
+  end_time: { validators: [validators.maxLength(10)], optional: true },
   title: { validators: [validators.required, validators.maxLength(200)] },
   description: { validators: [validators.maxLength(2000)], optional: true },
   location: { validators: [validators.maxLength(200)], optional: true },
+  contact_name: { validators: [validators.maxLength(200)], optional: true },
+  event_type: { validators: [validators.enum(PROGRAM_EVENT_TYPES)], optional: true },
+  audience: { validators: [validators.enum(PROGRAM_AUDIENCES)], optional: true },
+  priority: { validators: [validators.enum(PROGRAM_PRIORITIES)], optional: true },
+  // Legacy free-text fields, still accepted for backward compatibility.
+  day_label: { validators: [validators.maxLength(100)], optional: true },
+  time_label: { validators: [validators.maxLength(50)], optional: true },
   sort_order: { validators: [validators.integer], optional: true }
 };
 
 // Update is a partial: every field optional, so the dynamic UPDATE only writes
 // the fields that were sent.
 export const programItemUpdateSchema: ValidationSchema = {
-  day_label: { validators: [validators.maxLength(100)], optional: true },
-  time_label: { validators: [validators.maxLength(50)], optional: true },
+  event_date: { validators: [validators.maxLength(20)], optional: true },
+  start_time: { validators: [validators.maxLength(10)], optional: true },
+  end_time: { validators: [validators.maxLength(10)], optional: true },
   title: { validators: [validators.maxLength(200)], optional: true },
   description: { validators: [validators.maxLength(2000)], optional: true },
   location: { validators: [validators.maxLength(200)], optional: true },
+  contact_name: { validators: [validators.maxLength(200)], optional: true },
+  event_type: { validators: [validators.enum(PROGRAM_EVENT_TYPES)], optional: true },
+  audience: { validators: [validators.enum(PROGRAM_AUDIENCES)], optional: true },
+  priority: { validators: [validators.enum(PROGRAM_PRIORITIES)], optional: true },
+  day_label: { validators: [validators.maxLength(100)], optional: true },
+  time_label: { validators: [validators.maxLength(50)], optional: true },
   sort_order: { validators: [validators.integer], optional: true }
 };

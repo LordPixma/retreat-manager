@@ -280,32 +280,57 @@ const AttendeeDashboard = {
                 return;
             }
 
-            // Group by day_label, preserving first-seen order.
+            // Group by day. The API returns items ordered by event_date then
+            // start_time, so first-seen order is already chronological. Prefer
+            // the structured event_date (formatted to "Fri, July 31"); fall back
+            // to the legacy day_label for any pre-migration rows.
             const order = [];
             const groups = {};
             items.forEach((item) => {
-                const day = item.day_label || '';
-                if (!(day in groups)) {
-                    groups[day] = [];
-                    order.push(day);
+                const key = item.event_date || item.day_label || '';
+                if (!(key in groups)) {
+                    groups[key] = {
+                        label: item.event_date
+                            ? Utils.program.formatDate(item.event_date)
+                            : (item.day_label || ''),
+                        items: []
+                    };
+                    order.push(key);
                 }
-                groups[day].push(item);
+                groups[key].items.push(item);
             });
 
-            container.innerHTML = order.map((day, idx) => {
-                const rows = groups[day].map((item) => {
-                    const time = item.time_label ? `${this._escape(item.time_label)} — ` : '';
-                    const loc = item.location ? ` · ${this._escape(item.location)}` : '';
+            container.innerHTML = order.map((key, idx) => {
+                const group = groups[key];
+                const rows = group.items.map((item) => {
+                    const icon = Utils.program.eventTypeIcon(item.event_type);
+                    const range = Utils.program.formatTimeRange(item.start_time, item.end_time)
+                        || (item.time_label || '');
+                    const time = range ? `<strong>${this._escape(range)}</strong> — ` : '';
+                    const loc = item.location
+                        ? ` <span style="color: var(--text-tertiary);">· ${this._escape(item.location)}</span>`
+                        : '';
+                    // Only flag a specific audience; "Everyone" needs no chip.
+                    const audienceLabel = Utils.program.audienceLabel(item.audience);
+                    const audience = (item.audience && item.audience !== 'all' && audienceLabel)
+                        ? ` <span class="badge badge-secondary" style="font-size: 0.7rem;">${this._escape(audienceLabel)}</span>`
+                        : '';
+                    const contact = item.contact_name
+                        ? `<br><span style="color: var(--text-tertiary); font-size: 0.8rem;"><i class="fas fa-user" style="width: 1rem;"></i> ${this._escape(item.contact_name)}</span>`
+                        : '';
                     const desc = item.description
                         ? `<br><span style="color: var(--text-tertiary); font-size: 0.8rem;">${this._escape(item.description)}</span>`
                         : '';
-                    return `${time}${this._escape(item.title)}${loc}${desc}`;
-                }).join('<br>');
+                    return `
+                        <div style="margin-bottom: 0.5rem;">
+                            <i class="fas ${icon}" style="width: 1.2rem; color: #5eead4;"></i> ${time}${this._escape(item.title)}${audience}${loc}${contact}${desc}
+                        </div>`;
+                }).join('');
 
                 const spacing = idx < order.length - 1 ? ' style="margin-bottom: 1rem;"' : '';
                 return `
                     <div${spacing}>
-                        <div style="font-weight: 600; color: #5eead4; margin-bottom: 0.3rem;">${this._escape(day)}</div>
+                        <div style="font-weight: 600; color: #5eead4; margin-bottom: 0.3rem;">${this._escape(group.label)}</div>
                         <div style="color: var(--text-secondary); line-height: 1.6;">${rows}</div>
                     </div>
                 `;

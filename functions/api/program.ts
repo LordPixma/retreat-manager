@@ -2,8 +2,8 @@
 //
 // Read-only and unauthenticated: the program is the same generic schedule for
 // everyone, shown in the attendee portal's Schedule view. Admins manage it via
-// /api/admin/program. Items come back as a flat list ordered by sort_order;
-// the client groups them by day_label.
+// /api/admin/program. Items come back as a flat list ordered chronologically
+// (event_date, then start_time); the client groups them by day for display.
 
 import type { PagesContext } from '../_shared/types.js';
 import { createResponse, handleCORS } from '../_shared/auth.js';
@@ -18,9 +18,11 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
 
   try {
     const { results } = await context.env.DB.prepare(`
-      SELECT id, day_label, time_label, title, description, location, sort_order
+      SELECT id, event_date, start_time, end_time, day_label, time_label,
+             title, description, location, contact_name, event_type, audience,
+             priority, sort_order
       FROM program_items
-      ORDER BY sort_order ASC, id ASC
+      ORDER BY event_date ASC, start_time ASC, sort_order ASC, id ASC
     `).all();
 
     return createResponse({ items: results });

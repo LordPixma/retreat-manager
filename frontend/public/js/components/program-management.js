@@ -24,6 +24,13 @@ const ProgramManagement = {
      * Render modal template
      */
     async renderModal() {
+        const opts = (list) => list
+            .map(o => `<option value="${this.escapeHtml(o.value)}">${this.escapeHtml(o.label)}</option>`)
+            .join('');
+        const typeOptions = opts(Utils.program.eventTypes);
+        const audienceOptions = opts(Utils.program.audiences);
+        const priorityOptions = opts(Utils.program.priorities);
+
         const modalHtml = `
             <div class="modal-overlay" id="program-modal">
                 <div class="modal">
@@ -36,21 +43,26 @@ const ProgramManagement = {
                     <div class="modal-body">
                         <div id="program-modal-alert" class="alert alert-error hidden"></div>
                         <form id="program-form">
+                            <div class="form-group">
+                                <label for="program-date" class="form-label">
+                                    <i class="fas fa-calendar-day"></i> Date
+                                </label>
+                                <input type="date" id="program-date" name="event_date" class="form-input" required>
+                            </div>
+
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="program-day" class="form-label">
-                                        <i class="fas fa-calendar-day"></i> Day
+                                    <label for="program-start" class="form-label">
+                                        <i class="fas fa-clock"></i> Start time
                                     </label>
-                                    <input type="text" id="program-day" name="day_label" class="form-input" required
-                                           placeholder="e.g., Fri, July 31">
+                                    <input type="time" id="program-start" name="start_time" class="form-input">
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="program-time" class="form-label">
-                                        <i class="fas fa-clock"></i> Time
+                                    <label for="program-end" class="form-label">
+                                        <i class="fas fa-clock"></i> End time (Optional)
                                     </label>
-                                    <input type="text" id="program-time" name="time_label" class="form-input"
-                                           placeholder="e.g., 3:00 PM">
+                                    <input type="time" id="program-end" name="end_time" class="form-input">
                                 </div>
                             </div>
 
@@ -62,12 +74,52 @@ const ProgramManagement = {
                                        placeholder="e.g., Welcome Session">
                             </div>
 
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="program-type" class="form-label">
+                                        <i class="fas fa-tag"></i> Event type
+                                    </label>
+                                    <select id="program-type" name="event_type" class="form-input">
+                                        ${typeOptions}
+                                    </select>
+                                    <small class="form-help">Sets the icon shown on the schedule</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="program-audience" class="form-label">
+                                        <i class="fas fa-users"></i> Audience
+                                    </label>
+                                    <select id="program-audience" name="audience" class="form-input">
+                                        ${audienceOptions}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="program-priority" class="form-label">
+                                        <i class="fas fa-flag"></i> Priority
+                                    </label>
+                                    <select id="program-priority" name="priority" class="form-input">
+                                        ${priorityOptions}
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="program-location" class="form-label">
+                                        <i class="fas fa-location-dot"></i> Location (Optional)
+                                    </label>
+                                    <input type="text" id="program-location" name="location" class="form-input"
+                                           placeholder="e.g., Main Hall">
+                                </div>
+                            </div>
+
                             <div class="form-group">
-                                <label for="program-location" class="form-label">
-                                    <i class="fas fa-location-dot"></i> Location (Optional)
+                                <label for="program-contact" class="form-label">
+                                    <i class="fas fa-user"></i> Key contact (Optional)
                                 </label>
-                                <input type="text" id="program-location" name="location" class="form-input"
-                                       placeholder="e.g., Main Hall">
+                                <input type="text" id="program-contact" name="contact_name" class="form-input"
+                                       placeholder="e.g., Jane Smith">
                             </div>
 
                             <div class="form-group">
@@ -120,15 +172,25 @@ const ProgramManagement = {
 
         // Fill form if editing
         if (editData) {
-            document.getElementById('program-day').value = editData.day_label || '';
-            document.getElementById('program-time').value = editData.time_label || '';
+            document.getElementById('program-date').value = editData.event_date || '';
+            document.getElementById('program-start').value = editData.start_time || '';
+            document.getElementById('program-end').value = editData.end_time || '';
             document.getElementById('program-title').value = editData.title || '';
+            document.getElementById('program-type').value = editData.event_type || 'general';
+            document.getElementById('program-audience').value = editData.audience || 'all';
+            document.getElementById('program-priority').value = editData.priority || 'normal';
             document.getElementById('program-location').value = editData.location || '';
+            document.getElementById('program-contact').value = editData.contact_name || '';
             document.getElementById('program-description').value = editData.description || '';
             document.getElementById('program-order').value =
                 editData.sort_order != null ? editData.sort_order : '';
         } else {
             document.getElementById('program-form').reset();
+            // reset() selects each <select>'s first option; make the intended
+            // defaults explicit (event_type starts at "Meal", priority at "Low").
+            document.getElementById('program-type').value = 'general';
+            document.getElementById('program-audience').value = 'all';
+            document.getElementById('program-priority').value = 'normal';
         }
     },
 
@@ -169,12 +231,14 @@ const ProgramManagement = {
         const data = Object.fromEntries(formData.entries());
 
         // Trim text fields; drop empty optionals so the backend defaults apply.
-        ['day_label', 'time_label', 'title', 'location', 'description'].forEach(field => {
+        ['event_date', 'start_time', 'end_time', 'title', 'location', 'contact_name', 'description'].forEach(field => {
             if (typeof data[field] === 'string') {
                 data[field] = data[field].trim();
             }
         });
-        ['time_label', 'location', 'description'].forEach(field => {
+        // event_date and the three selects always carry a value; everything
+        // else is dropped when empty so the backend stores NULL / its default.
+        ['start_time', 'end_time', 'location', 'contact_name', 'description'].forEach(field => {
             if (!data[field]) delete data[field];
         });
 
@@ -226,7 +290,7 @@ const ProgramManagement = {
 
         // Required fields
         const requiredFields = [
-            { id: 'program-day', name: 'Day' },
+            { id: 'program-date', name: 'Date' },
             { id: 'program-title', name: 'Title' }
         ];
 
