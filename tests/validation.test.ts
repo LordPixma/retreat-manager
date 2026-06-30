@@ -1,6 +1,6 @@
 // Tests for validation utilities
 import { describe, it, expect } from 'vitest';
-import { validate, attendeeCreateSchema, roomCreateSchema, groupSchema, announcementCreateSchema } from '../functions/_shared/validation.js';
+import { validate, attendeeCreateSchema, roomCreateSchema, groupCreateSchema, announcementCreateSchema } from '../functions/_shared/validation.js';
 
 describe('Validation Utilities', () => {
   describe('validate function', () => {
@@ -81,16 +81,16 @@ describe('Validation Utilities', () => {
     });
   });
 
-  describe('groupSchema', () => {
+  describe('groupCreateSchema', () => {
     it('should validate valid group data', () => {
       const data = { name: 'VIP Group' };
-      const result = validate(data, groupSchema);
+      const result = validate(data, groupCreateSchema);
       expect(result.valid).toBe(true);
     });
 
     it('should reject empty group name', () => {
       const data = { name: '' };
-      const result = validate(data, groupSchema);
+      const result = validate(data, groupCreateSchema);
       expect(result.valid).toBe(false);
       expect(result.errors.name).toBeDefined();
     });

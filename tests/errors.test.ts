@@ -1,6 +1,6 @@
 // Tests for error handling utilities
 import { describe, it, expect } from 'vitest';
-import { errors, createErrorResponse, generateRequestId, handleError, AppError } from '../functions/_shared/errors.js';
+import { errors, createErrorResponse, generateRequestId, handleError, AppError, ErrorCode } from '../functions/_shared/errors.js';
 
 describe('Error Handling Utilities', () => {
   describe('generateRequestId', () => {
@@ -31,7 +31,7 @@ describe('Error Handling Utilities', () => {
         expect(error.code).toBe('VALIDATION_ERROR');
         expect(error.status).toBe(400);
         expect(error.details.fields).toEqual(fieldErrors);
-        expect(error.details.requestId).toBe('req_123');
+        expect(error.requestId).toBe('req_123');
       });
     });
 
@@ -42,7 +42,7 @@ describe('Error Handling Utilities', () => {
         expect(error.code).toBe('UNAUTHORIZED');
         expect(error.status).toBe(401);
         expect(error.message).toBe('Token expired');
-        expect(error.details.requestId).toBe('req_456');
+        expect(error.requestId).toBe('req_456');
       });
     });
 
@@ -53,7 +53,7 @@ describe('Error Handling Utilities', () => {
         expect(error.code).toBe('NOT_FOUND');
         expect(error.status).toBe(404);
         expect(error.message).toBe('Attendee not found');
-        expect(error.details.requestId).toBe('req_789');
+        expect(error.requestId).toBe('req_789');
       });
     });
 
@@ -143,24 +143,25 @@ describe('Error Handling Utilities', () => {
       const error = new Error('Test');
       const result = handleError(error, 'req_custom');
 
-      expect(result.details.requestId).toBe('req_custom');
+      expect(result.requestId).toBe('req_custom');
     });
   });
 
   describe('AppError class', () => {
     it('should extend Error', () => {
-      const appError = new AppError('Test', 'TEST_CODE', 400, {});
+      const appError = new AppError(ErrorCode.INTERNAL_ERROR, 'Test');
       expect(appError instanceof Error).toBe(true);
     });
 
     it('should have correct properties', () => {
       const details = { field: 'value' };
-      const appError = new AppError('Test message', 'CUSTOM_CODE', 418, details);
+      const appError = new AppError(ErrorCode.NOT_FOUND, 'Test message', details, 'req_x');
 
       expect(appError.message).toBe('Test message');
-      expect(appError.code).toBe('CUSTOM_CODE');
-      expect(appError.status).toBe(418);
+      expect(appError.code).toBe(ErrorCode.NOT_FOUND);
+      expect(appError.status).toBe(404); // status is derived from the code
       expect(appError.details).toEqual(details);
+      expect(appError.requestId).toBe('req_x');
     });
   });
 });

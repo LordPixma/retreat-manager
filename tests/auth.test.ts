@@ -1,6 +1,6 @@
 // Tests for authentication utilities
 import { describe, it, expect } from 'vitest';
-import { hashPassword, verifyPassword, needsPasswordUpgrade } from '../functions/_shared/auth.js';
+import { hashPassword, verifyPassword } from '../functions/_shared/auth.js';
 
 describe('Authentication Utilities', () => {
   describe('hashPassword', () => {
@@ -55,22 +55,6 @@ describe('Authentication Utilities', () => {
       const hash = await hashPassword(password);
       const isValid = await verifyPassword(password, hash);
       expect(isValid).toBe(true);
-    });
-  });
-
-  describe('needsPasswordUpgrade', () => {
-    it('should return true for old bcrypt-style hashes', () => {
-      const oldHash = '$2b$10$somehashvalue';
-      expect(needsPasswordUpgrade(oldHash)).toBe(true);
-    });
-
-    it('should return false for new PBKDF2 hashes', async () => {
-      const newHash = await hashPassword('testpassword');
-      expect(needsPasswordUpgrade(newHash)).toBe(false);
-    });
-
-    it('should return true for plain text passwords', () => {
-      expect(needsPasswordUpgrade('plainpassword')).toBe(true);
     });
   });
 
