@@ -8,6 +8,9 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "attendance_db"
 database_id = "19c293e9-c7b2-4fb6-bbee-e7960698cd8d"
+# Lets `wrangler d1 migrations apply` record applied migrations in the
+# d1_migrations table and run only pending files. See migrations/README.md.
+migrations_dir = "migrations"
 
 # Pages configuration
 [build]
