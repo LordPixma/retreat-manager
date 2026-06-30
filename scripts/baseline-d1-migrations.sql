@@ -47,3 +47,28 @@ INSERT OR IGNORE INTO d1_migrations (name) VALUES
   ('021_flexible_payment_plans.sql'),
   ('022_group_lead.sql'),
   ('023_attendee_personal_details_expansion.sql');
+
+/*
+  024_announcement_email_tracking.sql is intentionally NOT listed above.
+
+  The announcements.email_sent / email_sent_at columns it adds may not exist
+  in production yet (if the announcement-email feature has been failing, they
+  don't). Leaving 024 out of this baseline lets `wrangler d1 migrations apply`
+  run it and add the columns — which also fixes that 500.
+
+  If a check shows production ALREADY has those columns (they were hand-added),
+  record 024 as already-applied instead, so the workflow skips it rather than
+  failing on "duplicate column name":
+
+    INSERT OR IGNORE INTO d1_migrations (name)
+    VALUES ('024_announcement_email_tracking.sql');
+
+  Check with:
+    SELECT name FROM pragma_table_info('announcements')
+    WHERE name IN ('email_sent','email_sent_at');
+
+  (registrations.payment_option is a separate, prod-only gap — production has
+  the column but no migration creates it. It is NOT reconciled here because it
+  only affects a from-scratch rebuild, which has other ordering issues anyway;
+  see migrations/README.md "Known limitations".)
+*/

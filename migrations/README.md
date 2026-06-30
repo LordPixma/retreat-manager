@@ -39,14 +39,43 @@ also be run manually from the Actions tab.
 ## Adding a migration
 
 1. Create the next file continuing the **three-digit** sequence, e.g.
-   `024_add_widget_table.sql`. (Keep the existing numbering — don't use
+   `025_add_widget_table.sql`. (Keep the existing numbering — don't use
    `wrangler d1 migrations create`, which emits four-digit names that sort
    inconsistently against these.)
 2. Keep it **additive and console-safe**: one statement per line, no semicolons
-   inside comments. SQLite has no `ADD COLUMN IF NOT EXISTS`, so a migration
-   must never be edited after it has been applied anywhere — always add a new
-   file.
+   inside comments. SQLite has no `ADD COLUMN IF NOT EXISTS`, so an applied
+   migration must not be edited to change behaviour — always add a new file.
+   (One narrow exception, documented below: correcting a *missing-column*
+   omission in a migration that has only ever been baselined, never run.)
 3. Open a PR. On merge to `main`, the workflow applies it to production.
+
+## Known limitation: the 001–023 history is not cleanly re-appliable
+
+These migrations were written and applied incrementally by hand and were never
+run as a clean in-order batch. A from-scratch `wrangler d1 migrations apply`
+fails partway — e.g. `005` indexes the `announcements` table before `016`
+creates it, and `008`'s backfill `SELECT`s `registrations.payment_option`,
+which no migration ever adds. Production has the correct schema (built up over
+time); the gaps are only in the *files*.
+
+**This does not affect the workflow or production.** `wrangler d1 migrations
+apply` runs only files not recorded in `d1_migrations`, and the one-time
+baseline records all of `001–023`, so the workflow never re-runs them and never
+hits these ordering gaps. New migrations (`024+`) are clean and apply normally.
+For disaster recovery, restore a D1 backup rather than replaying migrations
+from zero.
+
+Reconciling the historical files into a truly buildable set would mean
+re-ordering several already-applied migrations; it's deferred as low-value (the
+automation and prod are unaffected). One genuinely-missing column set was worth
+adding now, though:
+
+- **`announcements.email_sent` / `email_sent_at`** — added as **`024`**. No
+  migration ever created them, yet `announcements/[id]/email.ts` writes them, so
+  a database lacking them `500`s when an announcement is emailed. `024` is left
+  out of the baseline so the workflow applies it (fixing that `500` if the
+  columns are missing in prod); if a check shows prod already has them, baseline
+  `024` instead — see `scripts/baseline-d1-migrations.sql`.
 
 ### Race note
 
