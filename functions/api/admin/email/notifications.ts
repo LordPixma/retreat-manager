@@ -5,6 +5,7 @@ import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/aut
 import { headerStyles, typeIcons } from '../../../_shared/email-helpers.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { sendEmail, isEmailReady } from '../../../_shared/email.js';
+import { escapeHtml } from '../../../_shared/sanitize.js';
 
 interface AttendeeRow {
   id: number;
@@ -306,18 +307,18 @@ function generateGenericTemplate(templateData: EmailTemplate, attendee: Attendee
   return `
     <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 2rem;">
       <div style="${headerStyle} color: white; padding: 2rem; text-align: center; border-radius: 12px 12px 0 0;">
-        <h1 style="margin: 0; font-size: 1.8rem;">${icon} ${templateData.subject}</h1>
+        <h1 style="margin: 0; font-size: 1.8rem;">${icon} ${escapeHtml(templateData.subject)}</h1>
         <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Growth and Wisdom Retreat Portal</p>
       </div>
 
       <div style="background: white; padding: 2rem; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
         <div style="margin-bottom: 1.5rem;">
-          <h3 style="color: #1f2937; margin: 0 0 0.5rem 0;">Hello ${attendee.name}!</h3>
-          <p style="color: #6b7280; margin: 0; font-size: 0.9rem;">Reference: ${attendee.ref_number}</p>
+          <h3 style="color: #1f2937; margin: 0 0 0.5rem 0;">Hello ${escapeHtml(attendee.name)}!</h3>
+          <p style="color: #6b7280; margin: 0; font-size: 0.9rem;">Reference: ${escapeHtml(attendee.ref_number)}</p>
         </div>
 
         <div style="background: #f9fafb; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #667eea; margin: 1.5rem 0;">
-          <div style="color: #374151; line-height: 1.6; white-space: pre-wrap;">${templateData.message}</div>
+          <div style="color: #374151; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(templateData.message)}</div>
         </div>
 
         <div style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem; margin-top: 2rem; color: #6b7280; font-size: 0.875rem; text-align: center;">

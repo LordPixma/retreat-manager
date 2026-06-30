@@ -638,8 +638,11 @@
             // Use session manager instead of direct localStorage
             SessionManager.setItem('token', token, type);
             
-            // Set expiration tracking
-            const expiresAt = Date.now() + (2 * 60 * 60 * 1000); // 2 hours
+            // Set expiration tracking. Must match the server token lifetime
+            // (TOKEN_EXPIRY_MS = 8h in functions/_shared/auth.ts). A shorter
+            // client-side window silently logs the user out mid-session even
+            // though the server token is still valid.
+            const expiresAt = Date.now() + (8 * 60 * 60 * 1000); // 8 hours
             SessionManager.setItem('token_expires', expiresAt, type);
             
             // Clear any conflict flags

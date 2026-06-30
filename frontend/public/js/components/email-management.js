@@ -391,8 +391,8 @@ window.EmailManagement = {
                                 <div id="email-groups-list" class="form-checkbox-group">
                                     ${this.availableGroups.map(group => `
                                         <label class="checkbox-item">
-                                            <input type="checkbox" name="target_groups" value="${group.name}">
-                                            <span class="checkbox-label">${group.name}</span>
+                                            <input type="checkbox" name="target_groups" value="${this.escapeHtml(group.name).replace(/"/g, '&quot;')}">
+                                            <span class="checkbox-label">${this.escapeHtml(group.name)}</span>
                                         </label>
                                     `).join('')}
                                 </div>

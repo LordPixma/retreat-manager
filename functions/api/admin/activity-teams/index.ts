@@ -2,6 +2,7 @@ import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { sendEmailsBulk, isEmailReady, type OutboundEmail } from '../../../_shared/email.js';
+import { escapeHtml } from '../../../_shared/sanitize.js';
 
 interface TeamRow {
   id: number;
@@ -174,13 +175,13 @@ async function sendTeamNotificationEmails(
                 <h1 style="color: white; margin: 0;">Activity Team Assignment</h1>
               </div>
               <div style="padding: 30px; background: #f8fafc; border-radius: 0 0 12px 12px;">
-                <p>Dear ${member.name},</p>
-                <p>You have been added to an activity team for the <strong>${retreatName}</strong>!</p>
+                <p>Dear ${escapeHtml(member.name)},</p>
+                <p>You have been added to an activity team for the <strong>${escapeHtml(retreatName)}</strong>!</p>
                 <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;">
-                  <p style="margin: 0 0 8px;"><strong>Team:</strong> ${teamName}</p>
-                  ${description ? `<p style="margin: 0 0 8px;"><strong>Description:</strong> ${description}</p>` : ''}
-                  <p style="margin: 0 0 8px;"><strong>Team Leader:</strong> ${leaderName}</p>
-                  <p style="margin: 0;"><strong>Team Members:</strong> ${memberNames.join(', ')}</p>
+                  <p style="margin: 0 0 8px;"><strong>Team:</strong> ${escapeHtml(teamName)}</p>
+                  ${description ? `<p style="margin: 0 0 8px;"><strong>Description:</strong> ${escapeHtml(description)}</p>` : ''}
+                  <p style="margin: 0 0 8px;"><strong>Team Leader:</strong> ${escapeHtml(leaderName)}</p>
+                  <p style="margin: 0;"><strong>Team Members:</strong> ${memberNames.map(escapeHtml).join(', ')}</p>
                 </div>
                 ${member.id === leaderId ? '<p style="color: #667eea; font-weight: 600;">You have been designated as the Team Leader!</p>' : ''}
                 <p>We look forward to a wonderful retreat experience together!</p>

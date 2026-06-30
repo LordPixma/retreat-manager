@@ -22,6 +22,8 @@ import {
   handleCORS,
   hashPassword,
   verifyPassword,
+  checkRateLimit,
+  recordLoginAttempt,
 } from '../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../_shared/errors.js';
 
@@ -58,6 +60,10 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     if (next === current) {
       return createErrorResponse(errors.badRequest('New password must be different from current password', requestId));
     }
+
+    const clientIP = context.request.headers.get('CF-Connecting-IP') ||
+                     context.request.headers.get('X-Forwarded-For') ||
+                     'unknown';
 
     const hasAuthHeader = !!context.request.headers.get('Authorization');
     const secret = context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET;
@@ -107,6 +113,14 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
         return createErrorResponse(errors.forbidden('Password change requires authentication; use the normal change-password flow.', requestId));
       }
       isForcedResetPath = true;
+
+      // This path is unauthenticated and verifies the admin-set temp password
+      // below, so it's a brute-force surface — throttle it the same way login
+      // and the attendee change-password flow are (per-identifier + per-IP).
+      const rl = await checkRateLimit(context.env.DB, username, 'admin', clientIP);
+      if (!rl.allowed) {
+        return createErrorResponse(errors.rateLimited(Math.ceil((rl.resetTime - Date.now()) / 1000), requestId));
+      }
     }
 
     // Verify the current password.
@@ -124,6 +138,9 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     }
 
     if (!currentValid) {
+      if (isForcedResetPath && resolvedUsername) {
+        await recordLoginAttempt(context.env.DB, resolvedUsername, 'admin', false, clientIP);
+      }
       return createErrorResponse(errors.unauthorized('Current password is incorrect', requestId));
     }
 
@@ -156,6 +173,10 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       ).run();
     } catch (err) {
       console.warn(`[${requestId}] audit_log write failed`, err);
+    }
+
+    if (isForcedResetPath && resolvedUsername) {
+      await recordLoginAttempt(context.env.DB, resolvedUsername, 'admin', true, clientIP);
     }
 
     return createResponse({ success: true, message: 'Password updated' });
