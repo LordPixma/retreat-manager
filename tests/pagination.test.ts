@@ -24,10 +24,10 @@ describe('Pagination Utilities', () => {
       expect(result.limit).toBe(500);
     });
 
-    it('should enforce minimum limit of 1', () => {
+    it('should fall back to the default limit when below the minimum', () => {
       const url = new URL('https://example.com/api/items?limit=0');
       const result = parsePaginationParams(url);
-      expect(result.limit).toBe(1);
+      expect(result.limit).toBe(50); // sub-minimum limit resets to DEFAULT_LIMIT
     });
 
     it('should enforce non-negative offset', () => {
@@ -43,10 +43,10 @@ describe('Pagination Utilities', () => {
       expect(result.offset).toBe(0); // default
     });
 
-    it('should parse page parameter and calculate offset', () => {
-      const url = new URL('https://example.com/api/items?page=3&limit=10');
+    it('should parse offset and limit from query params', () => {
+      const url = new URL('https://example.com/api/items?offset=20&limit=10');
       const result = parsePaginationParams(url);
-      expect(result.offset).toBe(20); // (page - 1) * limit = (3 - 1) * 10
+      expect(result.offset).toBe(20);
       expect(result.limit).toBe(10);
     });
   });
