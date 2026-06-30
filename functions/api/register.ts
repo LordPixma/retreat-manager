@@ -5,7 +5,7 @@ import type { PagesContext, Env } from '../_shared/types.js';
 import { createResponse, handleCORS } from '../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../_shared/errors.js';
 import { escapeHtml } from '../_shared/sanitize.js';
-import { sendEmailOrThrow } from '../_shared/email.js';
+import { sendEmailOrThrow, isEmailReady } from '../_shared/email.js';
 
 // Pricing constants
 const PRICING = {
@@ -286,7 +286,7 @@ async function sendRegistrationNotification(
   data: RegistrationInput,
   registrationId: number
 ): Promise<void> {
-  if (!env.EMAIL || !env.FROM_EMAIL) {
+  if (!isEmailReady(env)) {
     console.warn('Email service not configured - skipping notification');
     return;
   }

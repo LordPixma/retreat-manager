@@ -88,13 +88,25 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       sender: 'The Growth and Wisdom Retreat Team'
     });
 
+    // Report the real delivery outcome. Previously this always returned
+    // success:true with "sent to N attendees" even when N was 0 (every send
+    // failed — e.g. unverified sender domain), so a totally broken blast
+    // looked successful to the admin.
+    const sent = emailResults.successful;
+    const failed = emailResults.failed;
+    const allFailed = sent === 0 && attendees.length > 0;
+
     return createResponse({
-      success: true,
-      message: `Emails sent to ${emailResults.successful} attendees`,
+      success: !allFailed,
+      message: allFailed
+        ? `Delivery failed for all ${attendees.length} recipient(s)${emailResults.errors?.[0] ? `: ${emailResults.errors[0]}` : '. Check the email service configuration.'}`
+        : failed > 0
+          ? `Sent to ${sent} of ${attendees.length}; ${failed} failed${emailResults.errors?.[0] ? ` (${emailResults.errors[0]})` : ''}.`
+          : `Emails sent to ${sent} attendee(s).`,
       results: {
         total: attendees.length,
-        successful: emailResults.successful,
-        failed: emailResults.failed,
+        successful: sent,
+        failed,
         errors: emailResults.errors
       }
     });

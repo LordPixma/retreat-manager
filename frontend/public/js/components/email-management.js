@@ -589,16 +589,30 @@ This message will be formatted nicely and include attendee-specific details like
 
             // Send email via API
             const response = await API.post('/admin/email/send', formData);
-            
-            this.showModalAlert('bulk-email-alert', 
-                `Emails sent successfully to ${response.results.successful} attendees!`, 
+            const r = response.results || {};
+            const sent = r.successful || 0;
+            const failed = r.failed || 0;
+
+            // Don't claim success when nothing actually sent (e.g. unverified
+            // sender domain → every delivery failed but the request returned).
+            if (sent === 0) {
+                this.showModalAlert('bulk-email-alert',
+                    response.message || `Email delivery failed — 0 of ${r.total || 0} sent.`,
+                    'error'
+                );
+                return;
+            }
+
+            const note = failed > 0 ? ` (${failed} failed)` : '';
+            this.showModalAlert('bulk-email-alert',
+                `Emails sent to ${sent} of ${r.total} attendees${note}.`,
                 'success'
             );
 
             // Auto-close modal after success
             setTimeout(() => {
                 this.closeAllModals();
-                Utils.showAlert(`Bulk email sent to ${response.results.successful} attendees!`, 'success');
+                Utils.showAlert(`Bulk email sent to ${sent} attendees${note}.`, 'success');
             }, 2000);
 
         } catch (error) {
