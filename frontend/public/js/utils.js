@@ -435,14 +435,14 @@ const Utils = {
      */
     program: {
         eventTypes: [
-            { value: 'meal',     label: 'Meal',             icon: 'fa-utensils' },
-            { value: 'general',  label: 'General Session',  icon: 'fa-chalkboard-user' },
-            { value: 'breakout', label: 'Breakout Session', icon: 'fa-comments' },
-            { value: 'team',     label: 'Team Session',     icon: 'fa-people-group' },
-            { value: 'worship',  label: 'Worship',          icon: 'fa-hands-praying' },
-            { value: 'activity', label: 'Activity',         icon: 'fa-person-running' },
-            { value: 'free',     label: 'Free Time',        icon: 'fa-mug-hot' },
-            { value: 'custom',   label: 'Custom',           icon: 'fa-calendar-day' }
+            { value: 'meal',     label: 'Meal',             icon: 'fa-utensils',         color: '#f59e0b' },
+            { value: 'general',  label: 'General Session',  icon: 'fa-chalkboard-user',  color: '#22d3ee' },
+            { value: 'breakout', label: 'Breakout Session', icon: 'fa-comments',         color: '#5eead4' },
+            { value: 'team',     label: 'Team Session',     icon: 'fa-people-group',     color: '#10b981' },
+            { value: 'worship',  label: 'Worship',          icon: 'fa-hands-praying',    color: '#a78bfa' },
+            { value: 'activity', label: 'Activity',         icon: 'fa-person-running',   color: '#f472b6' },
+            { value: 'free',     label: 'Free Time',        icon: 'fa-mug-hot',          color: '#38bdf8' },
+            { value: 'custom',   label: 'Custom',           icon: 'fa-calendar-day',     color: '#9999bb' }
         ],
         audiences: [
             { value: 'all',      label: 'Everyone' },
@@ -469,6 +469,9 @@ const Utils = {
         },
         eventTypeLabel(value) {
             return this.eventTypeMeta(value).label;
+        },
+        eventTypeColor(value) {
+            return this.eventTypeMeta(value).color;
         },
         audienceLabel(value) {
             const a = this.audiences.find(x => x.value === value);
