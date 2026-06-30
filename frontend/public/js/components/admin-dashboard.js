@@ -2173,10 +2173,10 @@ const AdminDashboard = {
             ? familyMembers.map(m => `
                 <tr>
                     <td>${Utils.escapeHtml(m.name)}</td>
-                    <td>${m.date_of_birth || '-'}</td>
-                    <td><span class="badge badge-${m.member_type === 'adult' ? 'primary' : m.member_type === 'child' ? 'info' : 'secondary'}">${m.member_type}</span></td>
+                    <td>${Utils.escapeHtml(m.date_of_birth || '-')}</td>
+                    <td><span class="badge badge-${m.member_type === 'adult' ? 'primary' : m.member_type === 'child' ? 'info' : 'secondary'}">${Utils.escapeHtml(m.member_type)}</span></td>
                     <td>${Utils.formatCurrency(m.price || 0)}</td>
-                    <td>${m.dietary || '-'}</td>
+                    <td>${Utils.escapeHtml(m.dietary || '-')}</td>
                 </tr>
             `).join('')
             : `<tr><td colspan="5" style="text-align: center;">No family member details available</td></tr>`;
@@ -2196,8 +2196,8 @@ const AdminDashboard = {
                             <div class="detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div><strong>Name:</strong> ${Utils.escapeHtml(registration.name)}</div>
                                 <div><strong>Email:</strong> ${Utils.escapeHtml(registration.email)}</div>
-                                <div><strong>Phone:</strong> ${registration.phone || '-'}</div>
-                                <div><strong>Emergency Contact:</strong> ${registration.emergency_contact || '-'}</div>
+                                <div><strong>Phone:</strong> ${Utils.escapeHtml(registration.phone || '-')}</div>
+                                <div><strong>Emergency Contact:</strong> ${Utils.escapeHtml(registration.emergency_contact || '-')}</div>
                             </div>
                         </div>
                         <div class="detail-section" style="margin-top: 1.5rem;">
@@ -2219,8 +2219,8 @@ const AdminDashboard = {
                             <h4>Payment & Status</h4>
                             <div class="detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div><strong>Total Amount:</strong> ${Utils.formatCurrency(registration.total_amount || 200)}</div>
-                                <div><strong>Payment Option:</strong> ${registration.payment_option || 'full'}</div>
-                                <div><strong>Status:</strong> ${registration.status}</div>
+                                <div><strong>Payment Option:</strong> ${Utils.escapeHtml(registration.payment_option || 'full')}</div>
+                                <div><strong>Status:</strong> ${Utils.escapeHtml(registration.status)}</div>
                                 <div><strong>Submitted:</strong> ${new Date(registration.submitted_at).toLocaleString()}</div>
                             </div>
                         </div>
