@@ -321,32 +321,18 @@
             <div class="table-header">
                 <h3 class="table-title">Retreat Program</h3>
                 <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <span class="program-board-hint" style="color: var(--text-tertiary); font-size: 0.8rem;">
+                        <i class="fas fa-arrows-up-down-left-right"></i> Drag cards to reorder or move between days
+                    </span>
                     <button class="btn btn-sm btn-primary" id="add-program-btn">
                         <i class="fas fa-plus"></i> Add Program Item
                     </button>
                 </div>
             </div>
-            <div class="table-container">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Title</th>
-                            <th>Type</th>
-                            <th>Audience</th>
-                            <th>Location</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="program-table-body">
-                        <tr>
-                            <td colspan="7" class="loading-placeholder">
-                                <i class="fas fa-spinner fa-spin"></i> Loading program...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div id="program-board" class="program-board">
+                <div class="program-board-loading" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                    <i class="fas fa-spinner fa-spin"></i> Loading program...
+                </div>
             </div>
         </div>
     </div>

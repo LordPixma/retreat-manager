@@ -417,9 +417,14 @@ const AdminDashboard = {
      * Load program data with loading state
      */
     async loadProgram() {
-        const tableBody = 'program-table-body';
         this.loadingStates.program = true;
-        Utils.showSectionLoading(tableBody, 'Loading program...');
+        const board = document.getElementById('program-board');
+        if (board) {
+            board.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: var(--text-secondary); width: 100%;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading program...
+                </div>`;
+        }
 
         try {
             const response = await API.get('/admin/program');
@@ -432,9 +437,22 @@ const AdminDashboard = {
             this.data.program = [];
             this.loadingStates.program = false;
             this.failedLoads.add('program');
-            Utils.showSectionError(tableBody, 'Failed to load program', () => {
-                this.loadProgram().then(() => this.updateProgramDisplay());
-            });
+            const b = document.getElementById('program-board');
+            if (b) {
+                b.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: var(--error); width: 100%;">
+                        <i class="fas fa-exclamation-triangle"></i> Failed to load program<br>
+                        <button class="btn btn-sm btn-primary" id="program-retry-btn" style="margin-top: 0.75rem;">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>`;
+                const retry = document.getElementById('program-retry-btn');
+                if (retry) {
+                    retry.addEventListener('click', () => {
+                        this.loadProgram().then(() => this.updateProgramDisplay()).catch(() => {});
+                    });
+                }
+            }
             throw error;
         }
     },
@@ -858,66 +876,231 @@ const AdminDashboard = {
     },
 
     /**
-     * Update program table display
+     * Render the program as a drag-and-drop calendar board: one column per day
+     * (grouped by event_date, chronological), each holding event cards. Cards
+     * can be dragged within a column to reorder or to another column to move to
+     * a different day. SortableJS drives the interaction; persistProgramOrder()
+     * saves the result.
      */
     updateProgramDisplay() {
-        const tbody = document.getElementById('program-table-body');
-        if (!tbody) return;
+        const board = document.getElementById('program-board');
+        if (!board) return;
 
-        if (this.data.program.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
-                        No program items found
-                    </td>
-                </tr>
-            `;
+        this._ensureProgramBoardStyles();
+        this._destroyProgramSortables();
+
+        const program = this.data.program || [];
+        if (program.length === 0) {
+            board.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: var(--text-secondary); width: 100%;">
+                    No program items yet. Click “Add Program Item” to start building the schedule.
+                </div>`;
             return;
         }
 
-        const dash = '<span style="color: var(--text-tertiary);">-</span>';
+        const dash = '<span style="color: var(--text-tertiary);">—</span>';
 
-        tbody.innerHTML = this.data.program.map(item => {
-            // Prefer the structured date/time; fall back to the legacy labels
-            // for any rows that predate the richer schema (migration 026).
-            const dateText = item.event_date
-                ? Utils.escapeHtml(Utils.program.formatDate(item.event_date))
-                : (item.day_label ? Utils.escapeHtml(item.day_label) : dash);
-            const timeRange = Utils.program.formatTimeRange(item.start_time, item.end_time);
-            const timeText = timeRange
-                ? Utils.escapeHtml(timeRange)
-                : (item.time_label ? Utils.escapeHtml(item.time_label) : dash);
-            const typeIcon = Utils.program.eventTypeIcon(item.event_type);
-            const typeLabel = Utils.escapeHtml(Utils.program.eventTypeLabel(item.event_type));
-            const audienceLabel = Utils.program.audienceLabel(item.audience);
-            const audienceText = audienceLabel ? Utils.escapeHtml(audienceLabel) : dash;
-            // High-priority items get a small flag next to the title; low/normal
-            // stay uncluttered.
-            const priorityTag = item.priority === 'high'
-                ? ' <span class="badge badge-warning" title="High priority"><i class="fas fa-flag"></i> High</span>'
-                : '';
+        // Group by event_date (items already arrive in chronological order).
+        // Any dateless legacy row falls into a trailing "Unscheduled" column.
+        const order = [];
+        const groups = {};
+        program.forEach((item) => {
+            const key = item.event_date || '';
+            if (!(key in groups)) { groups[key] = []; order.push(key); }
+            groups[key].push(item);
+        });
+
+        board.innerHTML = order.map((key) => {
+            const headerLabel = key
+                ? Utils.escapeHtml(Utils.program.formatDate(key))
+                : 'Unscheduled';
+
+            const cards = groups[key].map((item) => {
+                const typeIcon = Utils.program.eventTypeIcon(item.event_type);
+                const typeLabel = Utils.escapeHtml(Utils.program.eventTypeLabel(item.event_type));
+                const range = Utils.program.formatTimeRange(item.start_time, item.end_time);
+                const timeText = range
+                    ? Utils.escapeHtml(range)
+                    : (item.time_label ? Utils.escapeHtml(item.time_label) : dash);
+                const audienceLabel = Utils.program.audienceLabel(item.audience);
+                const audience = (item.audience && item.audience !== 'all' && audienceLabel)
+                    ? `<span class="badge badge-secondary" style="font-size: 0.65rem;">${Utils.escapeHtml(audienceLabel)}</span>`
+                    : '';
+                const mandatory = item.is_mandatory
+                    ? `<span class="badge badge-danger" style="font-size: 0.65rem;" title="Mandatory session"><i class="fas fa-triangle-exclamation"></i> Mandatory</span>`
+                    : '';
+                const priority = item.priority === 'high'
+                    ? `<span class="badge badge-warning" style="font-size: 0.65rem;" title="High priority"><i class="fas fa-flag"></i></span>`
+                    : '';
+                const loc = item.location
+                    ? `<div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.35rem;"><i class="fas fa-location-dot" style="width: 1rem; color: var(--text-tertiary);"></i> ${Utils.escapeHtml(item.location)}</div>`
+                    : '';
+                const contact = item.contact_name
+                    ? `<div style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.2rem;"><i class="fas fa-user" style="width: 1rem;"></i> ${Utils.escapeHtml(item.contact_name)}</div>`
+                    : '';
+
+                return `
+                    <div class="program-card" data-program-id="${item.id}">
+                        <div class="program-card-grip" title="Drag to reorder or move day"><i class="fas fa-grip-vertical"></i></div>
+                        <div class="program-card-body">
+                            <div class="program-card-top">
+                                <span class="program-card-time"><i class="fas ${typeIcon}"></i> ${timeText}</span>
+                                <span class="program-card-flags">${mandatory}${priority}</span>
+                            </div>
+                            <div class="program-card-title">${Utils.escapeHtml(item.title)}</div>
+                            <div class="program-card-meta">
+                                <span class="badge badge-info" style="font-size: 0.65rem;">${typeLabel}</span>
+                                ${audience}
+                            </div>
+                            ${loc}
+                            ${contact}
+                            <div class="program-card-actions">
+                                <button class="btn btn-sm btn-primary edit-program" data-id="${item.id}" title="Edit Program Item">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-program" data-id="${item.id}" title="Delete Program Item">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
 
             return `
-                <tr data-program-id="${item.id}">
-                    <td><strong>${dateText}</strong></td>
-                    <td>${timeText}</td>
-                    <td>${Utils.escapeHtml(item.title)}${priorityTag}</td>
-                    <td><i class="fas ${typeIcon}" style="color: var(--text-tertiary); margin-right: 0.35rem;"></i>${typeLabel}</td>
-                    <td>${audienceText}</td>
-                    <td>${item.location ? Utils.escapeHtml(item.location) : dash}</td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-program" data-id="${item.id}" title="Edit Program Item">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger delete-program" data-id="${item.id}" title="Delete Program Item">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
+                <div class="program-day-col">
+                    <div class="program-day-head">
+                        <span class="program-day-title">${headerLabel}</span>
+                        <span class="program-day-count">${groups[key].length}</span>
+                    </div>
+                    <div class="program-day-cards" data-day-column="${Utils.escapeHtml(key)}">
+                        ${cards}
+                    </div>
+                </div>`;
         }).join('');
+
+        this._initProgramSortables();
+    },
+
+    /**
+     * Turn each day column's card list into a SortableJS instance. All columns
+     * share one group so cards can be dragged between days. If SortableJS isn't
+     * available (e.g. the CDN is blocked), the board still renders as static
+     * cards — only drag-and-drop is disabled.
+     */
+    _initProgramSortables() {
+        if (typeof window.Sortable === 'undefined') {
+            console.warn('SortableJS not loaded; program board drag-and-drop disabled');
+            const hint = document.querySelector('.program-board-hint');
+            if (hint) hint.style.display = 'none';
+            return;
+        }
+        this._programSortables = this._programSortables || [];
+        document.querySelectorAll('#program-board .program-day-cards').forEach((list) => {
+            const instance = window.Sortable.create(list, {
+                group: 'program-board',
+                handle: '.program-card-grip',
+                animation: 150,
+                ghostClass: 'program-card-ghost',
+                chosenClass: 'program-card-chosen',
+                dragClass: 'program-card-drag',
+                onEnd: () => { this.persistProgramOrder(); }
+            });
+            this._programSortables.push(instance);
+        });
+    },
+
+    _destroyProgramSortables() {
+        if (this._programSortables && this._programSortables.length) {
+            this._programSortables.forEach((s) => { try { s.destroy(); } catch (e) { /* already gone */ } });
+        }
+        this._programSortables = [];
+    },
+
+    /**
+     * Read the board's current arrangement and persist it. Each card's column
+     * gives its event_date and its position gives sort_order (gaps of 10). The
+     * whole set is sent to the bulk reorder endpoint in one atomic request. On
+     * success the in-memory data is synced (no re-render needed — the DOM is
+     * already correct); on failure the board is re-rendered to revert the drag.
+     */
+    async persistProgramOrder() {
+        const board = document.getElementById('program-board');
+        if (!board) return;
+
+        const items = [];
+        board.querySelectorAll('.program-day-cards').forEach((list) => {
+            const date = list.getAttribute('data-day-column') || '';
+            const cards = list.querySelectorAll('.program-card');
+            // Keep each column's count badge in sync with what's now inside it.
+            const countEl = list.parentElement
+                ? list.parentElement.querySelector('.program-day-count')
+                : null;
+            if (countEl) countEl.textContent = cards.length;
+            cards.forEach((card, idx) => {
+                const id = Number(card.getAttribute('data-program-id'));
+                if (!id) return;
+                const entry = { id, sort_order: (idx + 1) * 10 };
+                if (date) entry.event_date = date;
+                items.push(entry);
+            });
+        });
+
+        if (items.length === 0) return;
+
+        try {
+            await API.put('/admin/program-reorder', { items });
+            // Sync in-memory state so later edits/renders match the new order.
+            const byId = {};
+            items.forEach((it) => { byId[it.id] = it; });
+            this.data.program.forEach((p) => {
+                const it = byId[p.id];
+                if (it) {
+                    p.sort_order = it.sort_order;
+                    if (it.event_date) p.event_date = it.event_date;
+                }
+            });
+            this.data.program.sort((a, b) =>
+                String(a.event_date || '').localeCompare(String(b.event_date || '')) ||
+                String(a.start_time || '').localeCompare(String(b.start_time || '')) ||
+                ((a.sort_order || 0) - (b.sort_order || 0)) ||
+                ((a.id || 0) - (b.id || 0)));
+        } catch (error) {
+            Utils.showAlert('Failed to save the new order — reverting', 'error');
+            // Re-render from the last known-good in-memory state to undo the drag.
+            this.updateProgramDisplay();
+        }
+    },
+
+    /**
+     * Inject the calendar board styles once (mirrors Utils.initFormStyles).
+     */
+    _ensureProgramBoardStyles() {
+        if (document.getElementById('program-board-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'program-board-styles';
+        style.textContent = `
+            .program-board { display: flex; gap: 1rem; overflow-x: auto; padding: 0.5rem 0.25rem 1rem; align-items: flex-start; }
+            .program-day-col { flex: 0 0 300px; max-width: 300px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; display: flex; flex-direction: column; }
+            .program-day-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
+            .program-day-title { font-weight: 700; color: #5eead4; font-size: 0.9rem; }
+            .program-day-count { background: rgba(255,255,255,0.08); color: var(--text-secondary); border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.72rem; }
+            .program-day-cards { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem; min-height: 60px; flex: 1; }
+            .program-card { display: flex; gap: 0.4rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 0.6rem 0.6rem 0.6rem 0.35rem; }
+            .program-card-grip { cursor: grab; color: var(--text-tertiary); display: flex; align-items: center; padding: 0 0.1rem; }
+            .program-card-grip:active { cursor: grabbing; }
+            .program-card-body { flex: 1; min-width: 0; }
+            .program-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; }
+            .program-card-time { font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; }
+            .program-card-flags { display: flex; gap: 0.25rem; flex-wrap: wrap; justify-content: flex-end; }
+            .program-card-title { font-weight: 700; color: #fff; font-size: 0.92rem; margin: 0.25rem 0; word-break: break-word; }
+            .program-card-meta { display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center; }
+            .program-card-actions { display: flex; gap: 0.35rem; margin-top: 0.6rem; }
+            .program-card-ghost { opacity: 0.4; }
+            .program-card-chosen { box-shadow: 0 0 0 2px var(--primary, #6366f1); }
+            .program-card-drag { transform: rotate(1.5deg); }
+            @media (max-width: 640px) { .program-day-col { flex-basis: 85vw; max-width: 85vw; } }
+        `;
+        document.head.appendChild(style);
     },
 
     /**

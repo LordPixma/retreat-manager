@@ -22,7 +22,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     const { results } = await context.env.DB.prepare(`
       SELECT id, event_date, start_time, end_time, day_label, time_label,
              title, description, location, contact_name, event_type, audience,
-             priority, sort_order, created_at, updated_at
+             priority, is_mandatory, sort_order, created_at, updated_at
       FROM program_items
       ORDER BY event_date ASC, start_time ASC, sort_order ASC, id ASC
     `).all();
@@ -63,6 +63,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       event_type,
       audience,
       priority,
+      is_mandatory,
       sort_order,
     } = body as {
       event_date: string;
@@ -75,6 +76,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       event_type?: string;
       audience?: string;
       priority?: string;
+      is_mandatory?: number | boolean;
       sort_order?: number;
     };
 
@@ -89,8 +91,8 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const result = await context.env.DB.prepare(`
       INSERT INTO program_items (
         event_date, start_time, end_time, title, description, location,
-        contact_name, event_type, audience, priority, sort_order
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        contact_name, event_type, audience, priority, is_mandatory, sort_order
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       event_date.trim(),
       start_time?.trim() || null,
@@ -103,6 +105,8 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       event_type || 'general',
       audience || 'all',
       priority || 'normal',
+      // is_mandatory is NOT NULL (0/1); coerce anything truthy to 1.
+      is_mandatory ? 1 : 0,
       order,
     ).run();
 
