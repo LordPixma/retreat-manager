@@ -424,6 +424,96 @@ const Utils = {
         if (diffHour < 24) return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
         if (diffDay < 7) return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
         return date.toLocaleDateString();
+    },
+
+    /**
+     * Retreat program metadata: shared label + icon maps for event types,
+     * audiences and priorities, plus date/time formatters. Used by the admin
+     * program table, the add/edit form and the attendee schedule so all three
+     * stay consistent. Keep the `value`s in sync with PROGRAM_EVENT_TYPES /
+     * PROGRAM_AUDIENCES / PROGRAM_PRIORITIES in functions/_shared/validation.ts.
+     */
+    program: {
+        eventTypes: [
+            { value: 'meal',     label: 'Meal',             icon: 'fa-utensils' },
+            { value: 'general',  label: 'General Session',  icon: 'fa-chalkboard-user' },
+            { value: 'breakout', label: 'Breakout Session', icon: 'fa-comments' },
+            { value: 'team',     label: 'Team Session',     icon: 'fa-people-group' },
+            { value: 'worship',  label: 'Worship',          icon: 'fa-hands-praying' },
+            { value: 'activity', label: 'Activity',         icon: 'fa-person-running' },
+            { value: 'free',     label: 'Free Time',        icon: 'fa-mug-hot' },
+            { value: 'custom',   label: 'Custom',           icon: 'fa-calendar-day' }
+        ],
+        audiences: [
+            { value: 'all',      label: 'Everyone' },
+            { value: 'adults',   label: 'Adults only' },
+            { value: 'family',   label: 'Family' },
+            { value: 'children', label: 'Children only' },
+            { value: 'teens',    label: 'Teens' },
+            { value: 'leaders',  label: 'Leaders only' }
+        ],
+        priorities: [
+            { value: 'low',    label: 'Low' },
+            { value: 'normal', label: 'Normal' },
+            { value: 'high',   label: 'High' }
+        ],
+
+        // Unknown/empty types fall back to the generic "custom" entry so the
+        // table and schedule always have an icon and label to render.
+        eventTypeMeta(value) {
+            return this.eventTypes.find(t => t.value === value)
+                || this.eventTypes.find(t => t.value === 'custom');
+        },
+        eventTypeIcon(value) {
+            return this.eventTypeMeta(value).icon;
+        },
+        eventTypeLabel(value) {
+            return this.eventTypeMeta(value).label;
+        },
+        audienceLabel(value) {
+            const a = this.audiences.find(x => x.value === value);
+            return a ? a.label : '';
+        },
+        priorityLabel(value) {
+            const p = this.priorities.find(x => x.value === value);
+            return p ? p.label : '';
+        },
+
+        // '15:00' (24h) -> '3:00 PM'. Returns '' for empty; passes through
+        // anything that isn't HH:MM unchanged.
+        formatTime(t) {
+            if (!t || typeof t !== 'string') return '';
+            const m = t.match(/^(\d{1,2}):(\d{2})/);
+            if (!m) return t;
+            let h = parseInt(m[1], 10);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            if (h === 0) h = 12;
+            return `${h}:${m[2]} ${ampm}`;
+        },
+
+        // start/end -> '3:00 PM – 5:00 PM', or just one side if the other is
+        // missing.
+        formatTimeRange(start, end) {
+            const s = this.formatTime(start);
+            const e = this.formatTime(end);
+            if (s && e) return `${s} – ${e}`;
+            return s || e || '';
+        },
+
+        // '2026-07-31' -> 'Fri, July 31'. Falls back to the raw string for
+        // anything that isn't YYYY-MM-DD. Parsed as UTC so the weekday never
+        // shifts by a day depending on the viewer's timezone.
+        formatDate(d) {
+            if (!d || typeof d !== 'string') return '';
+            const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!m) return d;
+            const date = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+            if (isNaN(date.getTime())) return d;
+            return date.toLocaleDateString('en-US', {
+                weekday: 'short', month: 'long', day: 'numeric', timeZone: 'UTC'
+            });
+        }
     }
 };
 

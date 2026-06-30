@@ -867,7 +867,7 @@ const AdminDashboard = {
         if (this.data.program.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
                         No program items found
                     </td>
                 </tr>
@@ -875,13 +875,36 @@ const AdminDashboard = {
             return;
         }
 
+        const dash = '<span style="color: var(--text-tertiary);">-</span>';
+
         tbody.innerHTML = this.data.program.map(item => {
+            // Prefer the structured date/time; fall back to the legacy labels
+            // for any rows that predate the richer schema (migration 026).
+            const dateText = item.event_date
+                ? Utils.escapeHtml(Utils.program.formatDate(item.event_date))
+                : (item.day_label ? Utils.escapeHtml(item.day_label) : dash);
+            const timeRange = Utils.program.formatTimeRange(item.start_time, item.end_time);
+            const timeText = timeRange
+                ? Utils.escapeHtml(timeRange)
+                : (item.time_label ? Utils.escapeHtml(item.time_label) : dash);
+            const typeIcon = Utils.program.eventTypeIcon(item.event_type);
+            const typeLabel = Utils.escapeHtml(Utils.program.eventTypeLabel(item.event_type));
+            const audienceLabel = Utils.program.audienceLabel(item.audience);
+            const audienceText = audienceLabel ? Utils.escapeHtml(audienceLabel) : dash;
+            // High-priority items get a small flag next to the title; low/normal
+            // stay uncluttered.
+            const priorityTag = item.priority === 'high'
+                ? ' <span class="badge badge-warning" title="High priority"><i class="fas fa-flag"></i> High</span>'
+                : '';
+
             return `
                 <tr data-program-id="${item.id}">
-                    <td><strong>${Utils.escapeHtml(item.day_label)}</strong></td>
-                    <td>${item.time_label ? Utils.escapeHtml(item.time_label) : '<span style="color: var(--text-tertiary);">-</span>'}</td>
-                    <td>${Utils.escapeHtml(item.title)}</td>
-                    <td>${item.location ? Utils.escapeHtml(item.location) : '<span style="color: var(--text-tertiary);">-</span>'}</td>
+                    <td><strong>${dateText}</strong></td>
+                    <td>${timeText}</td>
+                    <td>${Utils.escapeHtml(item.title)}${priorityTag}</td>
+                    <td><i class="fas ${typeIcon}" style="color: var(--text-tertiary); margin-right: 0.35rem;"></i>${typeLabel}</td>
+                    <td>${audienceText}</td>
+                    <td>${item.location ? Utils.escapeHtml(item.location) : dash}</td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-primary edit-program" data-id="${item.id}" title="Edit Program Item">
