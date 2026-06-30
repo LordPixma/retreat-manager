@@ -2,6 +2,7 @@
 
 const CHECK_IN_OPEN_KEY = 'check_in_opens_at';
 const CHECK_IN_CLOSE_KEY = 'check_in_closes_at';
+const REGISTRATIONS_OPEN_KEY = 'registrations_open';
 
 export interface CheckInWindow {
   opens_at: string | null;
@@ -24,6 +25,21 @@ export async function setSetting(db: D1Database, key: string, value: string | nu
     `INSERT INTO settings (key, value, updated_at, updated_by) VALUES (?, ?, CURRENT_TIMESTAMP, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP, updated_by = excluded.updated_by`
   ).bind(key, value, adminUser).run();
+}
+
+/**
+ * Whether the public registration form is accepting new submissions.
+ * Defaults to OPEN when the setting has never been written, so existing
+ * deployments keep accepting sign-ups until an admin explicitly closes it.
+ */
+export async function getRegistrationsOpen(db: D1Database): Promise<boolean> {
+  const v = await getSetting(db, REGISTRATIONS_OPEN_KEY);
+  if (v === null) return true;
+  return v === '1' || v === 'true';
+}
+
+export async function setRegistrationsOpen(db: D1Database, open: boolean, adminUser: string): Promise<void> {
+  await setSetting(db, REGISTRATIONS_OPEN_KEY, open ? '1' : '0', adminUser);
 }
 
 export async function getCheckInWindow(db: D1Database): Promise<CheckInWindow> {

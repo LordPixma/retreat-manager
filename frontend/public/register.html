@@ -995,7 +995,30 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // If an admin has closed registration, replace the form with a
+            // notice and skip wiring the (now-absent) form controls.
+            try {
+                const statusResp = await fetch('/api/register');
+                if (statusResp.ok) {
+                    const info = await statusResp.json();
+                    if (info && info.registrationsOpen === false) {
+                        const wrap = document.getElementById('registration-form');
+                        if (wrap) {
+                            wrap.innerHTML = `
+                                <div class="info-box" style="text-align: center; padding: 2.5rem 1.5rem;">
+                                    <h2 style="margin-top: 0;"><i class="fas fa-lock"></i> Registration is closed</h2>
+                                    <p style="margin-bottom: 0;">Registration for the retreat is currently closed. Please check back later, or contact the organisers if you have any questions.</p>
+                                </div>`;
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                // If the status check fails, fall through — the POST endpoint
+                // still enforces the closure server-side.
+            }
+
             // Add member button
             document.getElementById('add-member-btn').addEventListener('click', addMember);
 
