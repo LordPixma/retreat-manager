@@ -133,14 +133,23 @@ async function handleCheckoutCompleted(
     }
   }
 
-  // Update payment record (find by checkout session ID)
-  await context.env.DB.prepare(`
+  // Flip the payment row to succeeded. The `status = 'pending'` guard makes
+  // this the authoritative idempotency point: only the invocation that
+  // actually transitions pending -> succeeded credits the balance below, so a
+  // duplicate or concurrent webhook delivery can't reduce payment_due twice
+  // (the PI check above only catches sequential re-delivery, not a race).
+  const upd = await context.env.DB.prepare(`
     UPDATE payments
     SET status = 'succeeded',
         stripe_payment_intent_id = ?,
         paid_at = CURRENT_TIMESTAMP
-    WHERE stripe_checkout_session_id = ? AND attendee_id = ?
+    WHERE stripe_checkout_session_id = ? AND attendee_id = ? AND status = 'pending'
   `).bind(paymentIntentId, session.id, attendeeId).run();
+
+  if (upd.meta.changes === 0) {
+    console.log(`[${requestId}] payment for session ${session.id} / attendee ${attendeeId} already finalised, skipping credit`);
+    return;
+  }
 
   // Reduce attendee's payment_due
   const paidPounds = penceToPounds(amountTotal);
@@ -224,15 +233,33 @@ async function handleGroupCheckoutCompleted(
     ? session.payment_intent
     : session.payment_intent?.id || null;
 
-  // Mark every row succeeded + tag with the PI for receipt traceability.
-  // Single UPDATE keyed on session id covers all family rows.
-  await context.env.DB.prepare(`
+  // Mark every family row succeeded. We deliberately do NOT write the PI in
+  // this multi-row UPDATE: payments.stripe_payment_intent_id is UNIQUE, and a
+  // group session has one row per member, so setting the same PI on all of
+  // them trips the UNIQUE constraint — which previously threw HERE, before any
+  // balance was credited, leaving the whole family charged-but-not-credited
+  // and the webhook stuck in a 500 retry loop. A single row is tagged with the
+  // PI afterwards for traceability. The rows-changed check below also keeps
+  // crediting idempotent against duplicate/concurrent deliveries.
+  const upd = await context.env.DB.prepare(`
     UPDATE payments
-    SET status = 'succeeded',
-        stripe_payment_intent_id = ?,
-        paid_at = CURRENT_TIMESTAMP
+    SET status = 'succeeded', paid_at = CURRENT_TIMESTAMP
     WHERE stripe_checkout_session_id = ? AND status = 'pending'
-  `).bind(paymentIntentId, session.id).run();
+  `).bind(session.id).run();
+
+  if (upd.meta.changes === 0) {
+    console.log(`[${requestId}] group session ${session.id} already credited, skipping`);
+    return;
+  }
+
+  // Tag exactly one row with the PI for receipt traceability (UNIQUE-safe).
+  if (paymentIntentId) {
+    await context.env.DB.prepare(`
+      UPDATE payments
+      SET stripe_payment_intent_id = ?
+      WHERE id = (SELECT MIN(id) FROM payments WHERE stripe_checkout_session_id = ?)
+    `).bind(paymentIntentId, session.id).run();
+  }
 
   // Credit each attendee's balance. We iterate rather than batch a
   // single SQL because each attendee has a distinct payment_due
