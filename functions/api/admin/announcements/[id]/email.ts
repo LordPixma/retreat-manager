@@ -110,16 +110,31 @@ export async function onRequestPost(context: PagesContext<IdParams>): Promise<Re
       adminUser: admin.user || 'Admin'
     });
 
-    // Update announcement to mark as emailed
-    await context.env.DB.prepare(`
-      UPDATE announcements
-      SET email_sent = 1, email_sent_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(announcementId).run();
+    const sent = emailResults.successful;
+    const allFailed = sent === 0 && emailResults.failed > 0;
+
+    // Only mark the announcement emailed if at least one message actually went
+    // out — and treat the tracking write as best-effort so a DB missing the
+    // email_sent columns (migration 024) doesn't fail the whole send.
+    if (sent > 0) {
+      try {
+        await context.env.DB.prepare(`
+          UPDATE announcements
+          SET email_sent = 1, email_sent_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(announcementId).run();
+      } catch (err) {
+        console.warn(`[${requestId}] failed to mark announcement ${announcementId} emailed`, err);
+      }
+    }
 
     return createResponse({
-      success: true,
-      message: `Announcement emailed to ${emailResults.successful} attendees`,
+      success: !allFailed,
+      message: allFailed
+        ? `Announcement email delivery failed for all ${emailResults.failed} recipient(s).`
+        : emailResults.failed > 0
+          ? `Announcement emailed to ${sent} attendee(s); ${emailResults.failed} failed.`
+          : `Announcement emailed to ${sent} attendee(s).`,
       results: emailResults
     });
 
