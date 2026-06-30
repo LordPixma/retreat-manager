@@ -5,6 +5,7 @@ const AdminDashboard = {
         rooms: [],
         groups: [],
         announcements: [],
+        program: [],
         registrations: [],
         loginHistory: [],
         payments: [],
@@ -270,6 +271,7 @@ const AdminDashboard = {
         rooms: false,
         groups: false,
         announcements: false,
+        program: false,
         registrations: false,
         loginHistory: false
     },
@@ -288,6 +290,7 @@ const AdminDashboard = {
             this.loadRooms(),
             this.loadGroups(),
             this.loadAnnouncements(),
+            this.loadProgram(),
             this.loadRegistrations(),
             this.loadLoginHistory()
         ]);
@@ -411,6 +414,32 @@ const AdminDashboard = {
     },
 
     /**
+     * Load program data with loading state
+     */
+    async loadProgram() {
+        const tableBody = 'program-table-body';
+        this.loadingStates.program = true;
+        Utils.showSectionLoading(tableBody, 'Loading program...');
+
+        try {
+            const response = await API.get('/admin/program');
+            this.data.program = response.items || response.data || response;
+            this.loadingStates.program = false;
+            this.failedLoads.delete('program');
+            console.log('Loaded program:', this.data.program.length);
+        } catch (error) {
+            console.error('Failed to load program:', error);
+            this.data.program = [];
+            this.loadingStates.program = false;
+            this.failedLoads.add('program');
+            Utils.showSectionError(tableBody, 'Failed to load program', () => {
+                this.loadProgram().then(() => this.updateProgramDisplay());
+            });
+            throw error;
+        }
+    },
+
+    /**
      * Load registrations data with loading state
      */
     async loadRegistrations(status = 'pending') {
@@ -497,6 +526,7 @@ const AdminDashboard = {
         this.updateAttendeesDisplay();
         this.updateRegistrationsDisplay();
         this.updateAnnouncementsDisplay();
+        this.updateProgramDisplay();
         this.updateRoomsDisplay();
         this.updateGroupsDisplay();
         this.updateLoginHistoryDisplay();
@@ -818,6 +848,46 @@ const AdminDashboard = {
                                 <i class="fas fa-${announcement.is_active ? 'eye-slash' : 'eye'}"></i>
                             </button>
                             <button class="btn btn-sm btn-danger delete-announcement" data-id="${announcement.id}" title="Delete Announcement">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Update program table display
+     */
+    updateProgramDisplay() {
+        const tbody = document.getElementById('program-table-body');
+        if (!tbody) return;
+
+        if (this.data.program.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                        No program items found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.data.program.map(item => {
+            return `
+                <tr data-program-id="${item.id}">
+                    <td><strong>${Utils.escapeHtml(item.day_label)}</strong></td>
+                    <td>${item.time_label ? Utils.escapeHtml(item.time_label) : '<span style="color: var(--text-tertiary);">-</span>'}</td>
+                    <td>${Utils.escapeHtml(item.title)}</td>
+                    <td>${item.location ? Utils.escapeHtml(item.location) : '<span style="color: var(--text-tertiary);">-</span>'}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-primary edit-program" data-id="${item.id}" title="Edit Program Item">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-program" data-id="${item.id}" title="Delete Program Item">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -1612,6 +1682,12 @@ const AdminDashboard = {
             addAnnouncementBtn.addEventListener('click', () => this.showAddAnnouncementModal());
         }
 
+        // Add program button
+        const addProgramBtn = document.getElementById('add-program-btn');
+        if (addProgramBtn) {
+            addProgramBtn.addEventListener('click', () => this.showAddProgramModal());
+        }
+
         // Add room button
         const addRoomBtn = document.getElementById('add-room-btn');
         if (addRoomBtn) {
@@ -1751,6 +1827,10 @@ const AdminDashboard = {
                 await this.toggleAnnouncement(id);
             } else if (target.classList.contains('delete-announcement')) {
                 await this.deleteAnnouncement(id);
+            } else if (target.classList.contains('edit-program')) {
+                await this.editProgram(id);
+            } else if (target.classList.contains('delete-program')) {
+                await this.deleteProgram(id);
             } else if (target.classList.contains('edit-room')) {
                 await this.editRoom(id);
             } else if (target.classList.contains('delete-room')) {
@@ -1870,6 +1950,14 @@ const AdminDashboard = {
         }
     },
 
+    async showAddProgramModal() {
+        if (window.ProgramManagement) {
+            await window.ProgramManagement.showModal(null);
+        } else {
+            Utils.showAlert('Program management component not loaded', 'error');
+        }
+    },
+
     async showAddRoomModal() {
         if (window.RoomManagement) {
             await window.RoomManagement.showModal();
@@ -1982,6 +2070,19 @@ const AdminDashboard = {
         }
     },
 
+    async editProgram(id) {
+        try {
+            const item = this.data.program.find(p => p.id == id);
+            if (item && window.ProgramManagement) {
+                await window.ProgramManagement.showModal(item);
+            } else {
+                Utils.showAlert('Program management component not loaded', 'error');
+            }
+        } catch (error) {
+            Utils.showAlert('Failed to load program details: ' + error.message, 'error');
+        }
+    },
+
     async editRoom(id) {
         try {
             const room = this.data.rooms.find(r => r.id == id);
@@ -2067,6 +2168,27 @@ const AdminDashboard = {
         } catch (error) {
             Utils.hideGlobalLoading();
             Utils.showAlert('Failed to delete announcement: ' + error.message, 'error');
+        }
+    },
+
+    async deleteProgram(id) {
+        const item = this.data.program.find(p => p.id == id);
+        if (!item) return;
+
+        if (!confirm(`Are you sure you want to delete "${item.title}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        Utils.showGlobalLoading('Deleting program item...');
+        try {
+            await API.delete('/admin/program/' + id);
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Program item deleted successfully', 'success');
+            await this.loadProgram();
+            this.updateProgramDisplay();
+        } catch (error) {
+            Utils.hideGlobalLoading();
+            Utils.showAlert('Failed to delete program item: ' + error.message, 'error');
         }
     },
 

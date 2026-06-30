@@ -259,6 +259,60 @@ const AttendeeDashboard = {
         // Lazy-load per-view data.
         if (name === 'family') this.loadFamilyView();
         if (name === 'my-details') this.renderMyDetailsView();
+        if (name === 'schedule') this.loadSchedule();
+    },
+
+    /**
+     * Load the retreat schedule from the public program API and render it
+     * into #schedule-content, grouped by day (preserving server order).
+     * Mirrors the original hardcoded visual style.
+     */
+    async loadSchedule() {
+        const container = document.getElementById('schedule-content');
+        if (!container) return;
+
+        try {
+            const res = await API.get('/program');
+            const items = (res && res.items) || [];
+
+            if (items.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-tertiary);"><i class="fas fa-calendar-day"></i> The schedule will be published soon.</div>';
+                return;
+            }
+
+            // Group by day_label, preserving first-seen order.
+            const order = [];
+            const groups = {};
+            items.forEach((item) => {
+                const day = item.day_label || '';
+                if (!(day in groups)) {
+                    groups[day] = [];
+                    order.push(day);
+                }
+                groups[day].push(item);
+            });
+
+            container.innerHTML = order.map((day, idx) => {
+                const rows = groups[day].map((item) => {
+                    const time = item.time_label ? `${this._escape(item.time_label)} — ` : '';
+                    const loc = item.location ? ` · ${this._escape(item.location)}` : '';
+                    const desc = item.description
+                        ? `<br><span style="color: var(--text-tertiary); font-size: 0.8rem;">${this._escape(item.description)}</span>`
+                        : '';
+                    return `${time}${this._escape(item.title)}${loc}${desc}`;
+                }).join('<br>');
+
+                const spacing = idx < order.length - 1 ? ' style="margin-bottom: 1rem;"' : '';
+                return `
+                    <div${spacing}>
+                        <div style="font-weight: 600; color: #5eead4; margin-bottom: 0.3rem;">${this._escape(day)}</div>
+                        <div style="color: var(--text-secondary); line-height: 1.6;">${rows}</div>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            container.innerHTML = `<div style="color: var(--text-tertiary);">Failed to load schedule: ${this._escape(err.message || '')}</div>`;
+        }
     },
 
     async loadFamilyView() {

@@ -29,6 +29,7 @@
                 <span class="nav-section-label">Comms</span>
                 <button class="tab-btn nav-link" data-tab="emails"><i class="fas fa-envelope"></i> Email Management</button>
                 <button class="tab-btn nav-link" data-tab="announcements"><i class="fas fa-bullhorn"></i> Announcements</button>
+                <button class="tab-btn nav-link" data-tab="program"><i class="fas fa-calendar-day"></i> Program</button>
             </div>
             <div class="nav-section">
                 <span class="nav-section-label">Finance</span>
@@ -306,6 +307,40 @@
                         <tr>
                             <td colspan="7" class="loading-placeholder">
                                 <i class="fas fa-spinner fa-spin"></i> Loading announcements...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Program Tab -->
+    <div class="tab-content" id="program-tab">
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title">Retreat Program</h3>
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-sm btn-primary" id="add-program-btn">
+                        <i class="fas fa-plus"></i> Add Program Item
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Time</th>
+                            <th>Title</th>
+                            <th>Location</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="program-table-body">
+                        <tr>
+                            <td colspan="5" class="loading-placeholder">
+                                <i class="fas fa-spinner fa-spin"></i> Loading program...
                             </td>
                         </tr>
                     </tbody>
