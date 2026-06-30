@@ -543,6 +543,7 @@ const AdminDashboard = {
         this.updateStatsDisplay();
         this.updateAttendeesDisplay();
         this.updateRegistrationsDisplay();
+        this.loadRegistrationStatus();
         this.updateAnnouncementsDisplay();
         this.updateProgramDisplay();
         this.updateRoomsDisplay();
@@ -1894,6 +1895,11 @@ const AdminDashboard = {
             addProgramBtn.addEventListener('click', () => this.showAddProgramModal());
         }
 
+        const toggleRegBtn = document.getElementById('toggle-registrations-btn');
+        if (toggleRegBtn) {
+            toggleRegBtn.addEventListener('click', () => this.toggleRegistrations());
+        }
+
         // Add room button
         const addRoomBtn = document.getElementById('add-room-btn');
         if (addRoomBtn) {
@@ -2161,6 +2167,60 @@ const AdminDashboard = {
             await window.ProgramManagement.showModal(null);
         } else {
             Utils.showAlert('Program management component not loaded', 'error');
+        }
+    },
+
+    /**
+     * Load + render the public-registration open/closed control shown in the
+     * Registrations tab header.
+     */
+    async loadRegistrationStatus() {
+        try {
+            const res = await API.get('/admin/settings/registration');
+            this._renderRegistrationToggle(!!res.open);
+        } catch (e) {
+            // Leave the control hidden if we can't read the setting.
+            console.warn('Failed to load registration status:', e);
+        }
+    },
+
+    _renderRegistrationToggle(open) {
+        this._registrationsOpen = open;
+        const badge = document.getElementById('registrations-status');
+        const btn = document.getElementById('toggle-registrations-btn');
+        if (!badge || !btn) return;
+        badge.style.display = '';
+        btn.style.display = '';
+        if (open) {
+            badge.className = 'badge badge-success';
+            badge.innerHTML = '<i class="fas fa-circle-check"></i> Registration open';
+            btn.className = 'btn btn-sm btn-danger';
+            btn.innerHTML = '<i class="fas fa-lock"></i> Close Registrations';
+        } else {
+            badge.className = 'badge badge-secondary';
+            badge.innerHTML = '<i class="fas fa-ban"></i> Registration closed';
+            btn.className = 'btn btn-sm btn-success';
+            btn.innerHTML = '<i class="fas fa-lock-open"></i> Open Registrations';
+        }
+    },
+
+    async toggleRegistrations() {
+        const next = !this._registrationsOpen;
+        const msg = next
+            ? 'Re-open public registration? Families will be able to submit new registrations again.'
+            : 'Close public registration? New families will not be able to submit registrations until you re-open it.';
+        if (!confirm(msg)) return;
+
+        const btn = document.getElementById('toggle-registrations-btn');
+        if (btn) btn.disabled = true;
+        try {
+            await API.put('/admin/settings/registration', { open: next });
+            this._renderRegistrationToggle(next);
+            Utils.showAlert(next ? 'Registration re-opened' : 'Registration closed', 'success');
+        } catch (e) {
+            Utils.showAlert('Failed to update registration status: ' + e.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
         }
     },
 

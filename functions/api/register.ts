@@ -6,6 +6,7 @@ import { createResponse, handleCORS } from '../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../_shared/errors.js';
 import { escapeHtml } from '../_shared/sanitize.js';
 import { sendEmailOrThrow, isEmailReady } from '../_shared/email.js';
+import { getRegistrationsOpen } from '../_shared/settings.js';
 
 // Pricing constants
 const PRICING = {
@@ -44,13 +45,14 @@ export async function onRequestOptions(): Promise<Response> {
   return handleCORS();
 }
 
-// GET /api/register - Get registration form info (pricing, etc.)
-export async function onRequestGet(_context: PagesContext): Promise<Response> {
+// GET /api/register - Get registration form info (pricing, status, etc.)
+export async function onRequestGet(context: PagesContext): Promise<Response> {
   const requestId = generateRequestId();
 
   try {
     // Return public info about registration options
     const roomTypes = ['family', 'single', 'double', 'suite', 'standard'];
+    const registrationsOpen = await getRegistrationsOpen(context.env.DB);
 
     return createResponse({
       roomTypes,
@@ -59,7 +61,10 @@ export async function onRequestGet(_context: PagesContext): Promise<Response> {
         child: { price: PRICING.child, description: 'Children (6-16 years)' },
         infant: { price: PRICING.infant, description: 'Under 6 years (FREE)' }
       },
-      message: 'Registration is open. Please fill out the form to register your family.'
+      registrationsOpen,
+      message: registrationsOpen
+        ? 'Registration is open. Please fill out the form to register your family.'
+        : 'Registration is currently closed.'
     });
   } catch (error) {
     console.error(`[${requestId}] Error fetching registration info:`, error);
@@ -105,6 +110,11 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
   const requestId = generateRequestId();
 
   try {
+    // Hard stop if an admin has closed registration.
+    if (!await getRegistrationsOpen(context.env.DB)) {
+      return createErrorResponse(errors.forbidden('Registration is currently closed.', requestId));
+    }
+
     const clientIP = context.request.headers.get('CF-Connecting-IP') ||
                      context.request.headers.get('X-Forwarded-For') ||
                      'unknown';
