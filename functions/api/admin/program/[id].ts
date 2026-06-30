@@ -65,17 +65,22 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
     const allowedFields = [
       'event_date', 'start_time', 'end_time', 'title', 'description', 'location',
-      'contact_name', 'event_type', 'audience', 'priority',
+      'contact_name', 'event_type', 'audience', 'priority', 'is_mandatory',
       'day_label', 'time_label', 'sort_order',
     ];
     // event_type/audience/priority are NOT NULL — never write null to them.
     const notNullFields = new Set(['event_type', 'audience', 'priority']);
+    // is_mandatory is a NOT NULL 0/1 flag; coerce anything truthy to 1.
+    const boolFields = new Set(['is_mandatory']);
     const updateFields: string[] = [];
     const updateValues: (string | number | null)[] = [];
 
     for (const [key, value] of Object.entries(updateData)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        if (notNullFields.has(key)) {
+        if (boolFields.has(key)) {
+          updateFields.push(`${key} = ?`);
+          updateValues.push(value ? 1 : 0);
+        } else if (notNullFields.has(key)) {
           if (value === '' || value === null) continue; // skip rather than null out
           updateFields.push(`${key} = ?`);
           updateValues.push(value as string);

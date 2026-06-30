@@ -315,6 +315,9 @@ const AttendeeDashboard = {
                     const audience = (item.audience && item.audience !== 'all' && audienceLabel)
                         ? ` <span class="badge badge-secondary" style="font-size: 0.7rem;">${this._escape(audienceLabel)}</span>`
                         : '';
+                    const mandatory = item.is_mandatory
+                        ? ` <span class="badge badge-danger" style="font-size: 0.7rem;"><i class="fas fa-triangle-exclamation"></i> Mandatory</span>`
+                        : '';
                     const contact = item.contact_name
                         ? `<br><span style="color: var(--text-tertiary); font-size: 0.8rem;"><i class="fas fa-user" style="width: 1rem;"></i> ${this._escape(item.contact_name)}</span>`
                         : '';
@@ -323,7 +326,7 @@ const AttendeeDashboard = {
                         : '';
                     return `
                         <div style="margin-bottom: 0.5rem;">
-                            <i class="fas ${icon}" style="width: 1.2rem; color: #5eead4;"></i> ${time}${this._escape(item.title)}${audience}${loc}${contact}${desc}
+                            <i class="fas ${icon}" style="width: 1.2rem; color: #5eead4;"></i> ${time}${this._escape(item.title)}${mandatory}${audience}${loc}${contact}${desc}
                         </div>`;
                 }).join('');
 

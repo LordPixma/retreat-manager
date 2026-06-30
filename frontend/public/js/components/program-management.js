@@ -24,6 +24,8 @@ const ProgramManagement = {
      * Render modal template
      */
     async renderModal() {
+        this._ensureFormStyles();
+
         const opts = (list) => list
             .map(o => `<option value="${this.escapeHtml(o.value)}">${this.escapeHtml(o.label)}</option>`)
             .join('');
@@ -123,6 +125,18 @@ const ProgramManagement = {
                             </div>
 
                             <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-triangle-exclamation"></i> Mandatory session
+                                </label>
+                                <label class="program-switch">
+                                    <input type="checkbox" id="program-mandatory" name="is_mandatory">
+                                    <span class="program-switch-slider"></span>
+                                    <span class="program-switch-text">Attendance required</span>
+                                </label>
+                                <small class="form-help">Mandatory sessions are highlighted on the attendee schedule.</small>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="program-description" class="form-label">
                                     <i class="fas fa-edit"></i> Description (Optional)
                                 </label>
@@ -181,6 +195,7 @@ const ProgramManagement = {
             document.getElementById('program-priority').value = editData.priority || 'normal';
             document.getElementById('program-location').value = editData.location || '';
             document.getElementById('program-contact').value = editData.contact_name || '';
+            document.getElementById('program-mandatory').checked = !!editData.is_mandatory;
             document.getElementById('program-description').value = editData.description || '';
             document.getElementById('program-order').value =
                 editData.sort_order != null ? editData.sort_order : '';
@@ -250,6 +265,10 @@ const ProgramManagement = {
             data.sort_order = parseInt(data.sort_order, 10);
         }
 
+        // Checkboxes only appear in FormData when checked; read the element
+        // directly so the flag is always sent as 0/1 (so unchecking persists).
+        data.is_mandatory = document.getElementById('program-mandatory').checked ? 1 : 0;
+
         const submitBtn = document.getElementById('save-program');
 
         try {
@@ -310,6 +329,27 @@ const ProgramManagement = {
     /**
      * Utility methods
      */
+    /**
+     * Inject the mandatory-toggle switch styles once (the modal is rebuilt on
+     * every open, but the stylesheet only needs to exist once).
+     */
+    _ensureFormStyles() {
+        if (document.getElementById('program-form-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'program-form-styles';
+        style.textContent = `
+            .program-switch { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; }
+            .program-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+            .program-switch-slider { position: relative; width: 42px; height: 24px; background: rgba(255,255,255,0.2); border-radius: 999px; transition: background 0.2s; flex: 0 0 auto; }
+            .program-switch-slider::before { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+            .program-switch input:checked + .program-switch-slider { background: var(--primary, #6366f1); }
+            .program-switch input:checked + .program-switch-slider::before { transform: translateX(18px); }
+            .program-switch input:focus-visible + .program-switch-slider { box-shadow: 0 0 0 3px rgba(99,102,241,0.4); }
+            .program-switch-text { font-size: 0.85rem; color: var(--text-secondary); }
+        `;
+        document.head.appendChild(style);
+    },
+
     escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')

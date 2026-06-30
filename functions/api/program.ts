@@ -20,7 +20,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     const { results } = await context.env.DB.prepare(`
       SELECT id, event_date, start_time, end_time, day_label, time_label,
              title, description, location, contact_name, event_type, audience,
-             priority, sort_order
+             priority, is_mandatory, sort_order
       FROM program_items
       ORDER BY event_date ASC, start_time ASC, sort_order ASC, id ASC
     `).all();

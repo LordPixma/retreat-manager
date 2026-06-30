@@ -363,6 +363,7 @@ export const programItemCreateSchema: ValidationSchema = {
   event_type: { validators: [validators.enum(PROGRAM_EVENT_TYPES)], optional: true },
   audience: { validators: [validators.enum(PROGRAM_AUDIENCES)], optional: true },
   priority: { validators: [validators.enum(PROGRAM_PRIORITIES)], optional: true },
+  is_mandatory: { validators: [validators.integer], optional: true },
   // Legacy free-text fields, still accepted for backward compatibility.
   day_label: { validators: [validators.maxLength(100)], optional: true },
   time_label: { validators: [validators.maxLength(50)], optional: true },
@@ -382,6 +383,7 @@ export const programItemUpdateSchema: ValidationSchema = {
   event_type: { validators: [validators.enum(PROGRAM_EVENT_TYPES)], optional: true },
   audience: { validators: [validators.enum(PROGRAM_AUDIENCES)], optional: true },
   priority: { validators: [validators.enum(PROGRAM_PRIORITIES)], optional: true },
+  is_mandatory: { validators: [validators.integer], optional: true },
   day_label: { validators: [validators.maxLength(100)], optional: true },
   time_label: { validators: [validators.maxLength(50)], optional: true },
   sort_order: { validators: [validators.integer], optional: true }
