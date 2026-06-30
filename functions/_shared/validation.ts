@@ -345,3 +345,24 @@ export const registrationSchema: ValidationSchema = {
     validators: [validators.required, validators.enum(['full', 'installments', 'sponsorship'] as const)]
   }
 };
+
+// Retreat program / schedule items (admin-managed, shown in the attendee portal)
+export const programItemCreateSchema: ValidationSchema = {
+  day_label: { validators: [validators.required, validators.maxLength(100)] },
+  time_label: { validators: [validators.maxLength(50)], optional: true },
+  title: { validators: [validators.required, validators.maxLength(200)] },
+  description: { validators: [validators.maxLength(2000)], optional: true },
+  location: { validators: [validators.maxLength(200)], optional: true },
+  sort_order: { validators: [validators.integer], optional: true }
+};
+
+// Update is a partial: every field optional, so the dynamic UPDATE only writes
+// the fields that were sent.
+export const programItemUpdateSchema: ValidationSchema = {
+  day_label: { validators: [validators.maxLength(100)], optional: true },
+  time_label: { validators: [validators.maxLength(50)], optional: true },
+  title: { validators: [validators.maxLength(200)], optional: true },
+  description: { validators: [validators.maxLength(2000)], optional: true },
+  location: { validators: [validators.maxLength(200)], optional: true },
+  sort_order: { validators: [validators.integer], optional: true }
+};
