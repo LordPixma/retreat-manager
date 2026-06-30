@@ -64,6 +64,8 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       audience,
       priority,
       is_mandatory,
+      day_label,
+      time_label,
       sort_order,
     } = body as {
       event_date: string;
@@ -77,6 +79,8 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       audience?: string;
       priority?: string;
       is_mandatory?: number | boolean;
+      day_label?: string;
+      time_label?: string;
       sort_order?: number;
     };
 
@@ -88,11 +92,19 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       order = row?.next ?? 10;
     }
 
+    // day_label is a legacy NOT NULL column (migration 025) that SQLite won't
+    // let us drop. event_date is the canonical "day" now, so derive day_label
+    // from it when the caller doesn't send one — otherwise the INSERT fails a
+    // NOT NULL constraint. time_label is nullable; mirror start_time similarly.
+    const dayLabelValue = (day_label?.trim()) || event_date.trim();
+    const timeLabelValue = (time_label?.trim()) || start_time?.trim() || null;
+
     const result = await context.env.DB.prepare(`
       INSERT INTO program_items (
         event_date, start_time, end_time, title, description, location,
-        contact_name, event_type, audience, priority, is_mandatory, sort_order
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        contact_name, event_type, audience, priority, is_mandatory,
+        day_label, time_label, sort_order
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       event_date.trim(),
       start_time?.trim() || null,
@@ -107,6 +119,9 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       priority || 'normal',
       // is_mandatory is NOT NULL (0/1); coerce anything truthy to 1.
       is_mandatory ? 1 : 0,
+      // day_label is NOT NULL (legacy); time_label is nullable.
+      dayLabelValue,
+      timeLabelValue,
       order,
     ).run();
 
