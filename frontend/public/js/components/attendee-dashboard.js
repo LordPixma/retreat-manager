@@ -271,12 +271,18 @@ const AttendeeDashboard = {
         const container = document.getElementById('schedule-content');
         if (!container) return;
 
+        this._ensureScheduleStyles();
+
         try {
             const res = await API.get('/program');
             const items = (res && res.items) || [];
 
             if (items.length === 0) {
-                container.innerHTML = '<div style="color: var(--text-tertiary);"><i class="fas fa-calendar-day"></i> The schedule will be published soon.</div>';
+                container.innerHTML = `
+                    <div class="sched-empty">
+                        <i class="fas fa-calendar-day"></i>
+                        <div>The schedule will be published soon.</div>
+                    </div>`;
                 return;
             }
 
@@ -300,47 +306,110 @@ const AttendeeDashboard = {
                 groups[key].items.push(item);
             });
 
-            container.innerHTML = order.map((key, idx) => {
+            // Render each day as a vertical timeline of event cards. The
+            // event type drives a colour-coded node + card accent.
+            container.innerHTML = order.map((key) => {
                 const group = groups[key];
-                const rows = group.items.map((item) => {
+                const count = group.items.length;
+
+                const events = group.items.map((item) => {
+                    const color = Utils.program.eventTypeColor(item.event_type);
                     const icon = Utils.program.eventTypeIcon(item.event_type);
-                    const range = Utils.program.formatTimeRange(item.start_time, item.end_time)
-                        || (item.time_label || '');
-                    const time = range ? `<strong>${this._escape(range)}</strong> — ` : '';
-                    const loc = item.location
-                        ? ` <span style="color: var(--text-tertiary);">· ${this._escape(item.location)}</span>`
+
+                    const startTxt = Utils.program.formatTime(item.start_time) || (item.time_label || '');
+                    const endTxt = Utils.program.formatTime(item.end_time);
+                    const timeStart = startTxt
+                        ? `<div class="sched-time-start">${this._escape(startTxt)}</div>`
+                        : `<div class="sched-time-start" style="color: var(--text-tertiary);">—</div>`;
+                    const timeEnd = endTxt ? `<div class="sched-time-end">– ${this._escape(endTxt)}</div>` : '';
+
+                    const mandatory = item.is_mandatory
+                        ? `<span class="sched-badge-mand"><i class="fas fa-triangle-exclamation"></i> Mandatory</span>`
                         : '';
-                    // Only flag a specific audience; "Everyone" needs no chip.
                     const audienceLabel = Utils.program.audienceLabel(item.audience);
                     const audience = (item.audience && item.audience !== 'all' && audienceLabel)
-                        ? ` <span class="badge badge-secondary" style="font-size: 0.7rem;">${this._escape(audienceLabel)}</span>`
+                        ? `<span class="sched-badge-aud">${this._escape(audienceLabel)}</span>`
                         : '';
-                    const mandatory = item.is_mandatory
-                        ? ` <span class="badge badge-danger" style="font-size: 0.7rem;"><i class="fas fa-triangle-exclamation"></i> Mandatory</span>`
+
+                    const loc = item.location
+                        ? `<div class="sched-meta-row"><i class="fas fa-location-dot"></i> ${this._escape(item.location)}</div>`
                         : '';
                     const contact = item.contact_name
-                        ? `<br><span style="color: var(--text-tertiary); font-size: 0.8rem;"><i class="fas fa-user" style="width: 1rem;"></i> ${this._escape(item.contact_name)}</span>`
+                        ? `<div class="sched-meta-row"><i class="fas fa-user"></i> ${this._escape(item.contact_name)}</div>`
                         : '';
+                    const meta = (loc || contact) ? `<div class="sched-meta">${loc}${contact}</div>` : '';
                     const desc = item.description
-                        ? `<br><span style="color: var(--text-tertiary); font-size: 0.8rem;">${this._escape(item.description)}</span>`
+                        ? `<div class="sched-desc">${this._escape(item.description)}</div>`
                         : '';
+
                     return `
-                        <div style="margin-bottom: 0.5rem;">
-                            <i class="fas ${icon}" style="width: 1.2rem; color: #5eead4;"></i> ${time}${this._escape(item.title)}${mandatory}${audience}${loc}${contact}${desc}
+                        <div class="sched-event">
+                            <div class="sched-time">${timeStart}${timeEnd}</div>
+                            <div class="sched-rail"><div class="sched-node" style="background:${color};"><i class="fas ${icon}"></i></div></div>
+                            <div class="sched-card" style="border-left-color:${color};">
+                                <div class="sched-card-title">${this._escape(item.title)}${mandatory}${audience}</div>
+                                ${meta}
+                                ${desc}
+                            </div>
                         </div>`;
                 }).join('');
 
-                const spacing = idx < order.length - 1 ? ' style="margin-bottom: 1rem;"' : '';
                 return `
-                    <div${spacing}>
-                        <div style="font-weight: 600; color: #5eead4; margin-bottom: 0.3rem;">${this._escape(group.label)}</div>
-                        <div style="color: var(--text-secondary); line-height: 1.6;">${rows}</div>
-                    </div>
-                `;
+                    <div class="sched-day">
+                        <div class="sched-day-head">
+                            <span class="sched-day-pill">${this._escape(group.label)}</span>
+                            <span class="sched-day-count">${count} ${count === 1 ? 'event' : 'events'}</span>
+                        </div>
+                        <div class="sched-timeline">${events}</div>
+                    </div>`;
             }).join('');
         } catch (err) {
-            container.innerHTML = `<div style="color: var(--text-tertiary);">Failed to load schedule: ${this._escape(err.message || '')}</div>`;
+            container.innerHTML = `
+                <div class="sched-empty">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <div>Failed to load schedule: ${this._escape(err.message || '')}</div>
+                </div>`;
         }
+    },
+
+    /**
+     * Inject the timeline schedule styles once (mirrors the admin board's
+     * style injector). Kept here so the markup above stays declarative.
+     */
+    _ensureScheduleStyles() {
+        if (document.getElementById('attendee-schedule-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'attendee-schedule-styles';
+        style.textContent = `
+            .sched-empty { text-align: center; color: var(--text-tertiary); padding: 2rem 1rem; }
+            .sched-empty i { font-size: 1.8rem; display: block; margin-bottom: 0.6rem; opacity: 0.7; }
+            .sched-day { margin-bottom: 1.75rem; }
+            .sched-day:last-child { margin-bottom: 0; }
+            .sched-day-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem; }
+            .sched-day-pill { background: rgba(94,234,212,0.12); color: #5eead4; border: 1px solid rgba(94,234,212,0.3); border-radius: 999px; padding: 0.2rem 0.75rem; font-size: 0.82rem; font-weight: 700; }
+            .sched-day-count { color: var(--text-tertiary); font-size: 0.78rem; }
+            .sched-timeline { position: relative; }
+            .sched-event { display: grid; grid-template-columns: 62px 28px 1fr; align-items: start; }
+            .sched-event:not(:last-child) { padding-bottom: 0.85rem; }
+            .sched-time { text-align: right; padding: 0.2rem 0.5rem 0 0; }
+            .sched-time-start { font-weight: 700; color: #fff; font-size: 0.82rem; white-space: nowrap; }
+            .sched-time-end { color: var(--text-tertiary); font-size: 0.72rem; white-space: nowrap; }
+            .sched-rail { position: relative; display: flex; justify-content: center; }
+            .sched-rail::before { content: ''; position: absolute; left: 50%; transform: translateX(-50%); top: 6px; bottom: -0.85rem; width: 2px; background: rgba(120,120,180,0.25); }
+            .sched-event:last-child .sched-rail::before { display: none; }
+            .sched-node { position: relative; z-index: 1; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; color: #0b1020; }
+            .sched-card { background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08); border-left-width: 3px; border-radius: 10px; padding: 0.6rem 0.85rem; margin-left: 0.7rem; transition: background 0.15s ease, transform 0.15s ease; }
+            .sched-card:hover { background: rgba(255,255,255,0.06); transform: translateX(2px); }
+            .sched-card-title { font-weight: 700; color: #fff; font-size: 0.9rem; display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; line-height: 1.3; }
+            .sched-meta { margin-top: 0.4rem; display: flex; flex-direction: column; gap: 0.25rem; }
+            .sched-meta-row { color: var(--text-secondary); font-size: 0.8rem; display: flex; align-items: center; gap: 0.45rem; }
+            .sched-meta-row i { color: var(--text-tertiary); width: 0.9rem; text-align: center; }
+            .sched-desc { color: var(--text-tertiary); font-size: 0.8rem; margin-top: 0.4rem; line-height: 1.5; }
+            .sched-badge-mand { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.68rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem; }
+            .sched-badge-aud { background: rgba(139,92,246,0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.68rem; font-weight: 700; }
+            @media (max-width: 560px) { .sched-event { grid-template-columns: 52px 24px 1fr; } .sched-node { width: 24px; height: 24px; } }
+        `;
+        document.head.appendChild(style);
     },
 
     async loadFamilyView() {
