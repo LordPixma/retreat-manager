@@ -8,8 +8,10 @@ export default defineWorkersConfig({
         wrangler: { configPath: './wrangler.toml' },
         miniflare: {
           bindings: {
-            JWT_SECRET: 'test-secret-key-for-testing',
-            ADMIN_JWT_SECRET: 'test-admin-secret-key'
+            // Must be >= 32 chars (requireSecret) so token generation works in
+            // the endpoint integration tests.
+            JWT_SECRET: 'test-secret-key-for-testing-0123456789abcdef',
+            ADMIN_JWT_SECRET: 'test-admin-secret-key-0123456789abcdef'
           },
           d1Databases: ['DB']
         }

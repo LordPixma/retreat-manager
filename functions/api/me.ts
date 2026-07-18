@@ -197,42 +197,41 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       }
     }
 
-    // Get activity teams for this attendee. `t.color` ships in migration 028;
-    // fall back to a colourless query if the deploy briefly races ahead of the
-    // migration so attendee login never 500s on a missing column.
+    // Get activity teams for this attendee, with each team's full member list
+    // in ONE grouped query (no per-team N+1). Members are concatenated with a
+    // unit-separator (char 31, which never appears in a name) so names
+    // containing commas split cleanly. `t.color` ships in migration 028; fall
+    // back to a colourless query if a deploy briefly races the migration so
+    // attendee login never 500s on a missing column.
+    const teamSql = (withColor: boolean) => `
+      SELECT t.id, t.name, t.description, ${withColor ? 't.color,' : ''} t.leader_id,
+             leader.name AS leader_name,
+             GROUP_CONCAT(member.name, char(31)) AS member_names
+      FROM activity_team_members mine
+      JOIN activity_teams t ON mine.team_id = t.id
+      LEFT JOIN attendees leader ON t.leader_id = leader.id
+      LEFT JOIN activity_team_members mem ON mem.team_id = t.id
+      LEFT JOIN attendees member ON mem.attendee_id = member.id
+      WHERE mine.attendee_id = ?
+      GROUP BY t.id
+      ORDER BY t.name
+    `;
     let teamRows: unknown[];
     try {
-      ({ results: teamRows } = await context.env.DB.prepare(`
-        SELECT t.id, t.name, t.description, t.color, t.leader_id, leader.name AS leader_name
-        FROM activity_team_members m
-        JOIN activity_teams t ON m.team_id = t.id
-        LEFT JOIN attendees leader ON t.leader_id = leader.id
-        WHERE m.attendee_id = ?
-      `).bind(attendeeData.id).all());
+      ({ results: teamRows } = await context.env.DB.prepare(teamSql(true)).bind(attendeeData.id).all());
     } catch {
-      ({ results: teamRows } = await context.env.DB.prepare(`
-        SELECT t.id, t.name, t.description, t.leader_id, leader.name AS leader_name
-        FROM activity_team_members m
-        JOIN activity_teams t ON m.team_id = t.id
-        LEFT JOIN attendees leader ON t.leader_id = leader.id
-        WHERE m.attendee_id = ?
-      `).bind(attendeeData.id).all());
+      ({ results: teamRows } = await context.env.DB.prepare(teamSql(false)).bind(attendeeData.id).all());
     }
 
-    let activityTeams: Array<{ name: string; description: string | null; color: string; leader_name: string | null; is_leader: boolean; members: string[] }> = [];
-    for (const row of teamRows as { id: number; name: string; description: string | null; color: string | null; leader_id: number | null; leader_name: string | null }[]) {
-      const { results: teamMembers } = await context.env.DB.prepare(`
-        SELECT a.name FROM activity_team_members m JOIN attendees a ON m.attendee_id = a.id WHERE m.team_id = ? ORDER BY a.name
-      `).bind(row.id).all();
-      activityTeams.push({
-        name: row.name,
-        description: row.description,
-        color: row.color || '#8b5cf6',
-        leader_name: row.leader_name,
-        is_leader: row.leader_id === attendeeData.id,
-        members: (teamMembers as { name: string }[]).map(m => m.name),
-      });
-    }
+    const SEP = String.fromCharCode(31);
+    const activityTeams = (teamRows as Array<{ id: number; name: string; description: string | null; color?: string | null; leader_id: number | null; leader_name: string | null; member_names: string | null }>).map(row => ({
+      name: row.name,
+      description: row.description,
+      color: row.color || '#8b5cf6',
+      leader_name: row.leader_name,
+      is_leader: row.leader_id === attendeeData.id,
+      members: row.member_names ? row.member_names.split(SEP).sort((a, b) => a.localeCompare(b)) : [],
+    }));
 
     // Format response
     const response = {
