@@ -29,6 +29,7 @@
                 <span class="nav-section-label">Comms</span>
                 <button class="tab-btn nav-link" data-tab="emails"><i class="fas fa-envelope"></i> Email Management</button>
                 <button class="tab-btn nav-link" data-tab="announcements"><i class="fas fa-bullhorn"></i> Announcements</button>
+                <button class="tab-btn nav-link" data-tab="community"><i class="fas fa-comments"></i> Community</button>
                 <button class="tab-btn nav-link" data-tab="program"><i class="fas fa-calendar-day"></i> Program</button>
             </div>
             <div class="nav-section">
@@ -665,6 +666,36 @@
                         <tr>
                             <td colspan="5" class="loading-placeholder">
                                 <i class="fas fa-spinner fa-spin"></i> Loading activity teams...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Community Wall Tab -->
+    <div class="tab-content" id="community-tab">
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-comments"></i> Community Wall</h3>
+                <button class="btn btn-sm btn-ghost" id="community-refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Author</th>
+                            <th>Message</th>
+                            <th>Posted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="community-table-body">
+                        <tr>
+                            <td colspan="5" class="loading-placeholder">
+                                <i class="fas fa-spinner fa-spin"></i> Loading posts...
                             </td>
                         </tr>
                     </tbody>

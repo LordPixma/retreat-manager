@@ -26,6 +26,8 @@
             <a class="att-nav-link" data-view="transport"><i class="fas fa-car-side"></i> Transport</a>
             <a class="att-nav-link" data-view="schedule"><i class="fas fa-calendar-day"></i> Schedule</a>
             <a class="att-nav-link" data-view="activities"><i class="fas fa-people-group"></i> Activities</a>
+            <a class="att-nav-link" data-view="community"><i class="fas fa-comments"></i> Community</a>
+            <a class="att-nav-link" data-view="resources"><i class="fas fa-book-open"></i> Resources</a>
             <a class="att-nav-link" data-view="checkin"><i class="fas fa-qrcode"></i> Check-in</a>
         </nav>
 
@@ -65,6 +67,9 @@
                     <div id="banner-pay-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
                 </div>
             </div>
+
+            <!-- Happening now / up next (live during the retreat) -->
+            <div id="happening-now-section" style="margin-bottom: 1.5rem; display: none;"></div>
 
             <!-- Transport reminder (driving / vehicle registration) -->
             <div id="transport-note-section" style="margin-bottom: 1.5rem; display: none;"></div>
@@ -232,6 +237,26 @@
                     <div style="font-size: 0.85rem; color: var(--text-tertiary);">No teams assigned yet</div>
                 </div>
             </div>
+        </section>
+
+        <!-- COMMUNITY -->
+        <section class="att-view" data-view-panel="community">
+            <div class="data-table">
+                <div class="table-header">
+                    <h3 class="table-title"><i class="fas fa-comments"></i> Community Wall</h3>
+                </div>
+                <div class="table-content" style="padding: 1.5rem;">
+                    <div id="community-composer"></div>
+                    <div id="community-content" style="margin-top: 1.25rem;">
+                        <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RESOURCES -->
+        <section class="att-view" data-view-panel="resources">
+            <div id="resources-content"></div>
         </section>
 
         <!-- CHECK-IN -->
