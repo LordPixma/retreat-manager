@@ -197,23 +197,37 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       }
     }
 
-    // Get activity teams for this attendee
-    const { results: teamRows } = await context.env.DB.prepare(`
-      SELECT t.id, t.name, t.description, t.leader_id, leader.name AS leader_name
-      FROM activity_team_members m
-      JOIN activity_teams t ON m.team_id = t.id
-      LEFT JOIN attendees leader ON t.leader_id = leader.id
-      WHERE m.attendee_id = ?
-    `).bind(attendeeData.id).all();
+    // Get activity teams for this attendee. `t.color` ships in migration 028;
+    // fall back to a colourless query if the deploy briefly races ahead of the
+    // migration so attendee login never 500s on a missing column.
+    let teamRows: unknown[];
+    try {
+      ({ results: teamRows } = await context.env.DB.prepare(`
+        SELECT t.id, t.name, t.description, t.color, t.leader_id, leader.name AS leader_name
+        FROM activity_team_members m
+        JOIN activity_teams t ON m.team_id = t.id
+        LEFT JOIN attendees leader ON t.leader_id = leader.id
+        WHERE m.attendee_id = ?
+      `).bind(attendeeData.id).all());
+    } catch {
+      ({ results: teamRows } = await context.env.DB.prepare(`
+        SELECT t.id, t.name, t.description, t.leader_id, leader.name AS leader_name
+        FROM activity_team_members m
+        JOIN activity_teams t ON m.team_id = t.id
+        LEFT JOIN attendees leader ON t.leader_id = leader.id
+        WHERE m.attendee_id = ?
+      `).bind(attendeeData.id).all());
+    }
 
-    let activityTeams: Array<{ name: string; description: string | null; leader_name: string | null; is_leader: boolean; members: string[] }> = [];
-    for (const row of teamRows as { id: number; name: string; description: string | null; leader_id: number | null; leader_name: string | null }[]) {
+    let activityTeams: Array<{ name: string; description: string | null; color: string; leader_name: string | null; is_leader: boolean; members: string[] }> = [];
+    for (const row of teamRows as { id: number; name: string; description: string | null; color: string | null; leader_id: number | null; leader_name: string | null }[]) {
       const { results: teamMembers } = await context.env.DB.prepare(`
         SELECT a.name FROM activity_team_members m JOIN attendees a ON m.attendee_id = a.id WHERE m.team_id = ? ORDER BY a.name
       `).bind(row.id).all();
       activityTeams.push({
         name: row.name,
         description: row.description,
+        color: row.color || '#8b5cf6',
         leader_name: row.leader_name,
         is_leader: row.leader_id === attendeeData.id,
         members: (teamMembers as { name: string }[]).map(m => m.name),

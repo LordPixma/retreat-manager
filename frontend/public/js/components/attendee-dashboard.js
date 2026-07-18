@@ -11,10 +11,16 @@ const AttendeeDashboard = {
             await this.loadData();
             this.bindEvents();
             this.bindViewNav();
-            // Set the initial title via showView so the eyebrow + heading
-            // match the default Overview panel (matches what every
-            // subsequent navigation does).
-            this.showView('overview');
+            // Honour a deep link from the PWA shortcuts / manifest, e.g.
+            // /?view=checkin opens straight to the check-in panel. Falls back
+            // to Overview for anything unrecognised.
+            const validViews = ['overview', 'payments', 'family', 'my-details', 'transport', 'schedule', 'activities', 'community', 'resources', 'checkin'];
+            let initialView = 'overview';
+            try {
+                const requested = new URLSearchParams(window.location.search).get('view');
+                if (requested && validViews.includes(requested)) initialView = requested;
+            } catch { /* ignore malformed query strings */ }
+            this.showView(initialView);
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -134,7 +140,12 @@ const AttendeeDashboard = {
         const nameDisplay = document.getElementById('attendee-name-display');
         if (nameDisplay) nameDisplay.textContent = this.data.name;
         const brandUser = document.getElementById('att-brand-user');
-        if (brandUser) brandUser.textContent = `${this.data.name} · ${this.data.ref_number || ''}`;
+        if (brandUser) brandUser.textContent = this.data.name || '';
+        const brandRef = document.getElementById('att-brand-ref');
+        if (brandRef) brandRef.textContent = this.data.ref_number || '';
+        // Avatar initials from the attendee's name (up to two letters).
+        const avatar = document.getElementById('att-avatar');
+        if (avatar) avatar.textContent = this._initials(this.data.name);
 
         // Update announcements (new)
         this.updateAnnouncementsDisplay();
@@ -161,6 +172,8 @@ const AttendeeDashboard = {
         this.updateCountdown();
         this.updateQRCode();
         this.updateActivityTeams();
+        this.updateTransportNote();
+        this.updateHappeningNow();   // async, fire-and-forget
         this.updatePackingChecklist();
         this.bindProfileEdit();
         this.bindDownloadConfirmation();
@@ -225,6 +238,15 @@ const AttendeeDashboard = {
                 sidebar.classList.remove('open');
             });
         }
+        // Delegated handler for any in-content "jump to view" link/button
+        // (e.g. the overview transport nudge, My Details cross-links).
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-go-view]');
+            if (!el) return;
+            e.preventDefault();
+            const v = el.getAttribute('data-go-view');
+            if (v) this.showView(v);
+        });
     },
 
     showView(name) {
@@ -242,12 +264,15 @@ const AttendeeDashboard = {
         // Overview is the personalised landing page (welcome + name); the
         // rest get a plain section heading.
         const titles = {
-            overview: ['Welcome back', this.data?.name || ''],
+            overview: [this._greeting(), this.data?.name || ''],
             payments: ['Your retreat balance', 'Payments'],
             family: ['Your group', 'Family'],
             'my-details': ['Account', 'My Details'],
+            transport: ['Getting there', 'Transport'],
             schedule: ['Plan your weekend', 'Schedule'],
             activities: ['Get involved', 'Activities'],
+            community: ['Share & encourage', 'Community'],
+            resources: ['Everything you need', 'Resources'],
             checkin: ['Arrive ready', 'Check-in'],
         };
         const [eyebrow, heading] = titles[name] || ['', ''];
@@ -259,7 +284,117 @@ const AttendeeDashboard = {
         // Lazy-load per-view data.
         if (name === 'family') this.loadFamilyView();
         if (name === 'my-details') this.renderMyDetailsView();
+        if (name === 'transport') this.renderTransportView();
         if (name === 'schedule') this.loadSchedule();
+        if (name === 'community') this.loadCommunity();
+        if (name === 'resources') this.renderResourcesView();
+        // Always land on the "Ready to check in?" prompt, not a stale open
+        // QR, whenever the check-in panel is (re)opened.
+        if (name === 'checkin') this.hideCheckinQR();
+        else this._releaseWakeLock();
+    },
+
+    // Program items are shared across the Schedule view, the overview
+    // "Happening now" card and My Plan — fetch once and cache.
+    _programItems: null,
+    async _loadProgram(force = false) {
+        if (this._programItems && !force) return this._programItems;
+        try {
+            const res = await API.get('/program');
+            this._programItems = (res && res.items) || [];
+        } catch {
+            this._programItems = [];
+        }
+        return this._programItems;
+    },
+
+    // Parse an item's start/end into epoch millis (local time). Only items with
+    // both event_date (YYYY-MM-DD) and start_time (HH:MM) are schedulable.
+    _itemStartMs(item) {
+        if (!item.event_date || !item.start_time) return null;
+        const t = Date.parse(`${item.event_date}T${item.start_time}`);
+        return isNaN(t) ? null : t;
+    },
+    _itemEndMs(item, startMs) {
+        if (item.end_time && item.event_date) {
+            const t = Date.parse(`${item.event_date}T${item.end_time}`);
+            if (!isNaN(t) && t > startMs) return t;
+        }
+        return startMs + 60 * 60 * 1000; // assume 1h when no end time
+    },
+
+    // ---- My Plan (starred sessions), persisted per attendee on-device ----
+    _myPlanKey() { return `myplan_${this.data?.ref_number || 'guest'}`; },
+    _getMyPlan() {
+        try { return new Set(JSON.parse(localStorage.getItem(this._myPlanKey()) || '[]')); }
+        catch { return new Set(); }
+    },
+    _isStarred(id) { return this._getMyPlan().has(id); },
+    _toggleStar(id) {
+        const plan = this._getMyPlan();
+        if (plan.has(id)) plan.delete(id); else plan.add(id);
+        localStorage.setItem(this._myPlanKey(), JSON.stringify([...plan]));
+        return plan.has(id);
+    },
+
+    /**
+     * Overview "Happening now / Up next" card. During the retreat this orients
+     * the attendee to the current and next session; before it, it previews the
+     * first session. Pulls from the shared program cache.
+     */
+    async updateHappeningNow() {
+        const section = document.getElementById('happening-now-section');
+        if (!section || !this.data) return;
+        const items = await this._loadProgram();
+
+        const now = Date.now();
+        const timed = items
+            .map(it => { const s = this._itemStartMs(it); return s == null ? null : { it, s, e: this._itemEndMs(it, s) }; })
+            .filter(Boolean)
+            .sort((a, b) => a.s - b.s);
+
+        if (timed.length === 0) { section.style.display = 'none'; return; }
+
+        const current = timed.find(x => x.s <= now && now < x.e);
+        const next = timed.find(x => x.s > now);
+        const plan = this._getMyPlan();
+        const nextStarred = timed.find(x => x.s > now && plan.has(x.it.id));
+
+        if (!current && !next) { section.style.display = 'none'; return; } // retreat over
+
+        const chip = (label, item, accent, timeTxt) => {
+            const loc = item.location ? ` · <i class="fas fa-location-dot"></i> ${this._escape(item.location)}` : '';
+            return `
+                <div style="flex:1; min-width:220px;">
+                    <div style="font-size:0.68rem; text-transform:uppercase; letter-spacing:0.07em; color:${accent}; font-weight:700; margin-bottom:0.3rem;">${label}</div>
+                    <div style="font-size:1rem; font-weight:700; color:#fff; line-height:1.25;">${this._escape(item.title)}</div>
+                    <div style="font-size:0.78rem; color: var(--text-tertiary); margin-top:0.2rem;">${timeTxt}${loc}</div>
+                </div>`;
+        };
+
+        const cells = [];
+        if (current) {
+            const until = Utils.program.formatTime(current.it.end_time);
+            cells.push(chip('● Happening now', current.it, '#6ee7b7', until ? `until ${this._escape(until)}` : 'now'));
+        }
+        if (next && (!current || next.it.id !== current.it.id)) {
+            cells.push(chip('Up next', next.it, '#a78bfa', this._escape(Utils.program.formatTime(next.it.start_time) || '')));
+        }
+        // If their next starred pick is different from the generic "next", show it.
+        if (nextStarred && (!next || nextStarred.it.id !== next.it.id)) {
+            cells.push(chip('★ Your next pick', nextStarred.it, '#fbbf24', this._escape(Utils.program.formatTime(nextStarred.it.start_time) || '')));
+        }
+
+        if (cells.length === 0) { section.style.display = 'none'; return; }
+
+        section.style.display = 'block';
+        section.innerHTML = `
+            <div style="background: linear-gradient(135deg, rgba(16,185,129,0.10), rgba(139,92,246,0.08)); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:1.1rem 1.4rem;">
+                <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:flex-start;">
+                    ${cells.join('<div style="width:1px; background:rgba(255,255,255,0.08); align-self:stretch;"></div>')}
+                    <button class="btn btn-sm btn-ghost" data-go-view="schedule" style="align-self:center;"><i class="fas fa-calendar-day"></i> Full schedule</button>
+                </div>
+            </div>`;
     },
 
     /**
@@ -274,8 +409,7 @@ const AttendeeDashboard = {
         this._ensureScheduleStyles();
 
         try {
-            const res = await API.get('/program');
-            const items = (res && res.items) || [];
+            const items = await this._loadProgram();
 
             if (items.length === 0) {
                 container.innerHTML = `
@@ -308,13 +442,15 @@ const AttendeeDashboard = {
 
             // Render each day as a vertical timeline of event cards. The
             // event type drives a colour-coded node + card accent.
-            container.innerHTML = order.map((key) => {
+            const daysHtml = order.map((key) => {
                 const group = groups[key];
                 const count = group.items.length;
 
                 const events = group.items.map((item) => {
                     const color = Utils.program.eventTypeColor(item.event_type);
                     const icon = Utils.program.eventTypeIcon(item.event_type);
+                    const starred = this._isStarred(item.id);
+                    const starBtn = `<button type="button" class="sched-star${starred ? ' on' : ''}" data-star-id="${item.id}" title="${starred ? 'In My Plan — tap to remove' : 'Add to My Plan'}" aria-label="Toggle My Plan"><i class="fas fa-star"></i></button>`;
 
                     const startTxt = Utils.program.formatTime(item.start_time) || (item.time_label || '');
                     const endTxt = Utils.program.formatTime(item.end_time);
@@ -343,11 +479,11 @@ const AttendeeDashboard = {
                         : '';
 
                     return `
-                        <div class="sched-event">
+                        <div class="sched-event" data-sched-id="${item.id}" data-starred="${starred ? '1' : '0'}">
                             <div class="sched-time">${timeStart}${timeEnd}</div>
                             <div class="sched-rail"><div class="sched-node" style="background:${color};"><i class="fas ${icon}"></i></div></div>
                             <div class="sched-card" style="border-left-color:${color};">
-                                <div class="sched-card-title">${this._escape(item.title)}${mandatory}${audience}</div>
+                                <div class="sched-card-title">${this._escape(item.title)}${mandatory}${audience}${starBtn}</div>
                                 ${meta}
                                 ${desc}
                             </div>
@@ -363,6 +499,17 @@ const AttendeeDashboard = {
                         <div class="sched-timeline">${events}</div>
                     </div>`;
             }).join('');
+
+            const planCount = this._getMyPlan().size;
+            container.innerHTML = `
+                <div class="sched-toolbar">
+                    <label class="sched-plan-toggle">
+                        <input type="checkbox" id="sched-myplan-only"> <i class="fas fa-star"></i> My Plan only
+                        <span class="sched-plan-count" id="sched-plan-count">${planCount ? `(${planCount})` : ''}</span>
+                    </label>
+                </div>
+                ${daysHtml}`;
+            this._bindScheduleInteractions();
         } catch (err) {
             container.innerHTML = `
                 <div class="sched-empty">
@@ -407,9 +554,254 @@ const AttendeeDashboard = {
             .sched-desc { color: var(--text-tertiary); font-size: 0.8rem; margin-top: 0.4rem; line-height: 1.5; }
             .sched-badge-mand { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.68rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem; }
             .sched-badge-aud { background: rgba(139,92,246,0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.68rem; font-weight: 700; }
+            .sched-star { margin-left: auto; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.28); font-size: 0.95rem; padding: 0.1rem 0.2rem; line-height: 1; transition: color 0.15s, transform 0.15s; }
+            .sched-star:hover { color: #fbbf24; transform: scale(1.18); }
+            .sched-star.on { color: #fbbf24; }
+            .sched-toolbar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 1rem; }
+            .sched-plan-toggle { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; user-select: none; padding: 0.35rem 0.7rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; }
+            .sched-plan-toggle input { accent-color: #fbbf24; }
+            .sched-plan-toggle i { color: #fbbf24; }
+            .sched-plan-count { color: var(--text-tertiary); font-weight: 700; }
+            .sched-day.sched-hidden { display: none; }
             @media (max-width: 560px) { .sched-event { grid-template-columns: 52px 24px 1fr; } .sched-node { width: 24px; height: 24px; } }
         `;
         document.head.appendChild(style);
+    },
+
+    /** Wire star toggles + the "My Plan only" filter after the schedule renders. */
+    _bindScheduleInteractions() {
+        const container = document.getElementById('schedule-content');
+        if (!container) return;
+
+        container.querySelectorAll('.sched-star').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = parseInt(btn.dataset.starId, 10);
+                const now = this._toggleStar(id);
+                btn.classList.toggle('on', now);
+                btn.title = now ? 'In My Plan — tap to remove' : 'Add to My Plan';
+                const ev = btn.closest('.sched-event');
+                if (ev) ev.dataset.starred = now ? '1' : '0';
+                const countEl = document.getElementById('sched-plan-count');
+                const n = this._getMyPlan().size;
+                if (countEl) countEl.textContent = n ? `(${n})` : '';
+                this.updateHappeningNow(); // keep the overview "next pick" fresh
+                const toggle = document.getElementById('sched-myplan-only');
+                if (toggle && toggle.checked) this._applyScheduleFilter(true);
+            });
+        });
+
+        const toggle = document.getElementById('sched-myplan-only');
+        if (toggle) toggle.addEventListener('change', () => this._applyScheduleFilter(toggle.checked));
+    },
+
+    _applyScheduleFilter(planOnly) {
+        const container = document.getElementById('schedule-content');
+        if (!container) return;
+        container.querySelectorAll('.sched-event').forEach((ev) => {
+            ev.style.display = (planOnly && ev.dataset.starred !== '1') ? 'none' : '';
+        });
+        container.querySelectorAll('.sched-day').forEach((day) => {
+            const anyVisible = [...day.querySelectorAll('.sched-event')].some(ev => ev.style.display !== 'none');
+            day.classList.toggle('sched-hidden', planOnly && !anyVisible);
+        });
+        let empty = container.querySelector('.sched-plan-empty');
+        const nothing = planOnly && container.querySelectorAll('.sched-event[data-starred="1"]').length === 0;
+        if (nothing && !empty) {
+            empty = document.createElement('div');
+            empty.className = 'sched-empty sched-plan-empty';
+            empty.innerHTML = '<i class="fas fa-star"></i><div>Your plan is empty. Tap the star on a session to add it.</div>';
+            container.appendChild(empty);
+        } else if (!nothing && empty) {
+            empty.remove();
+        }
+    },
+
+    /**
+     * Resources hub: getting there, what to pack (revives the packing
+     * checklist, whose container now lives here), and help links.
+     */
+    renderResourcesView() {
+        const container = document.getElementById('resources-content');
+        if (!container) return;
+        const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=The%20Hayes%20Conference%20Centre%20Swanwick%20DE55%201AU';
+        const link = (href, icon, color, text) =>
+            `<a href="${href}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:0.6rem; font-size:0.88rem; color:var(--text-secondary); text-decoration:none; padding:0.55rem 0.65rem; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);"><i class="fas ${icon}" style="color:${color}; width:1.1rem; text-align:center;"></i> ${text}</a>`;
+
+        container.innerHTML = `
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:1.25rem; align-items:start;">
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-map-location-dot"></i> Getting there</h3></div>
+                    <div class="table-content" style="padding:1.25rem; display:grid; gap:1rem;">
+                        <div>
+                            <div style="font-weight:600; color:#fff; margin-bottom:0.25rem;"><i class="fas fa-location-dot" style="color:#fb7185;"></i> Venue</div>
+                            <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">The Hayes Conference Centre<br>Swanwick, Alfreton<br>Derbyshire DE55 1AU</div>
+                            <a href="${mapsUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost" style="margin-top:0.6rem;"><i class="fas fa-diamond-turn-right"></i> Open in Maps</a>
+                        </div>
+                        <div>
+                            <div style="font-weight:600; color:#fff; margin-bottom:0.25rem;"><i class="fas fa-car" style="color:#93c5fd;"></i> By car</div>
+                            <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">From M1 Junction 28, take the A38 towards Derby. After ~2 miles turn right onto the B6016 (Sleet Moor Lane) — The Hayes is signposted. Free on-site parking.</div>
+                        </div>
+                        <div>
+                            <div style="font-weight:600; color:#fff; margin-bottom:0.25rem;"><i class="fas fa-train" style="color:#fbbf24;"></i> By train</div>
+                            <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">Nearest station: Alfreton (2 miles), taxis available. East Midlands Parkway is ~20 mins by taxi.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3 class="table-title"><i class="fas fa-suitcase-rolling"></i> What to pack</h3>
+                        <span class="badge badge-secondary" id="packing-progress">0/0 packed</span>
+                    </div>
+                    <div class="table-content" style="padding:1.25rem;">
+                        <div id="packing-list"></div>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header"><h3 class="table-title"><i class="fas fa-circle-question"></i> Help &amp; info</h3></div>
+                    <div class="table-content" style="padding:1.25rem; display:grid; gap:0.55rem;">
+                        ${link('/faq.html', 'fa-circle-info', '#93c5fd', 'Frequently asked questions')}
+                        ${link('/allergy.html', 'fa-notes-medical', '#6ee7b7', 'Dietary &amp; allergy form')}
+                        ${link(mapsUrl, 'fa-diamond-turn-right', '#a78bfa', 'Directions to the venue')}
+                        <div style="font-size:0.8rem; color:var(--text-tertiary); line-height:1.5; margin-top:0.35rem;">Questions during the retreat? Speak to any team member or your group lead.</div>
+                    </div>
+                </div>
+            </div>`;
+
+        // The packing checklist container only exists here — populate it now.
+        this.updatePackingChecklist();
+    },
+
+    // ---- Community wall ----
+    COMMUNITY_TYPES: {
+        note:   { label: 'Note',   icon: 'fa-comment',           color: '#93c5fd' },
+        prayer: { label: 'Prayer', icon: 'fa-hands-praying',     color: '#a78bfa' },
+        praise: { label: 'Praise', icon: 'fa-hand-holding-heart', color: '#6ee7b7' },
+    },
+
+    _relativeTime(iso) {
+        const t = Date.parse(iso);
+        if (isNaN(t)) return '';
+        const diff = Math.floor((Date.now() - t) / 1000);
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+        if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+        return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    },
+
+    async loadCommunity() {
+        const composer = document.getElementById('community-composer');
+        if (composer && !composer._built) {
+            composer._built = true;
+            this._ensureCommunityStyles();
+            this._selectedCommunityType = 'note';
+            composer.innerHTML = `
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:1rem 1.1rem;">
+                    <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.6rem;">
+                        ${Object.entries(this.COMMUNITY_TYPES).map(([k, v], i) => `
+                            <button type="button" class="community-type-btn${i === 0 ? ' active' : ''}" data-type="${k}" style="--c:${v.color};"><i class="fas ${v.icon}"></i> ${v.label}</button>
+                        `).join('')}
+                    </div>
+                    <textarea id="community-input" maxlength="500" rows="3" placeholder="Share a prayer request, a praise report, or a word of encouragement…" style="width:100%; padding:0.7rem 0.85rem; background:rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:10px; font-size:0.9rem; font-family:inherit; resize:vertical;"></textarea>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.6rem; gap:0.5rem; flex-wrap:wrap;">
+                        <span style="font-size:0.72rem; color:var(--text-tertiary);"><i class="fas fa-users"></i> Visible to everyone at the retreat</span>
+                        <button class="btn btn-sm btn-primary" id="community-post-btn"><i class="fas fa-paper-plane"></i> Post</button>
+                    </div>
+                </div>`;
+            composer.querySelectorAll('.community-type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this._selectedCommunityType = btn.dataset.type;
+                    composer.querySelectorAll('.community-type-btn').forEach(b => b.classList.toggle('active', b === btn));
+                });
+            });
+            document.getElementById('community-post-btn').addEventListener('click', () => this.submitCommunityPost());
+        }
+        await this.refreshCommunity();
+    },
+
+    async refreshCommunity() {
+        const list = document.getElementById('community-content');
+        if (!list) return;
+        try {
+            const res = await API.get('/community');
+            this._renderCommunityList(res.posts || []);
+        } catch (err) {
+            list.innerHTML = `<div style="color:var(--text-tertiary); padding:1rem;">Couldn't load the wall: ${this._escape(err.message || '')}</div>`;
+        }
+    },
+
+    _renderCommunityList(posts) {
+        const list = document.getElementById('community-content');
+        if (!list) return;
+        if (!posts.length) {
+            list.innerHTML = `<div style="text-align:center; color:var(--text-tertiary); padding:2rem 1rem;"><i class="fas fa-comments" style="font-size:1.6rem; display:block; margin-bottom:0.6rem; opacity:0.6;"></i>Be the first to share something.</div>`;
+            return;
+        }
+        list.innerHTML = posts.map(p => {
+            const t = this.COMMUNITY_TYPES[p.post_type] || this.COMMUNITY_TYPES.note;
+            const del = p.is_mine ? `<button class="community-del" data-del="${p.id}" title="Delete"><i class="fas fa-trash"></i></button>` : '';
+            return `
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-left:3px solid ${t.color}; border-radius:12px; padding:0.85rem 1rem; margin-bottom:0.7rem;">
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem; flex-wrap:wrap;">
+                        <span style="font-size:0.68rem; font-weight:700; color:${t.color}; text-transform:uppercase; letter-spacing:0.04em;"><i class="fas ${t.icon}"></i> ${t.label}</span>
+                        <span style="font-size:0.82rem; color:#fff; font-weight:600;">${this._escape(p.author_name)}</span>
+                        <span style="font-size:0.72rem; color:var(--text-tertiary); margin-left:auto;">${this._relativeTime(p.created_at)}</span>
+                        ${del}
+                    </div>
+                    <div style="font-size:0.88rem; color:var(--text-secondary); line-height:1.55; white-space:pre-wrap;">${this._escape(p.content)}</div>
+                </div>`;
+        }).join('');
+        list.querySelectorAll('.community-del').forEach(btn => {
+            btn.addEventListener('click', () => this.deleteCommunityPost(btn.dataset.del));
+        });
+    },
+
+    async submitCommunityPost() {
+        const input = document.getElementById('community-input');
+        const btn = document.getElementById('community-post-btn');
+        if (!input) return;
+        const content = input.value.trim();
+        if (!content) { Utils.showAlert('Write something first.', 'error'); return; }
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        try {
+            await API.post('/community', { content, post_type: this._selectedCommunityType || 'note' });
+            input.value = '';
+            await this.refreshCommunity();
+        } catch (err) {
+            Utils.showAlert(err.message || 'Failed to post', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    },
+
+    async deleteCommunityPost(id) {
+        if (!confirm('Delete this post?')) return;
+        try {
+            await API.delete(`/community/${id}`);
+            await this.refreshCommunity();
+        } catch (err) {
+            Utils.showAlert(err.message || 'Failed to delete', 'error');
+        }
+    },
+
+    _ensureCommunityStyles() {
+        if (document.getElementById('community-styles')) return;
+        const s = document.createElement('style');
+        s.id = 'community-styles';
+        s.textContent = `
+            .community-type-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:var(--text-secondary); border-radius:999px; padding:0.3rem 0.75rem; font-size:0.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem; transition:background 0.15s, border-color 0.15s, color 0.15s; }
+            .community-type-btn.active { background:color-mix(in srgb, var(--c) 22%, transparent); border-color:var(--c); color:#fff; }
+            .community-type-btn i { color:var(--c); }
+            .community-del { background:none; border:none; color:var(--text-tertiary); cursor:pointer; padding:0.15rem 0.35rem; border-radius:6px; }
+            .community-del:hover { color:#fca5a5; background:rgba(239,68,68,0.1); }
+        `;
+        document.head.appendChild(s);
     },
 
     async loadFamilyView() {
@@ -532,13 +924,7 @@ const AttendeeDashboard = {
                                         { value: 'child_m', label: 'Child M' },
                                         { value: 'child_l', label: 'Child L' },
                                     ])}
-                                    ${this._editSelect('arrival_method', 'Arrival method', m.arrival_method, [
-                                        { value: '', label: '— Not specified —' },
-                                        { value: 'car', label: 'Driving (own car)' },
-                                        { value: 'train', label: 'By train' },
-                                        { value: 'lift_needed', label: 'Need a lift' },
-                                        { value: 'other', label: 'Other' },
-                                    ])}
+                                    ${this._editSelect('arrival_method', 'Travel method', m.arrival_method, this.TRAVEL_METHODS)}
                                     ${this._editField('vehicle_registration', 'Vehicle registration', m.vehicle_registration)}
                                 </div>
                                 ${this._editTextarea('special_requests', 'Special requests', m.special_requests)}
@@ -584,11 +970,14 @@ const AttendeeDashboard = {
         const container = document.getElementById('my-details-content');
         if (!container || !this.data) return;
         const d = this.data;
+        // Transport fields (arrival_method, vehicle_registration) and
+        // emergency_contact now live in the dedicated Transport view, so they're
+        // intentionally not collected here.
         const allFields = [
             'first_name', 'last_name', 'preferred_name', 'date_of_birth',
-            'email', 'phone', 'emergency_contact', 'postal_address',
+            'email', 'phone', 'postal_address',
             'dietary_requirements', 'medical_conditions', 'accessibility_needs',
-            'tshirt_size', 'arrival_method', 'vehicle_registration', 'special_requests',
+            'tshirt_size', 'special_requests',
         ];
         // Sectioned layout for scannability. Short text fields go in a
         // 2-up responsive grid per section; multi-line fields are full
@@ -607,16 +996,16 @@ const AttendeeDashboard = {
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
                         ${this._editField('email', 'Email', d.email, 'email')}
                         ${this._editField('phone', 'Phone', d.phone)}
-                        ${this._editField('emergency_contact', 'Emergency contact', d.emergency_contact)}
                     </div>
                     ${this._editTextarea('postal_address', 'Postal address', d.postal_address)}
+                    <div style="font-size:0.75rem; color: var(--text-tertiary);"><i class="fas fa-circle-info"></i> Travel details and your emergency contact are on the <a href="#" data-go-view="transport" style="color:#a78bfa;">Transport</a> tab.</div>
                 `)}
                 ${this._detailSection('Health &amp; Accessibility', `
                     ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', d.dietary_requirements)}
                     ${this._editTextarea('medical_conditions', 'Medical conditions / medications', d.medical_conditions, 'Used by first-aid team only.')}
                     ${this._editTextarea('accessibility_needs', 'Accessibility / mobility needs', d.accessibility_needs)}
                 `)}
-                ${this._detailSection('Logistics', `
+                ${this._detailSection('Preferences', `
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
                         ${this._editSelect('tshirt_size', 'T-shirt size', d.tshirt_size, [
                             { value: '', label: '— Not specified —' },
@@ -631,14 +1020,6 @@ const AttendeeDashboard = {
                             { value: 'child_m', label: "Child M" },
                             { value: 'child_l', label: "Child L" },
                         ])}
-                        ${this._editSelect('arrival_method', 'Arrival method', d.arrival_method, [
-                            { value: '', label: '— Not specified —' },
-                            { value: 'car', label: 'Driving (own car)' },
-                            { value: 'train', label: 'By train' },
-                            { value: 'lift_needed', label: 'Need a lift' },
-                            { value: 'other', label: 'Other' },
-                        ])}
-                        ${this._editField('vehicle_registration', 'Vehicle registration (if driving)', d.vehicle_registration)}
                     </div>
                     ${this._editTextarea('special_requests', 'Special requests', d.special_requests)}
                 `)}
@@ -680,13 +1061,17 @@ const AttendeeDashboard = {
 
     _editSelect(name, label, value, options) {
         const v = value == null ? '' : value;
+        // Options need an explicit dark background + light text, otherwise the
+        // native dropdown popup renders the white select text on the OS default
+        // white background — invisible. `color-scheme: dark` also nudges
+        // browsers to draw the popup chrome dark.
         const opts = options.map(o =>
-            `<option value="${this._escape(o.value)}"${o.value === v ? ' selected' : ''}>${this._escape(o.label)}</option>`,
+            `<option value="${this._escape(o.value)}"${o.value === v ? ' selected' : ''} style="background:#1f2440; color:#fff;">${this._escape(o.label)}</option>`,
         ).join('');
         return `
             <label style="display:block;">
                 <span style="display:block; font-size:0.75rem; font-weight:600; color: var(--text-secondary); margin-bottom:0.3rem;">${label}</span>
-                <select name="${name}" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem;">${opts}</select>
+                <select name="${name}" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem; color-scheme: dark;">${opts}</select>
             </label>
         `;
     },
@@ -720,6 +1105,132 @@ const AttendeeDashboard = {
             if (el) body[f] = el.value;
         }
         return body;
+    },
+
+    // Travel-method options offered on the Transport view. Kept in one place so
+    // the option list and the human-readable labels (used by the overview note)
+    // never drift apart. arrival_method is a free-text column, so these values
+    // need no backend/migration change.
+    TRAVEL_METHODS: [
+        { value: '', label: '— Please choose —' },
+        { value: 'car', label: 'Driving myself' },
+        { value: 'church_bus', label: 'Joining the church bus' },
+        { value: 'lift_needed', label: 'Getting a lift with someone' },
+        { value: 'train', label: 'By train' },
+        { value: 'other', label: 'Other means' },
+    ],
+
+    _travelMethodLabel(value) {
+        const m = this.TRAVEL_METHODS.find(o => o.value === value);
+        return m && m.value ? m.label : null;
+    },
+
+    /**
+     * Transport / Logistics view: how the attendee is travelling, vehicle
+     * registration (for parking), and their emergency contact. Reuses the
+     * /attendee/profile endpoint — no separate storage.
+     */
+    renderTransportView() {
+        const container = document.getElementById('transport-content');
+        if (!container || !this.data) return;
+        const d = this.data;
+        const isDriving = d.arrival_method === 'car';
+
+        container.innerHTML = `
+            <form id="transport-form" style="display: grid; gap: 1.5rem;">
+                <div style="font-size:0.85rem; color: var(--text-secondary); line-height:1.6;">
+                    Let us know how you're getting to <strong>The Hayes, Swanwick</strong> so we can plan parking and the church bus — and hold an emergency contact for the weekend.
+                </div>
+
+                ${this._detailSection('How are you travelling?', `
+                    ${this._editSelect('arrival_method', 'Travel method', d.arrival_method, this.TRAVEL_METHODS)}
+                    <div id="vehicle-reg-wrap" style="${isDriving ? '' : 'opacity:0.65;'} transition: opacity 0.2s;">
+                        ${this._editField('vehicle_registration', 'Vehicle registration', d.vehicle_registration)}
+                        <span style="display:block; font-size:0.7rem; color: var(--text-tertiary); margin-top:0.25rem;"><i class="fas fa-square-parking"></i> Needed to arrange on-site parking if you're driving.</span>
+                    </div>
+                `)}
+
+                ${this._detailSection('Emergency contact', `
+                    <div style="font-size:0.75rem; color: var(--text-tertiary); margin-bottom:0.1rem;">Who should we call if there's an emergency during the retreat?</div>
+                    ${this._editField('emergency_contact', 'Name & phone number', d.emergency_contact)}
+                `)}
+
+                <div style="display:flex; gap:0.5rem;">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save transport details</button>
+                </div>
+            </form>
+        `;
+
+        const form = document.getElementById('transport-form');
+        // De-emphasise vehicle reg unless they're driving.
+        const sel = form.querySelector('[name="arrival_method"]');
+        const wrap = document.getElementById('vehicle-reg-wrap');
+        if (sel && wrap) {
+            sel.addEventListener('change', () => {
+                wrap.style.opacity = sel.value === 'car' ? '1' : '0.65';
+            });
+        }
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const body = this._collectEditFields(form, ['arrival_method', 'vehicle_registration', 'emergency_contact']);
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            try {
+                await API.put('/attendee/profile', body);
+                this.data = await API.get('/me');
+                this.updateDisplay();
+                this.renderTransportView();
+                Utils.showAlert('Transport details saved.', 'success');
+            } catch (err) {
+                Utils.showAlert(err.message || 'Failed to save', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Save transport details';
+            }
+        });
+    },
+
+    /**
+     * Overview nudge: prompt drivers without a vehicle reg (or anyone who
+     * hasn't told us how they're travelling) to complete their Transport tab.
+     */
+    updateTransportNote() {
+        const section = document.getElementById('transport-note-section');
+        if (!section || !this.data) return;
+        const method = this.data.arrival_method;
+        const reg = (this.data.vehicle_registration || '').trim();
+
+        let note = null;
+        if (method === 'car' && !reg) {
+            note = {
+                icon: 'fa-car-side', color: '#fbbf24',
+                title: "You're driving to the retreat",
+                body: 'Please add your vehicle registration so we can arrange parking for you.',
+                cta: 'Add vehicle registration',
+            };
+        } else if (!method) {
+            note = {
+                icon: 'fa-route', color: '#a78bfa',
+                title: 'How are you getting to the retreat?',
+                body: 'Tell us your travel method — driving, the church bus, or another way — so we can help with parking and transport.',
+                cta: 'Set travel details',
+            };
+        }
+
+        if (!note) { section.style.display = 'none'; section.innerHTML = ''; return; }
+
+        section.style.display = 'block';
+        section.innerHTML = `
+            <div style="background: linear-gradient(135deg, rgba(251,191,36,0.10), rgba(139,92,246,0.06)); border:1px solid rgba(255,255,255,0.08); border-left:4px solid ${note.color}; border-radius:16px; padding:1.1rem 1.4rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div style="font-size:1.4rem; color:${note.color};"><i class="fas ${note.icon}"></i></div>
+                <div style="flex:1; min-width:200px;">
+                    <div style="font-weight:600; color:#fff; margin-bottom:0.15rem;">${note.title}</div>
+                    <div style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5;">${note.body}</div>
+                </div>
+                <button class="btn btn-sm btn-primary" data-go-view="transport"><i class="fas fa-arrow-right"></i> ${note.cta}</button>
+            </div>
+        `;
     },
 
     /**
@@ -1664,6 +2175,22 @@ const AttendeeDashboard = {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     },
 
+    // First letters of the first and last name parts, for the sidebar avatar.
+    _initials(name) {
+        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return '·';
+        if (parts.length === 1) return parts[0][0].toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    },
+
+    // Time-of-day greeting for the Overview eyebrow.
+    _greeting() {
+        const h = new Date().getHours();
+        if (h < 12) return 'Good morning';
+        if (h < 18) return 'Good afternoon';
+        return 'Good evening';
+    },
+
     async handleBankTransfer(type, installmentCount, e) {
         try {
             const body = { payment_type: type };
@@ -2004,24 +2531,83 @@ const AttendeeDashboard = {
         setInterval(update, 1000);
     },
 
+    // Wake-lock handle so the screen stays lit while the QR is on show.
+    _wakeLock: null,
+
+    /**
+     * Prepare the check-in view. The QR is NOT drawn up front — the attendee
+     * taps "I'm ready to check in" to reveal it (keeps the code off-screen
+     * until they're actually at the desk, and lets us blow it up big +
+     * keep the screen awake only while it's needed).
+     */
     updateQRCode() {
-        const container = document.getElementById('qr-code-container');
         const refDisplay = document.getElementById('qr-ref-display');
-        if (!container || !this.data.ref_number) return;
+        if (refDisplay && this.data.ref_number) refDisplay.textContent = this.data.ref_number;
 
-        if (refDisplay) refDisplay.textContent = this.data.ref_number;
+        const revealBtn = document.getElementById('checkin-reveal-btn');
+        const hideBtn = document.getElementById('checkin-hide-btn');
+        if (revealBtn && !revealBtn._bound) {
+            revealBtn._bound = true;
+            revealBtn.addEventListener('click', () => this.revealCheckinQR());
+        }
+        if (hideBtn && !hideBtn._bound) {
+            hideBtn._bound = true;
+            hideBtn.addEventListener('click', () => this.hideCheckinQR());
+        }
+    },
 
-        // Generate QR code using a simple SVG-based approach (no library needed)
-        // We'll use an inline canvas QR generator
-        const qrData = JSON.stringify({
-            ref: this.data.ref_number,
-            name: this.data.name,
-            t: Date.now()
-        });
+    /**
+     * Render the attendee's QR locally (vendored qrcode-generator — no
+     * third-party image service, works offline once the page has loaded)
+     * and swap the intro card for the enlarged code.
+     */
+    revealCheckinQR() {
+        const container = document.getElementById('qr-code-container');
+        const intro = document.getElementById('checkin-intro');
+        const qrBlock = document.getElementById('checkin-qr');
+        if (!container || !this.data || !this.data.ref_number) return;
 
-        // Use a lightweight QR code via Google Charts API fallback
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(qrData)}&bgcolor=ffffff&color=1e1e2e`;
-        container.innerHTML = `<img src="${qrUrl}" alt="QR Code" style="width: 140px; height: 140px; display: block;">`;
+        // Encode {ref, name} as JSON — the check-in scanner reads `.ref` and
+        // tolerates a plain ref string too, so this stays compatible.
+        const payload = JSON.stringify({ ref: this.data.ref_number, name: this.data.name });
+
+        try {
+            if (typeof qrcode !== 'function') throw new Error('QR library unavailable');
+            const qr = qrcode(0, 'M');       // type 0 = auto-size, error-correction M
+            qr.addData(payload);
+            qr.make();
+            // Scalable SVG so it stays crisp at any size; CSS caps the width.
+            container.innerHTML = qr.createSvgTag({ cellSize: 8, margin: 1, scalable: true });
+        } catch (err) {
+            console.error('QR generation failed:', err);
+            Utils.showAlert('Could not generate your QR code — please show your reference number instead.', 'error');
+            return;
+        }
+
+        if (intro) intro.classList.add('hidden');
+        if (qrBlock) qrBlock.classList.remove('hidden');
+        this._requestWakeLock();
+    },
+
+    hideCheckinQR() {
+        const intro = document.getElementById('checkin-intro');
+        const qrBlock = document.getElementById('checkin-qr');
+        if (intro) intro.classList.remove('hidden');
+        if (qrBlock) qrBlock.classList.add('hidden');
+        this._releaseWakeLock();
+    },
+
+    async _requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator && navigator.wakeLock.request) {
+                this._wakeLock = await navigator.wakeLock.request('screen');
+            }
+        } catch { /* wake lock is a nice-to-have; ignore failures */ }
+    },
+
+    _releaseWakeLock() {
+        try { this._wakeLock?.release?.(); } catch { /* ignore */ }
+        this._wakeLock = null;
     },
 
     updateActivityTeams() {
@@ -2037,9 +2623,12 @@ const AttendeeDashboard = {
         // Card grid so multiple teams sit side-by-side on wide screens
         // instead of stacking in a narrow column.
         container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.85rem;">${
-            teams.map(team => `
-                <div style="padding: 1rem 1.1rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 0.4rem;">
-                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            teams.map(team => {
+              const color = team.color || '#8b5cf6';
+              return `
+                <div style="padding: 1rem 1.1rem 1rem 1.25rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); border-left: 4px solid ${Utils.escapeHtml(color)}; display: flex; flex-direction: column; gap: 0.4rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span class="team-color-dot" style="background: ${Utils.escapeHtml(color)};"></span>
                         <div style="font-size: 0.95rem; font-weight: 700; color: #fff;">${Utils.escapeHtml(team.name)}</div>
                         ${team.is_leader ? '<span class="badge badge-primary"><i class="fas fa-crown"></i> Leader</span>' : ''}
                     </div>
@@ -2052,7 +2641,8 @@ const AttendeeDashboard = {
                         ${team.members.map(n => Utils.escapeHtml(n)).join(', ')}
                     </div>` : ''}
                 </div>
-            `).join('')
+            `;
+            }).join('')
         }</div>`;
     },
 

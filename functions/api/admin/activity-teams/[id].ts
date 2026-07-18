@@ -1,6 +1,7 @@
 import type { PagesContext } from '../../../_shared/types.js';
 import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
+import { normaliseTeamColor } from './index.js';
 
 interface IdParams {
   id: string;
@@ -80,6 +81,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     const body = await context.request.json() as {
       name?: string;
       description?: string;
+      color?: string;
       leader_id?: number | null;
       member_ids?: number[];
     };
@@ -101,6 +103,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
 
     if (body.name !== undefined) { updates.push('name = ?'); values.push(body.name.trim()); }
     if (body.description !== undefined) { updates.push('description = ?'); values.push(body.description?.trim() || null); }
+    if (body.color !== undefined) { updates.push('color = ?'); values.push(normaliseTeamColor(body.color)); }
     if (body.leader_id !== undefined) { updates.push('leader_id = ?'); values.push(body.leader_id); }
 
     if (updates.length > 0) {

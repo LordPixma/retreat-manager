@@ -3,10 +3,18 @@
 <div class="attendee-layout">
     <aside class="attendee-sidebar" id="att-sidebar">
         <div class="att-brand">
-            <i class="fas fa-mountain-sun"></i>
+            <div class="att-brand-logo"><i class="fas fa-mountain-sun"></i></div>
             <div>
                 <div class="att-brand-name">Retreat Portal</div>
-                <div class="att-brand-user" id="att-brand-user">Loading…</div>
+                <div class="att-brand-sub">Growth &amp; Wisdom 2026</div>
+            </div>
+        </div>
+
+        <div class="att-userchip">
+            <div class="att-avatar" id="att-avatar" aria-hidden="true">·</div>
+            <div class="att-userchip-meta">
+                <div class="att-userchip-name" id="att-brand-user">Loading…</div>
+                <div class="att-userchip-ref" id="att-brand-ref"></div>
             </div>
         </div>
 
@@ -15,8 +23,11 @@
             <a class="att-nav-link" data-view="payments"><i class="fas fa-credit-card"></i> Payments<span class="att-nav-badge" id="att-nav-payments-badge"></span></a>
             <a class="att-nav-link" data-view="family"><i class="fas fa-users"></i> Family</a>
             <a class="att-nav-link" data-view="my-details"><i class="fas fa-user"></i> My Details</a>
+            <a class="att-nav-link" data-view="transport"><i class="fas fa-car-side"></i> Transport</a>
             <a class="att-nav-link" data-view="schedule"><i class="fas fa-calendar-day"></i> Schedule</a>
             <a class="att-nav-link" data-view="activities"><i class="fas fa-people-group"></i> Activities</a>
+            <a class="att-nav-link" data-view="community"><i class="fas fa-comments"></i> Community</a>
+            <a class="att-nav-link" data-view="resources"><i class="fas fa-book-open"></i> Resources</a>
             <a class="att-nav-link" data-view="checkin"><i class="fas fa-qrcode"></i> Check-in</a>
         </nav>
 
@@ -56,6 +67,12 @@
                     <div id="banner-pay-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
                 </div>
             </div>
+
+            <!-- Happening now / up next (live during the retreat) -->
+            <div id="happening-now-section" style="margin-bottom: 1.5rem; display: none;"></div>
+
+            <!-- Transport reminder (driving / vehicle registration) -->
+            <div id="transport-note-section" style="margin-bottom: 1.5rem; display: none;"></div>
 
             <!-- Announcements -->
             <div id="announcements-section" style="margin-bottom: 1.5rem;">
@@ -156,6 +173,18 @@
             </div>
         </section>
 
+        <!-- TRANSPORT / LOGISTICS -->
+        <section class="att-view" data-view-panel="transport">
+            <div class="data-table">
+                <div class="table-header">
+                    <h3 class="table-title"><i class="fas fa-route"></i> Getting to the Retreat</h3>
+                </div>
+                <div id="transport-content" class="table-content" style="padding: 1.5rem;">
+                    <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+                </div>
+            </div>
+        </section>
+
         <!-- SCHEDULE -->
         <section class="att-view" data-view-panel="schedule">
             <div class="data-table">
@@ -210,16 +239,49 @@
             </div>
         </section>
 
-        <!-- CHECK-IN -->
-        <section class="att-view" data-view-panel="checkin">
+        <!-- COMMUNITY -->
+        <section class="att-view" data-view-panel="community">
             <div class="data-table">
                 <div class="table-header">
-                    <h3 class="table-title"><i class="fas fa-qrcode"></i> Check-in QR Code</h3>
+                    <h3 class="table-title"><i class="fas fa-comments"></i> Community Wall</h3>
                 </div>
-                <div class="table-content" style="padding: 2rem; text-align: center;">
-                    <div id="qr-code-container" style="margin: 0 auto 1rem; display: inline-block; background: #fff; padding: 16px; border-radius: 12px;"></div>
-                    <div id="qr-ref-display" style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-top: 0.5rem;"></div>
-                    <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 0.5rem;">Show this at the check-in desk on arrival.</div>
+                <div class="table-content" style="padding: 1.5rem;">
+                    <div id="community-composer"></div>
+                    <div id="community-content" style="margin-top: 1.25rem;">
+                        <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RESOURCES -->
+        <section class="att-view" data-view-panel="resources">
+            <div id="resources-content"></div>
+        </section>
+
+        <!-- CHECK-IN -->
+        <section class="att-view" data-view-panel="checkin">
+            <div class="checkin-card">
+                <!-- Pre-reveal: friendly prompt + big button -->
+                <div id="checkin-intro" class="checkin-intro">
+                    <div class="checkin-intro-icon"><i class="fas fa-person-walking-luggage"></i></div>
+                    <h3 class="checkin-intro-title">Ready to check in?</h3>
+                    <p class="checkin-intro-sub">When you reach the check-in desk, tap below to reveal your personal QR code for the team to scan.</p>
+                    <button class="btn btn-primary checkin-reveal-btn" id="checkin-reveal-btn">
+                        <i class="fas fa-qrcode"></i> I'm ready to check in
+                    </button>
+                </div>
+
+                <!-- Revealed: enlarged QR + guidance -->
+                <div id="checkin-qr" class="checkin-qr hidden">
+                    <div id="qr-code-container" class="checkin-qr-code"></div>
+                    <div id="qr-ref-display" class="checkin-qr-ref"></div>
+                    <div class="checkin-qr-hint">
+                        <i class="fas fa-sun"></i> Turn your screen brightness up and hold steady while it's scanned.
+                    </div>
+                    <button class="btn btn-ghost btn-sm" id="checkin-hide-btn">
+                        <i class="fas fa-chevron-up"></i> Hide code
+                    </button>
                 </div>
             </div>
         </section>

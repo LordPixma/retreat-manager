@@ -1,22 +1,24 @@
 // Service Worker for Growth and Wisdom Retreat Portal
-const CACHE_NAME = 'retreat-portal-v5';
-const STATIC_CACHE = 'retreat-static-v5';
-const DYNAMIC_CACHE = 'retreat-dynamic-v5';
+const CACHE_NAME = 'retreat-portal-v6';
+const STATIC_CACHE = 'retreat-static-v6';
+const DYNAMIC_CACHE = 'retreat-dynamic-v6';
 
-// Static assets to cache on install
+// Static assets to cache on install. Keep this list to files that actually
+// exist in frontend/public — a missing entry makes cache.addAll() reject and
+// aborts the whole install. (v5 listed /admin.html, /js/admin.js and
+// /js/register.js, none of which ship, so precaching silently no-op'd.)
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/register.html',
-  '/admin.html',
+  '/offline.html',
   '/css/variables.css',
   '/css/base.css',
   '/css/components.css',
   '/css/layout.css',
   '/css/responsive.css',
   '/js/app.js',
-  '/js/admin.js',
-  '/js/register.js',
+  '/js/vendor/qrcode.min.js',
   '/manifest.json'
 ];
 
@@ -226,8 +228,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body || 'New notification',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/android-chrome-192x192.png',
+    badge: '/favicon-32x32.png',
     vibrate: [100, 50, 100],
     data: {
       url: data.url || '/'

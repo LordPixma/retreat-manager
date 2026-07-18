@@ -1668,9 +1668,10 @@ const AdminDashboard = {
                 ? team.members.slice(0, 5).join(', ') + (team.members.length > 5 ? ` +${team.members.length - 5} more` : '')
                 : '<span style="color: var(--text-tertiary);">No members</span>';
 
+            const color = team.color || '#8b5cf6';
             return `
                 <tr>
-                    <td><strong>${Utils.escapeHtml(team.name)}</strong></td>
+                    <td><span style="display: inline-flex; align-items: center; gap: 0.5rem;"><span class="team-color-dot" style="background: ${Utils.escapeHtml(color)};"></span><strong>${Utils.escapeHtml(team.name)}</strong></span></td>
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHtml(team.description || '-')}</td>
                     <td>${team.leader_name
                         ? `<span class="badge badge-primary"><i class="fas fa-crown"></i> ${Utils.escapeHtml(team.leader_name)}</span>`
@@ -1691,6 +1692,77 @@ const AdminDashboard = {
                     </td>
                 </tr>`;
         }).join('');
+    },
+
+    /**
+     * Community wall moderation — load, render, hide/unhide, delete.
+     */
+    async loadCommunityPosts() {
+        const tbody = document.getElementById('community-table-body');
+        if (!tbody) return;
+        // Bind the refresh button once.
+        const refreshBtn = document.getElementById('community-refresh-btn');
+        if (refreshBtn && !refreshBtn._bound) {
+            refreshBtn._bound = true;
+            refreshBtn.addEventListener('click', () => this.loadCommunityPosts());
+        }
+        tbody.innerHTML = `<tr><td colspan="5" class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading posts...</td></tr>`;
+        try {
+            const res = await API.get('/admin/community');
+            this.data.communityPosts = res.posts || res || [];
+            this.updateCommunityDisplay();
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary); padding:2rem;">Failed to load: ${Utils.escapeHtml(err.message || '')}</td></tr>`;
+        }
+    },
+
+    updateCommunityDisplay() {
+        const tbody = document.getElementById('community-table-body');
+        if (!tbody) return;
+        const posts = this.data.communityPosts || [];
+        if (!posts.length) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary); padding:2rem;"><i class="fas fa-comments" style="font-size:2rem; display:block; margin-bottom:1rem;"></i>No community posts yet</td></tr>`;
+            return;
+        }
+        const typeLabels = { prayer: 'Prayer', praise: 'Praise', note: 'Note' };
+        tbody.innerHTML = posts.map(p => {
+            const hidden = p.is_hidden ? 1 : 0;
+            let posted = p.created_at;
+            try { posted = new Date(p.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { /* keep raw */ }
+            return `
+                <tr${hidden ? ' style="opacity:0.55;"' : ''}>
+                    <td><span class="badge badge-secondary">${typeLabels[p.post_type] || 'Note'}</span></td>
+                    <td>${Utils.escapeHtml(p.author_name)}</td>
+                    <td style="max-width:360px; white-space:pre-wrap;">${Utils.escapeHtml(p.content)}${hidden ? ' <span style="color:var(--text-tertiary); font-size:0.72rem;">(hidden)</span>' : ''}</td>
+                    <td style="white-space:nowrap;">${Utils.escapeHtml(posted)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-secondary community-hide" data-id="${p.id}" data-hide="${hidden ? 0 : 1}" title="${hidden ? 'Unhide' : 'Hide'}"><i class="fas fa-eye${hidden ? '' : '-slash'}"></i></button>
+                            <button class="btn btn-sm btn-danger community-delete" data-id="${p.id}" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+    },
+
+    async toggleCommunityHide(id, hide) {
+        try {
+            await API.request(`/admin/community/${id}`, { method: 'PATCH', body: JSON.stringify({ hide }) });
+            await this.loadCommunityPosts();
+        } catch (err) {
+            Utils.showAlert(err.message || 'Failed to update post', 'error');
+        }
+    },
+
+    async deleteCommunityPost(id) {
+        if (!confirm('Permanently delete this post?')) return;
+        try {
+            await API.delete(`/admin/community/${id}`);
+            Utils.showAlert('Post deleted', 'success');
+            await this.loadCommunityPosts();
+        } catch (err) {
+            Utils.showAlert(err.message || 'Failed to delete post', 'error');
+        }
     },
 
     /**
@@ -1732,6 +1804,11 @@ const AdminDashboard = {
                 // Lazy-load check-in data
                 if (tabName === 'checkin') {
                     this.loadCheckInData();
+                }
+
+                // Lazy-load community wall
+                if (tabName === 'community') {
+                    this.loadCommunityPosts();
                 }
 
                 // Lazy-load allergy registry
@@ -2055,6 +2132,10 @@ const AdminDashboard = {
                 await this.editActivityTeam(id);
             } else if (target.classList.contains('delete-activity-team')) {
                 await this.deleteActivityTeam(id);
+            } else if (target.classList.contains('community-delete')) {
+                await this.deleteCommunityPost(id);
+            } else if (target.classList.contains('community-hide')) {
+                await this.toggleCommunityHide(id, target.dataset.hide === '1');
             }
         });
     },

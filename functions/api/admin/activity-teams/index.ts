@@ -8,12 +8,23 @@ interface TeamRow {
   id: number;
   name: string;
   description: string | null;
+  color: string | null;
   leader_id: number | null;
   leader_name: string | null;
   member_count: number;
   member_names: string | null;
   member_ids: string | null;
   created_at: string;
+}
+
+// Normalise a user-supplied team colour to a #RRGGBB hex string, or fall back
+// to the brand violet when it's missing/invalid. Guards the DB from junk and
+// keeps the swatch rendering predictable on both dashboards.
+const DEFAULT_TEAM_COLOR = '#8b5cf6';
+export function normaliseTeamColor(input: unknown): string {
+  if (typeof input !== 'string') return DEFAULT_TEAM_COLOR;
+  const value = input.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : DEFAULT_TEAM_COLOR;
 }
 
 export async function onRequestOptions(): Promise<Response> {
@@ -32,7 +43,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
 
     const { results } = await context.env.DB.prepare(`
       SELECT
-        t.id, t.name, t.description, t.leader_id, t.created_at,
+        t.id, t.name, t.description, t.color, t.leader_id, t.created_at,
         leader.name AS leader_name,
         COUNT(m.id) AS member_count,
         GROUP_CONCAT(a.name, ', ') AS member_names,
@@ -49,6 +60,7 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
       id: t.id,
       name: t.name,
       description: t.description,
+      color: t.color || DEFAULT_TEAM_COLOR,
       leader_id: t.leader_id,
       leader_name: t.leader_name,
       member_count: t.member_count,
@@ -78,6 +90,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     const body = await context.request.json() as {
       name: string;
       description?: string;
+      color?: string;
       leader_id?: number;
       member_ids?: number[];
     };
@@ -85,6 +98,8 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
     if (!body.name || body.name.trim() === '') {
       return createErrorResponse(errors.badRequest('Team name is required', requestId));
     }
+
+    const color = normaliseTeamColor(body.color);
 
     // Check uniqueness
     const { results: existing } = await context.env.DB.prepare(
@@ -97,11 +112,12 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
 
     // Create team
     const result = await context.env.DB.prepare(`
-      INSERT INTO activity_teams (name, description, leader_id)
-      VALUES (?, ?, ?)
+      INSERT INTO activity_teams (name, description, color, leader_id)
+      VALUES (?, ?, ?, ?)
     `).bind(
       body.name.trim(),
       body.description?.trim() || null,
+      color,
       body.leader_id || null
     ).run();
 
