@@ -665,6 +665,7 @@ const AttendeeDashboard = {
                         ${link('/faq.html', 'fa-circle-info', '#93c5fd', 'Frequently asked questions')}
                         ${link('/allergy.html', 'fa-notes-medical', '#6ee7b7', 'Dietary &amp; allergy form')}
                         ${link(mapsUrl, 'fa-diamond-turn-right', '#a78bfa', 'Directions to the venue')}
+                        ${link('/privacy.html', 'fa-shield-halved', '#93c5fd', 'Privacy notice')}
                         <div style="font-size:0.8rem; color:var(--text-tertiary); line-height:1.5; margin-top:0.35rem;">Questions during the retreat? Speak to any team member or your group lead.</div>
                     </div>
                 </div>
@@ -1027,7 +1028,18 @@ const AttendeeDashboard = {
                     <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save changes</button>
                 </div>
             </form>
+            ${this._detailSection('Your data &amp; privacy', `
+                <div style="font-size:0.82rem; color: var(--text-secondary); line-height:1.6;">
+                    You can download a copy of everything the portal holds about you, and read how we look after it.
+                </div>
+                <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.6rem;">
+                    <button type="button" class="btn btn-sm btn-ghost" id="download-my-data"><i class="fas fa-download"></i> Download my data</button>
+                    <a href="/privacy.html" target="_blank" rel="noopener" class="btn btn-sm btn-ghost"><i class="fas fa-shield-halved"></i> Privacy notice</a>
+                </div>
+            `)}
         `;
+        const dl = document.getElementById('download-my-data');
+        if (dl) dl.addEventListener('click', () => this.downloadMyData(dl));
         const form = document.getElementById('my-details-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1048,6 +1060,28 @@ const AttendeeDashboard = {
                 submitBtn.innerHTML = '<i class="fas fa-check"></i> Save changes';
             }
         });
+    },
+
+    /** Fetch the attendee's full data export and save it as a JSON file. */
+    async downloadMyData(btn) {
+        const orig = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing…'; }
+        try {
+            const data = await API.get('/attendee/export');
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `retreat-data-${this.data?.ref_number || 'me'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            Utils.showAlert(err.message || 'Could not prepare your data', 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+        }
     },
 
     _detailSection(title, innerHtml) {
