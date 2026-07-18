@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Install the Retreat Portal</title>
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="description" content="Install the Growth &amp; Wisdom Retreat Portal on your phone.">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.json">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="/js/vendor/qrcode.min.js"></script>
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            color: #fff;
+            background:
+                radial-gradient(1000px 600px at 85% -5%, rgba(167,139,250,0.28), transparent 55%),
+                radial-gradient(800px 500px at -10% 110%, rgba(79,70,229,0.30), transparent 55%),
+                linear-gradient(160deg, #7c3aed 0%, #6d28d9 46%, #4f46e5 100%);
+            padding: 1.5rem 1rem 3rem;
+            display: flex;
+            justify-content: center;
+        }
+        .wrap { width: 100%; max-width: 480px; }
+        .top { text-align: center; padding: 1rem 0 1.5rem; }
+        .logo {
+            width: 76px; height: 76px; margin: 0 auto 1rem;
+            border-radius: 20px; background: rgba(255,255,255,0.95); padding: 9px;
+            box-shadow: 0 12px 34px rgba(0,0,0,0.28);
+        }
+        .logo img { width: 100%; height: 100%; object-fit: contain; }
+        h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 0.35rem; }
+        .sub { font-size: 0.92rem; opacity: 0.9; line-height: 1.5; }
+        .card {
+            background: #ffffff; color: #14142b;
+            border-radius: 22px; padding: 1.5rem;
+            box-shadow: 0 24px 60px rgba(30,27,75,0.3);
+            margin-bottom: 1.1rem;
+        }
+        .card h2 { font-size: 1.15rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card h2 i { color: #7c3aed; }
+        .card p { font-size: 0.92rem; color: #4b5563; line-height: 1.6; }
+        .steps { list-style: none; margin-top: 0.85rem; display: grid; gap: 0.7rem; }
+        .steps li { display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.92rem; color: #374151; line-height: 1.5; }
+        .steps .n {
+            flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+            background: #ede9fe; color: #6d28d9; font-weight: 700; font-size: 0.8rem;
+            display: flex; align-items: center; justify-content: center; margin-top: 1px;
+        }
+        .steps .ic { color: #7c3aed; font-weight: 600; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem;
+            width: 100%; margin-top: 1.1rem; padding: 0.95rem 1.25rem;
+            font-size: 1rem; font-weight: 700; color: #fff; text-decoration: none;
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            border: none; border-radius: 14px; cursor: pointer;
+            box-shadow: 0 10px 24px rgba(109,40,217,0.32);
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn.ghost { background: #f5f3ff; color: #4c1d95; border: 1.5px solid #ddd6fe; box-shadow: none; }
+        .qr-card { text-align: center; }
+        .qr-box {
+            width: 200px; height: 200px; margin: 0.5rem auto 0.75rem; background: #fff;
+            padding: 10px; border-radius: 16px; box-shadow: inset 0 0 0 1px #eee;
+        }
+        .qr-box svg { width: 100%; height: 100%; display: block; }
+        .url {
+            font-size: 0.82rem; color: #6b7280; word-break: break-all;
+            background: #f9fafb; border: 1px solid #eef0f4; border-radius: 10px; padding: 0.55rem 0.7rem; margin-top: 0.4rem;
+        }
+        .benefits { display: grid; gap: 0.6rem; margin-top: 0.3rem; }
+        .benefit { display: flex; gap: 0.65rem; align-items: center; font-size: 0.9rem; color: #fff; opacity: 0.95; }
+        .benefit i { width: 28px; height: 28px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.14); font-size: 0.85rem; }
+        .hidden { display: none !important; }
+        .foot { text-align: center; font-size: 0.8rem; opacity: 0.8; margin-top: 1.25rem; }
+        .foot a { color: #fff; }
+        .toast {
+            position: fixed; left: 50%; bottom: 1.25rem; transform: translateX(-50%);
+            background: #14142b; color: #fff; padding: 0.7rem 1.1rem; border-radius: 999px;
+            font-size: 0.85rem; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.2s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <div class="logo"><img src="/logo.png" alt="Cloverleaf Christian Centre"></div>
+            <h1>Install the Retreat Portal</h1>
+            <p class="sub">Add the Growth &amp; Wisdom Retreat app to your phone for one-tap access, your check-in QR, and offline details.</p>
+        </div>
+
+        <!-- Already installed -->
+        <div class="card hidden" id="state-installed">
+            <h2><i class="fas fa-circle-check"></i> You're all set!</h2>
+            <p>The app is already installed on this device. You can open it from your home screen — or continue below.</p>
+            <a class="btn" href="/">Open the portal</a>
+        </div>
+
+        <!-- In-app browser (WhatsApp / Facebook / Instagram webview) -->
+        <div class="card hidden" id="state-inapp">
+            <h2><i class="fas fa-arrow-up-right-from-square"></i> Open in your browser first</h2>
+            <p>You're viewing this inside another app, which can't install to your home screen. Open it in your normal browser, then come back here.</p>
+            <ol class="steps" id="inapp-steps"></ol>
+            <button class="btn ghost" id="copy-link"><i class="fas fa-copy"></i> Copy the link</button>
+        </div>
+
+        <!-- Android: one-tap install -->
+        <div class="card hidden" id="state-android">
+            <h2><i class="fab fa-android"></i> Install on Android</h2>
+            <p id="android-copy">Tap the button below and confirm “Install”.</p>
+            <button class="btn" id="android-install"><i class="fas fa-circle-down"></i> Install app</button>
+            <ol class="steps hidden" id="android-manual">
+                <li><span class="n">1</span><span>Tap the <span class="ic">⋮ menu</span> (top-right of the browser).</span></li>
+                <li><span class="n">2</span><span>Choose <span class="ic">Install app</span> or <span class="ic">Add to Home screen</span>.</span></li>
+                <li><span class="n">3</span><span>Confirm — the icon appears on your home screen.</span></li>
+            </ol>
+        </div>
+
+        <!-- iOS: Safari Add to Home Screen -->
+        <div class="card hidden" id="state-ios">
+            <h2><i class="fab fa-apple"></i> Install on iPhone / iPad</h2>
+            <p>In <strong>Safari</strong>, add the app to your home screen:</p>
+            <ol class="steps">
+                <li><span class="n">1</span><span>Tap the <span class="ic"><i class="fas fa-arrow-up-from-bracket"></i> Share</span> icon at the bottom of Safari.</span></li>
+                <li><span class="n">2</span><span>Scroll down and tap <span class="ic">Add to Home Screen</span>.</span></li>
+                <li><span class="n">3</span><span>Tap <span class="ic">Add</span> — the icon appears on your home screen.</span></li>
+            </ol>
+            <p style="margin-top:0.9rem; font-size:0.82rem; color:#9ca3af;">Don't see the Share icon? You may be in another app's browser — scan the QR code below with your Camera to open in Safari.</p>
+        </div>
+
+        <!-- Desktop / fallback: scan to open on phone -->
+        <div class="card qr-card" id="state-qr">
+            <h2 style="justify-content:center;"><i class="fas fa-qrcode"></i> Scan to open on your phone</h2>
+            <p>Point your phone camera at this code — it opens in your phone's browser, ready to install.</p>
+            <div class="qr-box" id="qr"></div>
+            <div class="url" id="url-text"></div>
+            <button class="btn ghost" id="copy-link-2"><i class="fas fa-copy"></i> Copy link</button>
+        </div>
+
+        <div class="benefits">
+            <div class="benefit"><i class="fas fa-bolt"></i> One-tap access from your home screen</div>
+            <div class="benefit"><i class="fas fa-qrcode"></i> Your check-in QR code, ready on arrival</div>
+            <div class="benefit"><i class="fas fa-wifi"></i> Works offline once loaded</div>
+            <div class="benefit"><i class="fas fa-bell"></i> Announcements &amp; retreat updates</div>
+        </div>
+
+        <div class="foot">Growth &amp; Wisdom Family Retreat 2026 · <a href="/">Open portal</a></div>
+    </div>
+
+    <div class="toast" id="toast">Link copied</div>
+
+    <script>
+    (function () {
+        const APP_URL = location.origin + '/';
+        const $ = (id) => document.getElementById(id);
+
+        function show(id) { $(id).classList.remove('hidden'); }
+        function hide(id) { $(id).classList.add('hidden'); }
+
+        function toast(msg) {
+            const t = $('toast'); t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 1800);
+        }
+
+        function copyLink() {
+            const url = location.origin + '/install';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => toast('Link copied'), () => toast(url));
+            } else {
+                toast(url);
+            }
+        }
+        $('copy-link').addEventListener('click', copyLink);
+        $('copy-link-2').addEventListener('click', copyLink);
+
+        // ---- QR (points at the app root so scanning installs the portal itself) ----
+        try {
+            const qr = qrcode(0, 'M');
+            qr.addData(APP_URL);
+            qr.make();
+            $('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true });
+        } catch (e) { $('state-qr').classList.add('hidden'); }
+        $('url-text').textContent = APP_URL.replace(/^https?:\/\//, '');
+
+        // ---- Environment detection ----
+        const ua = navigator.userAgent || '';
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isAndroid = /android/i.test(ua);
+        // Known in-app browser signatures (WhatsApp, Facebook, Instagram, etc.)
+        const inApp = /(FBAN|FBAV|Instagram|WhatsApp|Line|Twitter|MicroMessenger|Snapchat)/i.test(ua)
+            || (isAndroid && /; wv\)/.test(ua));
+
+        if (isStandalone) {
+            show('state-installed');
+            hide('state-qr');
+            return;
+        }
+
+        // Fill in-app "open in browser" steps per platform.
+        if (inApp) {
+            const steps = isIOS
+                ? ['Tap the <span class="ic">•••</span> or <span class="ic">Share</span> icon in this in-app browser.',
+                   'Choose <span class="ic">Open in Safari</span>.',
+                   'Back on this page in Safari, follow the install steps.']
+                : ['Tap the <span class="ic">⋮ menu</span> in this in-app browser.',
+                   'Choose <span class="ic">Open in browser</span> (Chrome).',
+                   'Back on this page in Chrome, tap <span class="ic">Install</span>.'];
+            $('inapp-steps').innerHTML = steps.map((s, i) =>
+                '<li><span class="n">' + (i + 1) + '</span><span>' + s + '</span></li>').join('');
+            show('state-inapp');
+            // The QR is the easiest escape from an in-app browser — keep it visible.
+            return;
+        }
+
+        if (isIOS) {
+            show('state-ios');
+            hide('state-qr'); // iOS Safari users don't need the QR
+            return;
+        }
+
+        if (isAndroid) {
+            show('state-android');
+            hide('state-qr');
+            let deferred = null;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferred = e;
+                $('android-install').classList.remove('hidden');
+                $('android-manual').classList.add('hidden');
+                $('android-copy').textContent = 'Tap the button below and confirm “Install”.';
+            });
+            $('android-install').addEventListener('click', async () => {
+                if (deferred) {
+                    deferred.prompt();
+                    const { outcome } = await deferred.userChoice;
+                    deferred = null;
+                    if (outcome === 'accepted') { $('android-install').textContent = 'Installing…'; }
+                    return;
+                }
+                // No prompt available — reveal manual steps.
+                $('android-install').classList.add('hidden');
+                $('android-manual').classList.remove('hidden');
+                $('android-copy').textContent = 'Your browser will add it from the menu:';
+            });
+            window.addEventListener('appinstalled', () => {
+                hide('state-android'); show('state-installed');
+            });
+            // If no beforeinstallprompt fires shortly, hint at the manual path.
+            setTimeout(() => {
+                if (!deferred) {
+                    $('android-install').classList.add('hidden');
+                    $('android-manual').classList.remove('hidden');
+                    $('android-copy').textContent = 'Add it to your home screen from the browser menu:';
+                }
+            }, 1500);
+            return;
+        }
+
+        // Desktop / unknown → QR card stays visible as the primary path.
+    })();
+    </script>
+</body>
+</html>
