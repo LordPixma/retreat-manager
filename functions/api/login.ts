@@ -41,6 +41,12 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
 
     const { ref, password } = body as { ref: string; password: string };
     const trimmedRef = ref.trim();
+    // Reference numbers are case-insensitive at login. `refKey` (upper-cased)
+    // buckets rate-limiting/attempt records so case variants can't dodge the
+    // limiter; the DB lookup uses COLLATE NOCASE; and everything downstream
+    // (token, history, last_login) uses the *stored* canonical ref so the
+    // issued session matches what /api/me and friends query.
+    const refKey = trimmedRef.toUpperCase();
 
     // Get client IP for rate limiting
     const clientIP = context.request.headers.get('CF-Connecting-IP') ||
@@ -48,38 +54,40 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
                      'unknown';
 
     // Check rate limit (per-identifier + per-IP, fails closed on DB error)
-    const rateLimit = await checkRateLimit(context.env.DB, trimmedRef, 'attendee', clientIP);
+    const rateLimit = await checkRateLimit(context.env.DB, refKey, 'attendee', clientIP);
     if (!rateLimit.allowed) {
       return createErrorResponse(errors.rateLimited(Math.ceil((rateLimit.resetTime - Date.now()) / 1000), requestId));
     }
 
-    // Query attendee from database
+    // Query attendee from database (case-insensitive on the reference number)
     const { results } = await context.env.DB.prepare(`
       SELECT id, ref_number, password_hash, name, must_reset_password
       FROM attendees
-      WHERE ref_number = ?
+      WHERE ref_number = ? COLLATE NOCASE
     `).bind(trimmedRef).all();
 
     if (!results.length) {
       // Record failed attempt
-      await recordLoginAttempt(context.env.DB, trimmedRef, 'attendee', false, clientIP);
+      await recordLoginAttempt(context.env.DB, refKey, 'attendee', false, clientIP);
       return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
     }
 
     const attendee = results[0] as unknown as AttendeeRow;
+    // The exact ref as stored — use for token + all writes below.
+    const canonicalRef = attendee.ref_number;
 
     // Verify password
     const isValid = await verifyPassword(password, attendee.password_hash);
 
     if (!isValid) {
       // Record failed attempt
-      await recordLoginAttempt(context.env.DB, trimmedRef, 'attendee', false, clientIP);
+      await recordLoginAttempt(context.env.DB, refKey, 'attendee', false, clientIP);
       return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
     }
 
     // Record successful login and clear rate limit
-    await recordLoginAttempt(context.env.DB, trimmedRef, 'attendee', true, clientIP);
-    await clearRateLimit(context.env.DB, trimmedRef, 'attendee');
+    await recordLoginAttempt(context.env.DB, refKey, 'attendee', true, clientIP);
+    await clearRateLimit(context.env.DB, refKey, 'attendee');
 
     // Block token issuance for legacy ($retreat$) accounts that haven't reset
     // their password yet. Frontend should redirect to a "set new password"
@@ -91,19 +99,20 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       );
     }
 
-    // Record login history and update last_login
+    // Record login history and update last_login (canonical ref)
     await context.env.DB.prepare(`
       INSERT INTO login_history (user_type, user_id, login_time)
       VALUES ('attendee', ?, CURRENT_TIMESTAMP)
-    `).bind(trimmedRef).run();
+    `).bind(canonicalRef).run();
 
     await context.env.DB.prepare(`
       UPDATE attendees SET last_login = CURRENT_TIMESTAMP
       WHERE ref_number = ?
-    `).bind(trimmedRef).run();
+    `).bind(canonicalRef).run();
 
-    // Create token with JWT secret from environment
-    const token = await generateAttendeeToken(trimmedRef, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
+    // Create token with JWT secret from environment (canonical ref so the
+    // session's ref matches the stored record exactly).
+    const token = await generateAttendeeToken(canonicalRef, context.env.JWT_SECRET || context.env.ADMIN_JWT_SECRET);
 
     return createResponse({ token });
 

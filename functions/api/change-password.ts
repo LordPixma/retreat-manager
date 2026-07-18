@@ -31,6 +31,9 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
   try {
     const body = await context.request.json() as Record<string, unknown>;
     const ref = typeof body.ref === 'string' ? body.ref.trim() : '';
+    // Reference number is case-insensitive (matches login); upper-case for
+    // rate-limit bucketing, and match the row with COLLATE NOCASE below.
+    const refKey = ref.toUpperCase();
     const currentPassword = typeof body.current_password === 'string' ? body.current_password : '';
     const newPassword = typeof body.new_password === 'string' ? body.new_password : '';
 
@@ -49,23 +52,23 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
                      'unknown';
 
     // Reuse the login rate limiter — same brute-force surface.
-    const rateLimit = await checkRateLimit(context.env.DB, ref, 'attendee', clientIP);
+    const rateLimit = await checkRateLimit(context.env.DB, refKey, 'attendee', clientIP);
     if (!rateLimit.allowed) {
       return createErrorResponse(errors.rateLimited(Math.ceil((rateLimit.resetTime - Date.now()) / 1000), requestId));
     }
 
     const { results } = await context.env.DB.prepare(
-      'SELECT id, password_hash FROM attendees WHERE ref_number = ?'
+      'SELECT id, password_hash FROM attendees WHERE ref_number = ? COLLATE NOCASE'
     ).bind(ref).all();
     if (!results.length) {
-      await recordLoginAttempt(context.env.DB, ref, 'attendee', false, clientIP);
+      await recordLoginAttempt(context.env.DB, refKey, 'attendee', false, clientIP);
       return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
     }
     const attendee = results[0] as unknown as AttendeeRow;
 
     const ok = await verifyPassword(currentPassword, attendee.password_hash);
     if (!ok) {
-      await recordLoginAttempt(context.env.DB, ref, 'attendee', false, clientIP);
+      await recordLoginAttempt(context.env.DB, refKey, 'attendee', false, clientIP);
       return createErrorResponse(errors.unauthorized('Invalid credentials', requestId));
     }
 
@@ -74,7 +77,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       'UPDATE attendees SET password_hash = ?, must_reset_password = 0 WHERE id = ?'
     ).bind(newHash, attendee.id).run();
 
-    await recordLoginAttempt(context.env.DB, ref, 'attendee', true, clientIP);
+    await recordLoginAttempt(context.env.DB, refKey, 'attendee', true, clientIP);
 
     return createResponse({ success: true });
   } catch (error) {
