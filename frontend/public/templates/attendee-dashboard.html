@@ -23,6 +23,7 @@
             <a class="att-nav-link" data-view="payments"><i class="fas fa-credit-card"></i> Payments<span class="att-nav-badge" id="att-nav-payments-badge"></span></a>
             <a class="att-nav-link" data-view="family"><i class="fas fa-users"></i> Family</a>
             <a class="att-nav-link" data-view="my-details"><i class="fas fa-user"></i> My Details</a>
+            <a class="att-nav-link" data-view="transport"><i class="fas fa-car-side"></i> Transport</a>
             <a class="att-nav-link" data-view="schedule"><i class="fas fa-calendar-day"></i> Schedule</a>
             <a class="att-nav-link" data-view="activities"><i class="fas fa-people-group"></i> Activities</a>
             <a class="att-nav-link" data-view="checkin"><i class="fas fa-qrcode"></i> Check-in</a>
@@ -64,6 +65,9 @@
                     <div id="banner-pay-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
                 </div>
             </div>
+
+            <!-- Transport reminder (driving / vehicle registration) -->
+            <div id="transport-note-section" style="margin-bottom: 1.5rem; display: none;"></div>
 
             <!-- Announcements -->
             <div id="announcements-section" style="margin-bottom: 1.5rem;">
@@ -160,6 +164,18 @@
                 </div>
                 <div id="my-details-content" class="table-content" style="padding: 1.5rem;">
                     <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TRANSPORT / LOGISTICS -->
+        <section class="att-view" data-view-panel="transport">
+            <div class="data-table">
+                <div class="table-header">
+                    <h3 class="table-title"><i class="fas fa-route"></i> Getting to the Retreat</h3>
+                </div>
+                <div id="transport-content" class="table-content" style="padding: 1.5rem;">
+                    <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
                 </div>
             </div>
         </section>

@@ -14,7 +14,7 @@ const AttendeeDashboard = {
             // Honour a deep link from the PWA shortcuts / manifest, e.g.
             // /?view=checkin opens straight to the check-in panel. Falls back
             // to Overview for anything unrecognised.
-            const validViews = ['overview', 'payments', 'family', 'my-details', 'schedule', 'activities', 'checkin'];
+            const validViews = ['overview', 'payments', 'family', 'my-details', 'transport', 'schedule', 'activities', 'checkin'];
             let initialView = 'overview';
             try {
                 const requested = new URLSearchParams(window.location.search).get('view');
@@ -172,6 +172,7 @@ const AttendeeDashboard = {
         this.updateCountdown();
         this.updateQRCode();
         this.updateActivityTeams();
+        this.updateTransportNote();
         this.updatePackingChecklist();
         this.bindProfileEdit();
         this.bindDownloadConfirmation();
@@ -236,6 +237,15 @@ const AttendeeDashboard = {
                 sidebar.classList.remove('open');
             });
         }
+        // Delegated handler for any in-content "jump to view" link/button
+        // (e.g. the overview transport nudge, My Details cross-links).
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-go-view]');
+            if (!el) return;
+            e.preventDefault();
+            const v = el.getAttribute('data-go-view');
+            if (v) this.showView(v);
+        });
     },
 
     showView(name) {
@@ -257,6 +267,7 @@ const AttendeeDashboard = {
             payments: ['Your retreat balance', 'Payments'],
             family: ['Your group', 'Family'],
             'my-details': ['Account', 'My Details'],
+            transport: ['Getting there', 'Transport'],
             schedule: ['Plan your weekend', 'Schedule'],
             activities: ['Get involved', 'Activities'],
             checkin: ['Arrive ready', 'Check-in'],
@@ -270,6 +281,7 @@ const AttendeeDashboard = {
         // Lazy-load per-view data.
         if (name === 'family') this.loadFamilyView();
         if (name === 'my-details') this.renderMyDetailsView();
+        if (name === 'transport') this.renderTransportView();
         if (name === 'schedule') this.loadSchedule();
         // Always land on the "Ready to check in?" prompt, not a stale open
         // QR, whenever the check-in panel is (re)opened.
@@ -547,13 +559,7 @@ const AttendeeDashboard = {
                                         { value: 'child_m', label: 'Child M' },
                                         { value: 'child_l', label: 'Child L' },
                                     ])}
-                                    ${this._editSelect('arrival_method', 'Arrival method', m.arrival_method, [
-                                        { value: '', label: '— Not specified —' },
-                                        { value: 'car', label: 'Driving (own car)' },
-                                        { value: 'train', label: 'By train' },
-                                        { value: 'lift_needed', label: 'Need a lift' },
-                                        { value: 'other', label: 'Other' },
-                                    ])}
+                                    ${this._editSelect('arrival_method', 'Travel method', m.arrival_method, this.TRAVEL_METHODS)}
                                     ${this._editField('vehicle_registration', 'Vehicle registration', m.vehicle_registration)}
                                 </div>
                                 ${this._editTextarea('special_requests', 'Special requests', m.special_requests)}
@@ -599,11 +605,14 @@ const AttendeeDashboard = {
         const container = document.getElementById('my-details-content');
         if (!container || !this.data) return;
         const d = this.data;
+        // Transport fields (arrival_method, vehicle_registration) and
+        // emergency_contact now live in the dedicated Transport view, so they're
+        // intentionally not collected here.
         const allFields = [
             'first_name', 'last_name', 'preferred_name', 'date_of_birth',
-            'email', 'phone', 'emergency_contact', 'postal_address',
+            'email', 'phone', 'postal_address',
             'dietary_requirements', 'medical_conditions', 'accessibility_needs',
-            'tshirt_size', 'arrival_method', 'vehicle_registration', 'special_requests',
+            'tshirt_size', 'special_requests',
         ];
         // Sectioned layout for scannability. Short text fields go in a
         // 2-up responsive grid per section; multi-line fields are full
@@ -622,16 +631,16 @@ const AttendeeDashboard = {
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
                         ${this._editField('email', 'Email', d.email, 'email')}
                         ${this._editField('phone', 'Phone', d.phone)}
-                        ${this._editField('emergency_contact', 'Emergency contact', d.emergency_contact)}
                     </div>
                     ${this._editTextarea('postal_address', 'Postal address', d.postal_address)}
+                    <div style="font-size:0.75rem; color: var(--text-tertiary);"><i class="fas fa-circle-info"></i> Travel details and your emergency contact are on the <a href="#" data-go-view="transport" style="color:#a78bfa;">Transport</a> tab.</div>
                 `)}
                 ${this._detailSection('Health &amp; Accessibility', `
                     ${this._editTextarea('dietary_requirements', 'Dietary requirements / allergies', d.dietary_requirements)}
                     ${this._editTextarea('medical_conditions', 'Medical conditions / medications', d.medical_conditions, 'Used by first-aid team only.')}
                     ${this._editTextarea('accessibility_needs', 'Accessibility / mobility needs', d.accessibility_needs)}
                 `)}
-                ${this._detailSection('Logistics', `
+                ${this._detailSection('Preferences', `
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
                         ${this._editSelect('tshirt_size', 'T-shirt size', d.tshirt_size, [
                             { value: '', label: '— Not specified —' },
@@ -646,14 +655,6 @@ const AttendeeDashboard = {
                             { value: 'child_m', label: "Child M" },
                             { value: 'child_l', label: "Child L" },
                         ])}
-                        ${this._editSelect('arrival_method', 'Arrival method', d.arrival_method, [
-                            { value: '', label: '— Not specified —' },
-                            { value: 'car', label: 'Driving (own car)' },
-                            { value: 'train', label: 'By train' },
-                            { value: 'lift_needed', label: 'Need a lift' },
-                            { value: 'other', label: 'Other' },
-                        ])}
-                        ${this._editField('vehicle_registration', 'Vehicle registration (if driving)', d.vehicle_registration)}
                     </div>
                     ${this._editTextarea('special_requests', 'Special requests', d.special_requests)}
                 `)}
@@ -695,13 +696,17 @@ const AttendeeDashboard = {
 
     _editSelect(name, label, value, options) {
         const v = value == null ? '' : value;
+        // Options need an explicit dark background + light text, otherwise the
+        // native dropdown popup renders the white select text on the OS default
+        // white background — invisible. `color-scheme: dark` also nudges
+        // browsers to draw the popup chrome dark.
         const opts = options.map(o =>
-            `<option value="${this._escape(o.value)}"${o.value === v ? ' selected' : ''}>${this._escape(o.label)}</option>`,
+            `<option value="${this._escape(o.value)}"${o.value === v ? ' selected' : ''} style="background:#1f2440; color:#fff;">${this._escape(o.label)}</option>`,
         ).join('');
         return `
             <label style="display:block;">
                 <span style="display:block; font-size:0.75rem; font-weight:600; color: var(--text-secondary); margin-bottom:0.3rem;">${label}</span>
-                <select name="${name}" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem;">${opts}</select>
+                <select name="${name}" style="width:100%; padding:0.6rem 0.75rem; background: rgba(255,255,255,0.05); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:8px; font-size:0.9rem; color-scheme: dark;">${opts}</select>
             </label>
         `;
     },
@@ -735,6 +740,132 @@ const AttendeeDashboard = {
             if (el) body[f] = el.value;
         }
         return body;
+    },
+
+    // Travel-method options offered on the Transport view. Kept in one place so
+    // the option list and the human-readable labels (used by the overview note)
+    // never drift apart. arrival_method is a free-text column, so these values
+    // need no backend/migration change.
+    TRAVEL_METHODS: [
+        { value: '', label: '— Please choose —' },
+        { value: 'car', label: 'Driving myself' },
+        { value: 'church_bus', label: 'Joining the church bus' },
+        { value: 'lift_needed', label: 'Getting a lift with someone' },
+        { value: 'train', label: 'By train' },
+        { value: 'other', label: 'Other means' },
+    ],
+
+    _travelMethodLabel(value) {
+        const m = this.TRAVEL_METHODS.find(o => o.value === value);
+        return m && m.value ? m.label : null;
+    },
+
+    /**
+     * Transport / Logistics view: how the attendee is travelling, vehicle
+     * registration (for parking), and their emergency contact. Reuses the
+     * /attendee/profile endpoint — no separate storage.
+     */
+    renderTransportView() {
+        const container = document.getElementById('transport-content');
+        if (!container || !this.data) return;
+        const d = this.data;
+        const isDriving = d.arrival_method === 'car';
+
+        container.innerHTML = `
+            <form id="transport-form" style="display: grid; gap: 1.5rem;">
+                <div style="font-size:0.85rem; color: var(--text-secondary); line-height:1.6;">
+                    Let us know how you're getting to <strong>The Hayes, Swanwick</strong> so we can plan parking and the church bus — and hold an emergency contact for the weekend.
+                </div>
+
+                ${this._detailSection('How are you travelling?', `
+                    ${this._editSelect('arrival_method', 'Travel method', d.arrival_method, this.TRAVEL_METHODS)}
+                    <div id="vehicle-reg-wrap" style="${isDriving ? '' : 'opacity:0.65;'} transition: opacity 0.2s;">
+                        ${this._editField('vehicle_registration', 'Vehicle registration', d.vehicle_registration)}
+                        <span style="display:block; font-size:0.7rem; color: var(--text-tertiary); margin-top:0.25rem;"><i class="fas fa-square-parking"></i> Needed to arrange on-site parking if you're driving.</span>
+                    </div>
+                `)}
+
+                ${this._detailSection('Emergency contact', `
+                    <div style="font-size:0.75rem; color: var(--text-tertiary); margin-bottom:0.1rem;">Who should we call if there's an emergency during the retreat?</div>
+                    ${this._editField('emergency_contact', 'Name & phone number', d.emergency_contact)}
+                `)}
+
+                <div style="display:flex; gap:0.5rem;">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save transport details</button>
+                </div>
+            </form>
+        `;
+
+        const form = document.getElementById('transport-form');
+        // De-emphasise vehicle reg unless they're driving.
+        const sel = form.querySelector('[name="arrival_method"]');
+        const wrap = document.getElementById('vehicle-reg-wrap');
+        if (sel && wrap) {
+            sel.addEventListener('change', () => {
+                wrap.style.opacity = sel.value === 'car' ? '1' : '0.65';
+            });
+        }
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const body = this._collectEditFields(form, ['arrival_method', 'vehicle_registration', 'emergency_contact']);
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            try {
+                await API.put('/attendee/profile', body);
+                this.data = await API.get('/me');
+                this.updateDisplay();
+                this.renderTransportView();
+                Utils.showAlert('Transport details saved.', 'success');
+            } catch (err) {
+                Utils.showAlert(err.message || 'Failed to save', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Save transport details';
+            }
+        });
+    },
+
+    /**
+     * Overview nudge: prompt drivers without a vehicle reg (or anyone who
+     * hasn't told us how they're travelling) to complete their Transport tab.
+     */
+    updateTransportNote() {
+        const section = document.getElementById('transport-note-section');
+        if (!section || !this.data) return;
+        const method = this.data.arrival_method;
+        const reg = (this.data.vehicle_registration || '').trim();
+
+        let note = null;
+        if (method === 'car' && !reg) {
+            note = {
+                icon: 'fa-car-side', color: '#fbbf24',
+                title: "You're driving to the retreat",
+                body: 'Please add your vehicle registration so we can arrange parking for you.',
+                cta: 'Add vehicle registration',
+            };
+        } else if (!method) {
+            note = {
+                icon: 'fa-route', color: '#a78bfa',
+                title: 'How are you getting to the retreat?',
+                body: 'Tell us your travel method — driving, the church bus, or another way — so we can help with parking and transport.',
+                cta: 'Set travel details',
+            };
+        }
+
+        if (!note) { section.style.display = 'none'; section.innerHTML = ''; return; }
+
+        section.style.display = 'block';
+        section.innerHTML = `
+            <div style="background: linear-gradient(135deg, rgba(251,191,36,0.10), rgba(139,92,246,0.06)); border:1px solid rgba(255,255,255,0.08); border-left:4px solid ${note.color}; border-radius:16px; padding:1.1rem 1.4rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div style="font-size:1.4rem; color:${note.color};"><i class="fas ${note.icon}"></i></div>
+                <div style="flex:1; min-width:200px;">
+                    <div style="font-weight:600; color:#fff; margin-bottom:0.15rem;">${note.title}</div>
+                    <div style="font-size:0.82rem; color:var(--text-secondary); line-height:1.5;">${note.body}</div>
+                </div>
+                <button class="btn btn-sm btn-primary" data-go-view="transport"><i class="fas fa-arrow-right"></i> ${note.cta}</button>
+            </div>
+        `;
     },
 
     /**
