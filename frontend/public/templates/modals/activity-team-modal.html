@@ -28,6 +28,15 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label">Team Colour</label>
+                    <div id="team-color-picker" class="team-color-picker" role="radiogroup" aria-label="Team colour"></div>
+                    <input type="hidden" id="team-color" name="color" value="#8b5cf6">
+                    <small style="color: var(--text-tertiary); margin-top: 0.35rem; display: block;">
+                        Members see this colour on their dashboard so they can tell teams apart.
+                    </small>
+                </div>
+
+                <div class="form-group">
                     <label class="form-label">Team Members</label>
                     <input type="search" id="team-member-search" class="form-input" placeholder="Search attendees..." style="margin-bottom: 0.75rem;">
                     <div id="team-member-list" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 0.5rem;">

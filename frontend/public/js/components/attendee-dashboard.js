@@ -11,10 +11,16 @@ const AttendeeDashboard = {
             await this.loadData();
             this.bindEvents();
             this.bindViewNav();
-            // Set the initial title via showView so the eyebrow + heading
-            // match the default Overview panel (matches what every
-            // subsequent navigation does).
-            this.showView('overview');
+            // Honour a deep link from the PWA shortcuts / manifest, e.g.
+            // /?view=checkin opens straight to the check-in panel. Falls back
+            // to Overview for anything unrecognised.
+            const validViews = ['overview', 'payments', 'family', 'my-details', 'schedule', 'activities', 'checkin'];
+            let initialView = 'overview';
+            try {
+                const requested = new URLSearchParams(window.location.search).get('view');
+                if (requested && validViews.includes(requested)) initialView = requested;
+            } catch { /* ignore malformed query strings */ }
+            this.showView(initialView);
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -134,7 +140,12 @@ const AttendeeDashboard = {
         const nameDisplay = document.getElementById('attendee-name-display');
         if (nameDisplay) nameDisplay.textContent = this.data.name;
         const brandUser = document.getElementById('att-brand-user');
-        if (brandUser) brandUser.textContent = `${this.data.name} · ${this.data.ref_number || ''}`;
+        if (brandUser) brandUser.textContent = this.data.name || '';
+        const brandRef = document.getElementById('att-brand-ref');
+        if (brandRef) brandRef.textContent = this.data.ref_number || '';
+        // Avatar initials from the attendee's name (up to two letters).
+        const avatar = document.getElementById('att-avatar');
+        if (avatar) avatar.textContent = this._initials(this.data.name);
 
         // Update announcements (new)
         this.updateAnnouncementsDisplay();
@@ -242,7 +253,7 @@ const AttendeeDashboard = {
         // Overview is the personalised landing page (welcome + name); the
         // rest get a plain section heading.
         const titles = {
-            overview: ['Welcome back', this.data?.name || ''],
+            overview: [this._greeting(), this.data?.name || ''],
             payments: ['Your retreat balance', 'Payments'],
             family: ['Your group', 'Family'],
             'my-details': ['Account', 'My Details'],
@@ -260,6 +271,10 @@ const AttendeeDashboard = {
         if (name === 'family') this.loadFamilyView();
         if (name === 'my-details') this.renderMyDetailsView();
         if (name === 'schedule') this.loadSchedule();
+        // Always land on the "Ready to check in?" prompt, not a stale open
+        // QR, whenever the check-in panel is (re)opened.
+        if (name === 'checkin') this.hideCheckinQR();
+        else this._releaseWakeLock();
     },
 
     /**
@@ -1664,6 +1679,22 @@ const AttendeeDashboard = {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     },
 
+    // First letters of the first and last name parts, for the sidebar avatar.
+    _initials(name) {
+        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return '·';
+        if (parts.length === 1) return parts[0][0].toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    },
+
+    // Time-of-day greeting for the Overview eyebrow.
+    _greeting() {
+        const h = new Date().getHours();
+        if (h < 12) return 'Good morning';
+        if (h < 18) return 'Good afternoon';
+        return 'Good evening';
+    },
+
     async handleBankTransfer(type, installmentCount, e) {
         try {
             const body = { payment_type: type };
@@ -2004,24 +2035,83 @@ const AttendeeDashboard = {
         setInterval(update, 1000);
     },
 
+    // Wake-lock handle so the screen stays lit while the QR is on show.
+    _wakeLock: null,
+
+    /**
+     * Prepare the check-in view. The QR is NOT drawn up front — the attendee
+     * taps "I'm ready to check in" to reveal it (keeps the code off-screen
+     * until they're actually at the desk, and lets us blow it up big +
+     * keep the screen awake only while it's needed).
+     */
     updateQRCode() {
-        const container = document.getElementById('qr-code-container');
         const refDisplay = document.getElementById('qr-ref-display');
-        if (!container || !this.data.ref_number) return;
+        if (refDisplay && this.data.ref_number) refDisplay.textContent = this.data.ref_number;
 
-        if (refDisplay) refDisplay.textContent = this.data.ref_number;
+        const revealBtn = document.getElementById('checkin-reveal-btn');
+        const hideBtn = document.getElementById('checkin-hide-btn');
+        if (revealBtn && !revealBtn._bound) {
+            revealBtn._bound = true;
+            revealBtn.addEventListener('click', () => this.revealCheckinQR());
+        }
+        if (hideBtn && !hideBtn._bound) {
+            hideBtn._bound = true;
+            hideBtn.addEventListener('click', () => this.hideCheckinQR());
+        }
+    },
 
-        // Generate QR code using a simple SVG-based approach (no library needed)
-        // We'll use an inline canvas QR generator
-        const qrData = JSON.stringify({
-            ref: this.data.ref_number,
-            name: this.data.name,
-            t: Date.now()
-        });
+    /**
+     * Render the attendee's QR locally (vendored qrcode-generator — no
+     * third-party image service, works offline once the page has loaded)
+     * and swap the intro card for the enlarged code.
+     */
+    revealCheckinQR() {
+        const container = document.getElementById('qr-code-container');
+        const intro = document.getElementById('checkin-intro');
+        const qrBlock = document.getElementById('checkin-qr');
+        if (!container || !this.data || !this.data.ref_number) return;
 
-        // Use a lightweight QR code via Google Charts API fallback
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(qrData)}&bgcolor=ffffff&color=1e1e2e`;
-        container.innerHTML = `<img src="${qrUrl}" alt="QR Code" style="width: 140px; height: 140px; display: block;">`;
+        // Encode {ref, name} as JSON — the check-in scanner reads `.ref` and
+        // tolerates a plain ref string too, so this stays compatible.
+        const payload = JSON.stringify({ ref: this.data.ref_number, name: this.data.name });
+
+        try {
+            if (typeof qrcode !== 'function') throw new Error('QR library unavailable');
+            const qr = qrcode(0, 'M');       // type 0 = auto-size, error-correction M
+            qr.addData(payload);
+            qr.make();
+            // Scalable SVG so it stays crisp at any size; CSS caps the width.
+            container.innerHTML = qr.createSvgTag({ cellSize: 8, margin: 1, scalable: true });
+        } catch (err) {
+            console.error('QR generation failed:', err);
+            Utils.showAlert('Could not generate your QR code — please show your reference number instead.', 'error');
+            return;
+        }
+
+        if (intro) intro.classList.add('hidden');
+        if (qrBlock) qrBlock.classList.remove('hidden');
+        this._requestWakeLock();
+    },
+
+    hideCheckinQR() {
+        const intro = document.getElementById('checkin-intro');
+        const qrBlock = document.getElementById('checkin-qr');
+        if (intro) intro.classList.remove('hidden');
+        if (qrBlock) qrBlock.classList.add('hidden');
+        this._releaseWakeLock();
+    },
+
+    async _requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator && navigator.wakeLock.request) {
+                this._wakeLock = await navigator.wakeLock.request('screen');
+            }
+        } catch { /* wake lock is a nice-to-have; ignore failures */ }
+    },
+
+    _releaseWakeLock() {
+        try { this._wakeLock?.release?.(); } catch { /* ignore */ }
+        this._wakeLock = null;
     },
 
     updateActivityTeams() {
@@ -2037,9 +2127,12 @@ const AttendeeDashboard = {
         // Card grid so multiple teams sit side-by-side on wide screens
         // instead of stacking in a narrow column.
         container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.85rem;">${
-            teams.map(team => `
-                <div style="padding: 1rem 1.1rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 0.4rem;">
-                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            teams.map(team => {
+              const color = team.color || '#8b5cf6';
+              return `
+                <div style="padding: 1rem 1.1rem 1rem 1.25rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); border-left: 4px solid ${Utils.escapeHtml(color)}; display: flex; flex-direction: column; gap: 0.4rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span class="team-color-dot" style="background: ${Utils.escapeHtml(color)};"></span>
                         <div style="font-size: 0.95rem; font-weight: 700; color: #fff;">${Utils.escapeHtml(team.name)}</div>
                         ${team.is_leader ? '<span class="badge badge-primary"><i class="fas fa-crown"></i> Leader</span>' : ''}
                     </div>
@@ -2052,7 +2145,8 @@ const AttendeeDashboard = {
                         ${team.members.map(n => Utils.escapeHtml(n)).join(', ')}
                     </div>` : ''}
                 </div>
-            `).join('')
+            `;
+            }).join('')
         }</div>`;
     },
 

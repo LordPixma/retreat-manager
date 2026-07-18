@@ -19,10 +19,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-128x128.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
 
     <!-- Meta tags for better SEO and branding -->
@@ -35,7 +32,7 @@
     <meta property="og:description" content="Manage your retreat booking, view announcements, and access your information.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://retreat.cloverleafchristiancentre.org">
-    <meta property="og:image" content="https://retreat.cloverleafchristiancentre.org/og-image.png">
+    <meta property="og:image" content="https://retreat.cloverleafchristiancentre.org/android-chrome-512x512.png">
     
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -58,6 +55,9 @@
 
     <!-- Vendor: SortableJS powers the drag-and-drop program calendar board -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js" defer></script>
+    <!-- Vendor: qrcode-generator renders the attendee check-in QR locally
+         (self-hosted, so it works offline and keeps ref/name off third parties) -->
+    <script src="js/vendor/qrcode.min.js"></script>
 
     <!-- Core JavaScript Files -->
     <script src="js/utils.js"></script>
@@ -122,6 +122,80 @@
             console.log('Service Worker controller changed');
         });
     }
+    </script>
+
+    <!-- PWA Install Prompt -->
+    <script>
+    // Lightweight, framework-free "install this app" affordance.
+    //  - Android/Chromium: capture beforeinstallprompt and surface a chip that
+    //    triggers the native prompt on tap.
+    //  - iOS Safari: no beforeinstallprompt, so show a one-time hint explaining
+    //    the Share -> Add to Home Screen flow.
+    // The chip auto-hides once installed or when already running standalone.
+    (function () {
+        const DISMISS_KEY = 'pwa_install_dismissed_v1';
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+        if (isStandalone) return; // already installed — nothing to prompt
+
+        let deferredPrompt = null;
+
+        function makeChip(label, onClick) {
+            if (document.getElementById('pwa-install-chip')) return null;
+            const chip = document.createElement('button');
+            chip.id = 'pwa-install-chip';
+            chip.type = 'button';
+            chip.className = 'pwa-install-chip';
+            chip.innerHTML = '<i class="fas fa-circle-down"></i><span>' + label + '</span>'
+                + '<i class="fas fa-xmark pwa-install-close" aria-label="Dismiss"></i>';
+            chip.addEventListener('click', (e) => {
+                if (e.target.classList.contains('pwa-install-close')) {
+                    chip.remove();
+                    try { localStorage.setItem(DISMISS_KEY, '1'); } catch (_) {}
+                    return;
+                }
+                onClick();
+            });
+            document.body.appendChild(chip);
+            return chip;
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            try { if (localStorage.getItem(DISMISS_KEY)) return; } catch (_) {}
+            makeChip('Install app', async () => {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                const chip = document.getElementById('pwa-install-chip');
+                if (chip) chip.remove();
+            });
+        });
+
+        window.addEventListener('appinstalled', () => {
+            const chip = document.getElementById('pwa-install-chip');
+            if (chip) chip.remove();
+            try { localStorage.setItem(DISMISS_KEY, '1'); } catch (_) {}
+        });
+
+        // iOS Safari fallback (no beforeinstallprompt support).
+        const ua = window.navigator.userAgent;
+        const isIOS = /iphone|ipad|ipod/i.test(ua);
+        const isSafari = /^((?!crios|fxios|edgios).)*safari/i.test(ua);
+        if (isIOS && isSafari) {
+            let dismissed = false;
+            try { dismissed = !!localStorage.getItem(DISMISS_KEY); } catch (_) {}
+            if (!dismissed) {
+                window.addEventListener('load', () => setTimeout(() => {
+                    makeChip('Add to Home Screen', () => {
+                        alert('To install: tap the Share button, then choose "Add to Home Screen".');
+                    });
+                }, 2500));
+            }
+        }
+    })();
     </script>
 
     <script>

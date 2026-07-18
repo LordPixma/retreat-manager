@@ -4,12 +4,21 @@ const ActivityTeamManagement = {
     editingId: null,
     attendeesData: [],
     selectedMembers: new Set(),
+    selectedColor: '#8b5cf6',
+
+    // Preset palette offered in the modal. Distinct, reasonably accessible
+    // hues; the first is the brand default used when none is chosen.
+    COLOR_PRESETS: [
+        '#8b5cf6', '#3b82f6', '#06b6d4', '#10b981', '#84cc16',
+        '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#64748b',
+    ],
 
     async showModal(editData = null, attendees = []) {
         this.attendeesData = attendees;
         this.isEditing = !!editData;
         this.editingId = editData?.id || null;
         this.selectedMembers = new Set();
+        this.selectedColor = editData?.color || '#8b5cf6';
 
         try {
             await this.renderModal();
@@ -43,6 +52,9 @@ const ActivityTeamManagement = {
             leaderSelect.appendChild(opt);
         });
 
+        // Render colour swatches + reflect current selection
+        this.renderColorPicker();
+
         // Populate member checkboxes
         this.renderMemberList();
 
@@ -58,6 +70,39 @@ const ActivityTeamManagement = {
                 this.updateSelectedCount();
             }
         }
+    },
+
+    renderColorPicker() {
+        const container = document.getElementById('team-color-picker');
+        const hidden = document.getElementById('team-color');
+        if (!container) return;
+
+        // If editing with a custom colour not in the presets, include it so the
+        // current value is always selectable/visible.
+        const presets = this.COLOR_PRESETS.includes(this.selectedColor)
+            ? this.COLOR_PRESETS
+            : [this.selectedColor, ...this.COLOR_PRESETS];
+
+        container.innerHTML = presets.map(color => {
+            const active = color.toLowerCase() === this.selectedColor.toLowerCase();
+            return `<button type="button" class="team-color-swatch${active ? ' active' : ''}"
+                        role="radio" aria-checked="${active}" data-color="${color}"
+                        title="${color}" style="--swatch: ${color};"></button>`;
+        }).join('');
+
+        if (hidden) hidden.value = this.selectedColor;
+
+        container.querySelectorAll('.team-color-swatch').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.selectedColor = btn.dataset.color;
+                if (hidden) hidden.value = this.selectedColor;
+                container.querySelectorAll('.team-color-swatch').forEach(b => {
+                    const on = b === btn;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-checked', on ? 'true' : 'false');
+                });
+            });
+        });
     },
 
     renderMemberList(filter = '') {
@@ -136,6 +181,7 @@ const ActivityTeamManagement = {
         const data = {
             name,
             description: document.getElementById('team-description').value.trim() || null,
+            color: this.selectedColor || '#8b5cf6',
             leader_id: parseInt(document.getElementById('team-leader').value) || null,
             member_ids: Array.from(this.selectedMembers),
         };
@@ -189,6 +235,7 @@ const ActivityTeamManagement = {
         this.isEditing = false;
         this.editingId = null;
         this.selectedMembers = new Set();
+        this.selectedColor = '#8b5cf6';
     },
 };
 

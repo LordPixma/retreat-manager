@@ -3,10 +3,18 @@
 <div class="attendee-layout">
     <aside class="attendee-sidebar" id="att-sidebar">
         <div class="att-brand">
-            <i class="fas fa-mountain-sun"></i>
+            <div class="att-brand-logo"><i class="fas fa-mountain-sun"></i></div>
             <div>
                 <div class="att-brand-name">Retreat Portal</div>
-                <div class="att-brand-user" id="att-brand-user">Loading…</div>
+                <div class="att-brand-sub">Growth &amp; Wisdom 2026</div>
+            </div>
+        </div>
+
+        <div class="att-userchip">
+            <div class="att-avatar" id="att-avatar" aria-hidden="true">·</div>
+            <div class="att-userchip-meta">
+                <div class="att-userchip-name" id="att-brand-user">Loading…</div>
+                <div class="att-userchip-ref" id="att-brand-ref"></div>
             </div>
         </div>
 
@@ -212,14 +220,27 @@
 
         <!-- CHECK-IN -->
         <section class="att-view" data-view-panel="checkin">
-            <div class="data-table">
-                <div class="table-header">
-                    <h3 class="table-title"><i class="fas fa-qrcode"></i> Check-in QR Code</h3>
+            <div class="checkin-card">
+                <!-- Pre-reveal: friendly prompt + big button -->
+                <div id="checkin-intro" class="checkin-intro">
+                    <div class="checkin-intro-icon"><i class="fas fa-person-walking-luggage"></i></div>
+                    <h3 class="checkin-intro-title">Ready to check in?</h3>
+                    <p class="checkin-intro-sub">When you reach the check-in desk, tap below to reveal your personal QR code for the team to scan.</p>
+                    <button class="btn btn-primary checkin-reveal-btn" id="checkin-reveal-btn">
+                        <i class="fas fa-qrcode"></i> I'm ready to check in
+                    </button>
                 </div>
-                <div class="table-content" style="padding: 2rem; text-align: center;">
-                    <div id="qr-code-container" style="margin: 0 auto 1rem; display: inline-block; background: #fff; padding: 16px; border-radius: 12px;"></div>
-                    <div id="qr-ref-display" style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-top: 0.5rem;"></div>
-                    <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 0.5rem;">Show this at the check-in desk on arrival.</div>
+
+                <!-- Revealed: enlarged QR + guidance -->
+                <div id="checkin-qr" class="checkin-qr hidden">
+                    <div id="qr-code-container" class="checkin-qr-code"></div>
+                    <div id="qr-ref-display" class="checkin-qr-ref"></div>
+                    <div class="checkin-qr-hint">
+                        <i class="fas fa-sun"></i> Turn your screen brightness up and hold steady while it's scanned.
+                    </div>
+                    <button class="btn btn-ghost btn-sm" id="checkin-hide-btn">
+                        <i class="fas fa-chevron-up"></i> Hide code
+                    </button>
                 </div>
             </div>
         </section>

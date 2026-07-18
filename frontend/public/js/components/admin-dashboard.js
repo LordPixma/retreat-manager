@@ -1668,9 +1668,10 @@ const AdminDashboard = {
                 ? team.members.slice(0, 5).join(', ') + (team.members.length > 5 ? ` +${team.members.length - 5} more` : '')
                 : '<span style="color: var(--text-tertiary);">No members</span>';
 
+            const color = team.color || '#8b5cf6';
             return `
                 <tr>
-                    <td><strong>${Utils.escapeHtml(team.name)}</strong></td>
+                    <td><span style="display: inline-flex; align-items: center; gap: 0.5rem;"><span class="team-color-dot" style="background: ${Utils.escapeHtml(color)};"></span><strong>${Utils.escapeHtml(team.name)}</strong></span></td>
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHtml(team.description || '-')}</td>
                     <td>${team.leader_name
                         ? `<span class="badge badge-primary"><i class="fas fa-crown"></i> ${Utils.escapeHtml(team.leader_name)}</span>`
