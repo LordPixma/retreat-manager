@@ -21,6 +21,7 @@ const AttendeeDashboard = {
                 if (requested && validViews.includes(requested)) initialView = requested;
             } catch { /* ignore malformed query strings */ }
             this.showView(initialView);
+            this.initNotifications();
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -1060,6 +1061,74 @@ const AttendeeDashboard = {
                 submitBtn.innerHTML = '<i class="fas fa-check"></i> Save changes';
             }
         });
+    },
+
+    // ---- Push notifications ----
+    async initNotifications() {
+        const btn = document.getElementById('notif-toggle');
+        if (!btn) return;
+        const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+        if (!supported) return; // stays hidden
+
+        let cfg;
+        try { cfg = await API.get('/push/config'); } catch { return; }
+        if (!cfg || !cfg.enabled || !cfg.vapid_public_key) return; // not configured server-side
+        this._vapidKey = cfg.vapid_public_key;
+
+        btn.style.display = '';
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            this._setNotifBtn(btn, !!sub);
+        } catch { this._setNotifBtn(btn, false); }
+
+        if (!btn._bound) {
+            btn._bound = true;
+            btn.addEventListener('click', () => this.toggleNotifications(btn));
+        }
+    },
+
+    _setNotifBtn(btn, on) {
+        btn.innerHTML = on ? '<i class="fas fa-bell"></i>' : '<i class="fas fa-bell-slash"></i>';
+        btn.title = on ? 'Notifications on — tap to turn off' : 'Turn on notifications';
+        btn.classList.toggle('btn-primary', on);
+        btn.classList.toggle('btn-ghost', !on);
+    },
+
+    async toggleNotifications(btn) {
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const existing = await reg.pushManager.getSubscription();
+            if (existing) {
+                const endpoint = existing.endpoint;
+                await existing.unsubscribe();
+                try { await API.request('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) }); } catch {}
+                this._setNotifBtn(btn, false);
+                Utils.showAlert('Notifications turned off.', 'success');
+                return;
+            }
+            const perm = await Notification.requestPermission();
+            if (perm !== 'granted') { Utils.showAlert('Notifications permission was not granted.', 'error'); return; }
+            const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: this._urlB64ToUint8Array(this._vapidKey),
+            });
+            const json = sub.toJSON();
+            await API.post('/push/subscribe', { endpoint: json.endpoint, keys: json.keys });
+            this._setNotifBtn(btn, true);
+            Utils.showAlert("Notifications on — we'll alert you about new announcements.", 'success');
+        } catch (err) {
+            Utils.showAlert(err.message || 'Could not update notifications', 'error');
+        }
+    },
+
+    _urlB64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
     },
 
     /** Fetch the attendee's full data export and save it as a JSON file. */

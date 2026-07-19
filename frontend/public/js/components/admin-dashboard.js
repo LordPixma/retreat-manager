@@ -866,6 +866,9 @@ const AdminDashboard = {
                             <button class="btn btn-sm btn-secondary toggle-announcement" data-id="${announcement.id}" title="${announcement.is_active ? 'Deactivate' : 'Activate'}">
                                 <i class="fas fa-${announcement.is_active ? 'eye-slash' : 'eye'}"></i>
                             </button>
+                            <button class="btn btn-sm btn-secondary push-announcement" data-id="${announcement.id}" title="Send push notification">
+                                <i class="fas fa-bell"></i>
+                            </button>
                             <button class="btn btn-sm btn-danger delete-announcement" data-id="${announcement.id}" title="Delete Announcement">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -2116,6 +2119,8 @@ const AdminDashboard = {
                 await this.editAnnouncement(id);
             } else if (target.classList.contains('toggle-announcement')) {
                 await this.toggleAnnouncement(id);
+            } else if (target.classList.contains('push-announcement')) {
+                await this.pushAnnouncement(id);
             } else if (target.classList.contains('delete-announcement')) {
                 await this.deleteAnnouncement(id);
             } else if (target.classList.contains('edit-program')) {
@@ -2517,6 +2522,25 @@ const AdminDashboard = {
         } catch (error) {
             Utils.hideGlobalLoading();
             Utils.showAlert('Failed to delete announcement: ' + error.message, 'error');
+        }
+    },
+
+    async pushAnnouncement(id) {
+        const announcement = this.data.announcements.find(a => a.id == id);
+        const title = announcement ? announcement.title : 'this announcement';
+        if (!confirm(`Send a push notification to all subscribed attendees about "${title}"?`)) return;
+
+        Utils.showGlobalLoading('Sending push notifications...');
+        try {
+            const res = await API.post(`/admin/announcements/${id}/push`, {});
+            Utils.hideGlobalLoading();
+            const sent = res?.sent ?? 0;
+            const total = res?.total ?? 0;
+            Utils.showAlert(`Push sent to ${sent} of ${total} device${total === 1 ? '' : 's'}.`, 'success');
+        } catch (error) {
+            Utils.hideGlobalLoading();
+            const msg = error?.body?.error || error.message || 'Failed to send push';
+            Utils.showAlert('Push failed: ' + msg, 'error');
         }
     },
 
