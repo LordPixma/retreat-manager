@@ -5,7 +5,7 @@
 // the camera scanner — keeps the dashboard's first paint fast.
 
 const CheckInManagement = {
-    HTML5_QRCODE_CDN: 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js',
+    HTML5_QRCODE_CDN: '/js/vendor/html5-qrcode.min.js',
     _scannerInstance: null,
     _qrLibLoaded: null,
     _refreshTimer: null,
