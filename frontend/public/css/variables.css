@@ -69,8 +69,10 @@
 
   --text-primary: #ffffff;
   --text-secondary: #c5c5e0;
-  --text-tertiary: #9999bb;
-  --text-muted: #7777aa;
+  /* Contrast-tuned for WCAG AA on the dark theme: muted at #7777aa failed AA
+     (~3.8:1); these clear 4.5:1 on the app's darkest surfaces. */
+  --text-tertiary: #b0b0d4;
+  --text-muted: #9a9ac2;
   --text-inverse: var(--neutral-900);
 
   --border-color: rgba(120, 120, 180, 0.4);

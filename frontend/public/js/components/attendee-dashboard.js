@@ -222,10 +222,13 @@ const AttendeeDashboard = {
      */
     bindViewNav() {
         document.querySelectorAll('.att-nav-link').forEach((a) => {
-            a.addEventListener('click', (e) => {
-                e.preventDefault();
-                const view = a.dataset.view;
-                if (view) this.showView(view);
+            // These are <a> without href, so make them keyboard-operable.
+            a.setAttribute('role', 'button');
+            a.setAttribute('tabindex', '0');
+            const go = () => { const view = a.dataset.view; if (view) this.showView(view); };
+            a.addEventListener('click', (e) => { e.preventDefault(); go(); });
+            a.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
             });
         });
         const toggle = document.getElementById('att-sidebar-toggle');
@@ -252,7 +255,9 @@ const AttendeeDashboard = {
 
     showView(name) {
         document.querySelectorAll('.att-nav-link').forEach((a) => {
-            a.classList.toggle('active', a.dataset.view === name);
+            const on = a.dataset.view === name;
+            a.classList.toggle('active', on);
+            a.setAttribute('aria-current', on ? 'page' : 'false');
         });
         document.querySelectorAll('.att-view').forEach((s) => {
             s.classList.toggle('active', s.dataset.viewPanel === name);
