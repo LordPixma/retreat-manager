@@ -38,6 +38,31 @@ const CheckInManagement = {
 
     async loadAll() {
         await Promise.all([this.loadStats(), this.loadWindow(), this.loadRoster()]);
+        this.startAutoRefresh();
+    },
+
+    // Keep the arrivals view live while the admin is watching it. Polls every
+    // 20s, pauses when the tab is hidden, and is stopped when the admin leaves
+    // the Check-in tab (see admin-dashboard tab switch + visibilitychange).
+    startAutoRefresh() {
+        this.stopAutoRefresh();
+        this._refreshTimer = setInterval(() => {
+            if (document.hidden) return;
+            this.loadStats();
+            this.loadRoster();
+        }, 20000);
+        if (!this._visBound) {
+            this._visBound = true;
+            document.addEventListener('visibilitychange', () => {
+                const dot = document.getElementById('checkin-live-dot');
+                if (dot) dot.style.color = document.hidden ? '#6b7280' : '#10b981';
+                if (!document.hidden && this._refreshTimer) { this.loadStats(); this.loadRoster(); }
+            });
+        }
+    },
+
+    stopAutoRefresh() {
+        if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null; }
     },
 
     async loadStats() {
@@ -48,6 +73,13 @@ const CheckInManagement = {
             document.getElementById('checkin-count').textContent = checkedIn;
             document.getElementById('checkin-remaining').textContent = Math.max(0, total - checkedIn);
             document.getElementById('checkin-total').textContent = total;
+
+            // Live arrival progress bar.
+            const pct = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
+            const bar = document.getElementById('checkin-progress-bar');
+            const pctLabel = document.getElementById('checkin-progress-pct');
+            if (bar) bar.style.width = `${pct}%`;
+            if (pctLabel) pctLabel.textContent = `${pct}%`;
 
             // Window status badge — coloured based on whether check-in is open.
             const badge = document.getElementById('checkin-window-status');

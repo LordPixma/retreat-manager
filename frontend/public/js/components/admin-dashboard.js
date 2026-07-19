@@ -1801,9 +1801,11 @@ const AdminDashboard = {
                     this.loadActivityTeams().then(() => this.updateActivityTeamsDisplay());
                 }
 
-                // Lazy-load check-in data
+                // Lazy-load check-in data; stop its live polling when leaving.
                 if (tabName === 'checkin') {
                     this.loadCheckInData();
+                } else if (window.CheckInManagement) {
+                    window.CheckInManagement.stopAutoRefresh();
                 }
 
                 // Lazy-load community wall
