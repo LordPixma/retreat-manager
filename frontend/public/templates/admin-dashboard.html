@@ -781,6 +781,19 @@
             </div>
         </div>
 
+        <!-- Live arrival progress -->
+        <div class="data-table" style="margin-bottom: 1.25rem;">
+            <div style="padding: 1rem 1.25rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                    <span style="font-weight:600; color:#fff;"><span id="checkin-progress-pct">0%</span> arrived</span>
+                    <span style="font-size:0.75rem; color:var(--text-tertiary);"><i class="fas fa-circle" id="checkin-live-dot" style="font-size:0.5rem; color:#10b981;"></i> Live · updates automatically</span>
+                </div>
+                <div style="height:10px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
+                    <div id="checkin-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#10b981,#34d399); border-radius:999px; transition:width 0.4s ease;"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Door PWA call-out -->
         <div class="data-table" style="margin-bottom: 1.25rem; background: linear-gradient(135deg, rgba(102,126,234,0.10), rgba(118,75,162,0.08));">
             <div class="table-content" style="padding: 1rem 1.25rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">

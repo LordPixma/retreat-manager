@@ -68,6 +68,10 @@ export interface Env {
   BANK_ACCOUNT_NAME?: string;
   BANK_SORT_CODE?: string;
   BANK_ACCOUNT_NUMBER?: string;
+  // Web-push (VAPID). Public key is safe to expose; private key is a secret.
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 // Context type for Pages Functions

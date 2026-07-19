@@ -28,8 +28,8 @@ const SHELL = [
   '/checkin/app.css',
   '/checkin/app.js',
   '/checkin/manifest.json',
-  // External libs — failing to cache these is non-fatal (network fallback).
-  'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js',
+  // Self-hosted scanner lib — precache so the door PWA scans offline too.
+  '/js/vendor/html5-qrcode.min.js',
 ];
 
 // Network-first for these — always pick up new deploys, fall back to cache

@@ -1,7 +1,9 @@
 /* Base Styles - Modern Reset and Foundation */
 
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Inter is the preferred face but we don't fetch it from Google Fonts — the
+   font-family stacks fall back to the native system UI fonts (San Francisco,
+   Segoe UI, Roboto), which look clean, load instantly, and need no external
+   origin in the CSP. */
 
 /* Reset */
 *,

@@ -21,6 +21,7 @@ const AttendeeDashboard = {
                 if (requested && validViews.includes(requested)) initialView = requested;
             } catch { /* ignore malformed query strings */ }
             this.showView(initialView);
+            this.initNotifications();
         } catch (error) {
             console.error('Failed to initialize attendee dashboard:', error);
             Utils.showAlert('Failed to load dashboard', 'error');
@@ -221,10 +222,13 @@ const AttendeeDashboard = {
      */
     bindViewNav() {
         document.querySelectorAll('.att-nav-link').forEach((a) => {
-            a.addEventListener('click', (e) => {
-                e.preventDefault();
-                const view = a.dataset.view;
-                if (view) this.showView(view);
+            // These are <a> without href, so make them keyboard-operable.
+            a.setAttribute('role', 'button');
+            a.setAttribute('tabindex', '0');
+            const go = () => { const view = a.dataset.view; if (view) this.showView(view); };
+            a.addEventListener('click', (e) => { e.preventDefault(); go(); });
+            a.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
             });
         });
         const toggle = document.getElementById('att-sidebar-toggle');
@@ -251,7 +255,9 @@ const AttendeeDashboard = {
 
     showView(name) {
         document.querySelectorAll('.att-nav-link').forEach((a) => {
-            a.classList.toggle('active', a.dataset.view === name);
+            const on = a.dataset.view === name;
+            a.classList.toggle('active', on);
+            a.setAttribute('aria-current', on ? 'page' : 'false');
         });
         document.querySelectorAll('.att-view').forEach((s) => {
             s.classList.toggle('active', s.dataset.viewPanel === name);
@@ -665,6 +671,7 @@ const AttendeeDashboard = {
                         ${link('/faq.html', 'fa-circle-info', '#93c5fd', 'Frequently asked questions')}
                         ${link('/allergy.html', 'fa-notes-medical', '#6ee7b7', 'Dietary &amp; allergy form')}
                         ${link(mapsUrl, 'fa-diamond-turn-right', '#a78bfa', 'Directions to the venue')}
+                        ${link('/privacy.html', 'fa-shield-halved', '#93c5fd', 'Privacy notice')}
                         <div style="font-size:0.8rem; color:var(--text-tertiary); line-height:1.5; margin-top:0.35rem;">Questions during the retreat? Speak to any team member or your group lead.</div>
                     </div>
                 </div>
@@ -1027,7 +1034,18 @@ const AttendeeDashboard = {
                     <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save changes</button>
                 </div>
             </form>
+            ${this._detailSection('Your data &amp; privacy', `
+                <div style="font-size:0.82rem; color: var(--text-secondary); line-height:1.6;">
+                    You can download a copy of everything the portal holds about you, and read how we look after it.
+                </div>
+                <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.6rem;">
+                    <button type="button" class="btn btn-sm btn-ghost" id="download-my-data"><i class="fas fa-download"></i> Download my data</button>
+                    <a href="/privacy.html" target="_blank" rel="noopener" class="btn btn-sm btn-ghost"><i class="fas fa-shield-halved"></i> Privacy notice</a>
+                </div>
+            `)}
         `;
+        const dl = document.getElementById('download-my-data');
+        if (dl) dl.addEventListener('click', () => this.downloadMyData(dl));
         const form = document.getElementById('my-details-form');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1048,6 +1066,96 @@ const AttendeeDashboard = {
                 submitBtn.innerHTML = '<i class="fas fa-check"></i> Save changes';
             }
         });
+    },
+
+    // ---- Push notifications ----
+    async initNotifications() {
+        const btn = document.getElementById('notif-toggle');
+        if (!btn) return;
+        const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+        if (!supported) return; // stays hidden
+
+        let cfg;
+        try { cfg = await API.get('/push/config'); } catch { return; }
+        if (!cfg || !cfg.enabled || !cfg.vapid_public_key) return; // not configured server-side
+        this._vapidKey = cfg.vapid_public_key;
+
+        btn.style.display = '';
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            this._setNotifBtn(btn, !!sub);
+        } catch { this._setNotifBtn(btn, false); }
+
+        if (!btn._bound) {
+            btn._bound = true;
+            btn.addEventListener('click', () => this.toggleNotifications(btn));
+        }
+    },
+
+    _setNotifBtn(btn, on) {
+        btn.innerHTML = on ? '<i class="fas fa-bell"></i>' : '<i class="fas fa-bell-slash"></i>';
+        btn.title = on ? 'Notifications on — tap to turn off' : 'Turn on notifications';
+        btn.classList.toggle('btn-primary', on);
+        btn.classList.toggle('btn-ghost', !on);
+    },
+
+    async toggleNotifications(btn) {
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const existing = await reg.pushManager.getSubscription();
+            if (existing) {
+                const endpoint = existing.endpoint;
+                await existing.unsubscribe();
+                try { await API.request('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) }); } catch {}
+                this._setNotifBtn(btn, false);
+                Utils.showAlert('Notifications turned off.', 'success');
+                return;
+            }
+            const perm = await Notification.requestPermission();
+            if (perm !== 'granted') { Utils.showAlert('Notifications permission was not granted.', 'error'); return; }
+            const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: this._urlB64ToUint8Array(this._vapidKey),
+            });
+            const json = sub.toJSON();
+            await API.post('/push/subscribe', { endpoint: json.endpoint, keys: json.keys });
+            this._setNotifBtn(btn, true);
+            Utils.showAlert("Notifications on — we'll alert you about new announcements.", 'success');
+        } catch (err) {
+            Utils.showAlert(err.message || 'Could not update notifications', 'error');
+        }
+    },
+
+    _urlB64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+    },
+
+    /** Fetch the attendee's full data export and save it as a JSON file. */
+    async downloadMyData(btn) {
+        const orig = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing…'; }
+        try {
+            const data = await API.get('/attendee/export');
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `retreat-data-${this.data?.ref_number || 'me'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            Utils.showAlert(err.message || 'Could not prepare your data', 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+        }
     },
 
     _detailSection(title, innerHtml) {

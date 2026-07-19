@@ -1,7 +1,7 @@
 // Service Worker for Growth and Wisdom Retreat Portal
-const CACHE_NAME = 'retreat-portal-v6';
-const STATIC_CACHE = 'retreat-static-v6';
-const DYNAMIC_CACHE = 'retreat-dynamic-v6';
+const CACHE_NAME = 'retreat-portal-v7';
+const STATIC_CACHE = 'retreat-static-v7';
+const DYNAMIC_CACHE = 'retreat-dynamic-v7';
 
 // Static assets to cache on install. Keep this list to files that actually
 // exist in frontend/public — a missing entry makes cache.addAll() reject and
@@ -220,19 +220,23 @@ async function syncRegistrations() {
   console.log('[SW] Syncing pending registrations...');
 }
 
-// Push notifications
+// Push notifications. We send payload-less pushes (no event.data), so show a
+// sensible default that opens the portal; still supports a JSON payload if one
+// is ever attached.
 self.addEventListener('push', (event) => {
-  if (!event.data) return;
+  let data = {};
+  if (event.data) {
+    try { data = event.data.json(); } catch (e) { data = {}; }
+  }
 
-  const data = event.data.json();
-
+  const title = data.title || 'Growth & Wisdom Retreat';
   const options = {
-    body: data.body || 'New notification',
+    body: data.body || 'You have a new update — tap to open the portal.',
     icon: '/android-chrome-192x192.png',
     badge: '/favicon-32x32.png',
     vibrate: [100, 50, 100],
     data: {
-      url: data.url || '/'
+      url: data.url || '/?view=overview&source=push'
     },
     actions: [
       { action: 'open', title: 'Open' },
@@ -241,7 +245,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Retreat Portal', options)
+    self.registration.showNotification(title, options)
   );
 });
 

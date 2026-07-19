@@ -1587,13 +1587,11 @@ select.form-input option,
 .brand-logo { margin-bottom: var(--space-5); }
 
 .brand-logo-img {
-  width: 84px;
-  height: 84px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 10px;
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  width: 92px;
+  height: 92px;
   object-fit: contain;
+  /* Transparent PNG — no tile/background; a soft shadow lifts it off the gradient. */
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.32));
 }
 
 .brand-title {
@@ -1617,28 +1615,20 @@ select.form-input option,
 
 .theme-label {
   display: inline-block;
-  font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.35rem);
+  font-size: clamp(1.15rem, 0.9rem + 0.8vw, 1.5rem);
   font-weight: var(--font-semibold);
   font-style: italic;
   color: #fff;
-  padding: var(--space-2) var(--space-5);
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: var(--radius-full);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
 }
 
 .brand-scripture {
   font-size: var(--text-sm);
-  opacity: 0.95;
+  opacity: 0.92;
   margin-bottom: var(--space-7);
   line-height: var(--leading-relaxed);
   max-width: 430px;
   font-style: italic;
-  padding: var(--space-3) var(--space-4);
-  background: rgba(255, 255, 255, 0.09);
-  border-radius: var(--radius-lg);
 }
 
 .brand-scripture i { margin-right: var(--space-2); opacity: 0.85; }
@@ -1646,13 +1636,8 @@ select.form-input option,
 .brand-details {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   margin-bottom: var(--space-8);
-  padding: var(--space-4) var(--space-5);
-  background: rgba(255, 255, 255, 0.10);
-  border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  width: 100%;
 }
 
 .brand-detail-item {
