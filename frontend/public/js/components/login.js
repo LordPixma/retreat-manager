@@ -86,14 +86,216 @@ const Login = {
             }, 1000);
             
         } catch (error) {
+            // Forced-reset path: attendees who were emailed a temporary
+            // password are flagged must_reset_password = 1, so /api/login
+            // returns 403 reset_required instead of a token. Their credential
+            // email literally says "you'll be asked to set your own password
+            // the first time you log in" — this is that step. Walk them
+            // through it in-page instead of surfacing a raw "HTTP 403:".
+            if (error.status === 403 && error.body && error.body.reset_required) {
+                this.hideButtonLoading(submitBtn, 'login-spinner', 'login-text', 'Sign In');
+                this._showAttendeeResetForm(ref, password);
+                return;
+            }
+
             this.showAlert('login-alert', error.message, 'error');
-            
+
             // Focus back to form for accessibility
             document.getElementById('login-ref').focus();
-            
+
         } finally {
             this.hideButtonLoading(submitBtn, 'login-spinner', 'login-text', 'Sign In');
         }
+    },
+
+    /**
+     * Render the in-page "set your password" form shown when an attendee logs
+     * in with a temporary password (server returned 403 reset_required). Swaps
+     * the login form for a new-password form; on success it clears the
+     * must_reset_password flag via /api/change-password and signs the attendee
+     * straight in. Keeps the branding panel intact so it reads as one flow.
+     */
+    _showAttendeeResetForm(ref, currentPassword) {
+        const container = document.querySelector('.login-form-container');
+        if (!container) {
+            // Template structure unexpectedly missing — fall back to a prompt
+            // so the attendee is never left stranded on the 403.
+            this._attendeeResetFallback(ref, currentPassword);
+            return;
+        }
+
+        const safeRef = this._escapeHtml(ref);
+        container.innerHTML = `
+            <div class="login-header">
+                <h2>Set Your Password</h2>
+                <p>Welcome! Choose a password to finish setting up your account
+                   (<strong>${safeRef}</strong>).</p>
+            </div>
+
+            <div id="reset-alert" class="alert alert-error hidden"></div>
+
+            <form id="attendee-reset-form" class="login-form" novalidate>
+                <div class="form-group">
+                    <label for="reset-new" class="form-label-light">New Password</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="reset-new" name="new_password" class="form-input-light" required
+                               placeholder="At least 8 characters" autocomplete="new-password" minlength="8">
+                        <button type="button" class="password-toggle-light">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="reset-confirm" class="form-label-light">Confirm Password</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="reset-confirm" name="confirm_password" class="form-input-light" required
+                               placeholder="Re-enter your new password" autocomplete="new-password">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-signin" id="reset-btn">
+                    <span id="reset-text">Set Password &amp; Sign In</span>
+                    <div id="reset-spinner" class="loading-spinner hidden"></div>
+                </button>
+            </form>
+
+            <div class="login-footer-links">
+                <a href="#" id="reset-back-link" class="admin-access-link">
+                    <i class="fas fa-arrow-left"></i> Back to Sign In
+                </a>
+            </div>
+        `;
+
+        // Reuse the shared password-visibility toggle wiring.
+        this.bindPasswordToggle();
+
+        const form = document.getElementById('attendee-reset-form');
+        if (form) {
+            form.addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                this._submitAttendeeReset(ref, currentPassword);
+            });
+        }
+
+        const back = document.getElementById('reset-back-link');
+        if (back) {
+            back.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                await this.switchToAttendee();
+            });
+        }
+
+        setTimeout(() => {
+            const el = document.getElementById('reset-new');
+            if (el) el.focus();
+        }, 100);
+    },
+
+    /**
+     * Validate the new password, POST it to /api/change-password to clear the
+     * reset flag, then auto-login with the new credentials.
+     */
+    async _submitAttendeeReset(ref, currentPassword) {
+        const newInput = document.getElementById('reset-new');
+        const confirmInput = document.getElementById('reset-confirm');
+        const newPass = newInput ? newInput.value : '';
+        const confirmPass = confirmInput ? confirmInput.value : '';
+
+        this.hideAlert('reset-alert');
+
+        if (!newPass || newPass.length < 8) {
+            this.showAlert('reset-alert', 'Password must be at least 8 characters.', 'error');
+            return;
+        }
+        if (newPass === currentPassword) {
+            this.showAlert('reset-alert', 'Your new password must be different from the temporary one.', 'error');
+            return;
+        }
+        if (newPass !== confirmPass) {
+            this.showAlert('reset-alert', 'Passwords do not match. Please try again.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('reset-btn');
+        try {
+            this.showButtonLoading(btn, 'reset-spinner', 'reset-text');
+
+            const response = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ref,
+                    current_password: currentPassword,
+                    new_password: newPass,
+                }),
+            });
+            const body = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                this.showAlert('reset-alert', body.error || `Could not set password (HTTP ${response.status}).`, 'error');
+                this.hideButtonLoading(btn, 'reset-spinner', 'reset-text', 'Set Password & Sign In');
+                return;
+            }
+
+            // Flag cleared server-side — sign in with the freshly-set password.
+            this.showAlert('reset-alert', 'Password set! Signing you in…', 'success');
+            await Auth.attendeeLogin(ref, newPass);
+            setTimeout(async () => {
+                await App.loadAttendeeView();
+            }, 800);
+        } catch (err) {
+            this.showAlert('reset-alert', 'Something went wrong: ' + (err.message || err), 'error');
+            this.hideButtonLoading(btn, 'reset-spinner', 'reset-text', 'Set Password & Sign In');
+        }
+    },
+
+    /**
+     * Prompt-based fallback for the forced reset, used only if the expected
+     * form container isn't in the DOM. Mirrors the in-page flow.
+     */
+    async _attendeeResetFallback(ref, currentPassword) {
+        const newPass = prompt('Welcome! Set a new password to finish signing in.\n\nAt least 8 characters, different from the temporary one.');
+        if (!newPass) {
+            this.showAlert('login-alert', 'Password setup cancelled. You’ll need to set a password to sign in.', 'warning');
+            return;
+        }
+        if (newPass.length < 8) {
+            this.showAlert('login-alert', 'New password must be at least 8 characters.', 'error');
+            return;
+        }
+        if (newPass === currentPassword) {
+            this.showAlert('login-alert', 'New password must be different from the temporary one.', 'error');
+            return;
+        }
+        try {
+            const response = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ref, current_password: currentPassword, new_password: newPass }),
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                this.showAlert('login-alert', body.error || `Could not set password (HTTP ${response.status}).`, 'error');
+                return;
+            }
+            await Auth.attendeeLogin(ref, newPass);
+            setTimeout(async () => await App.loadAttendeeView(), 800);
+        } catch (err) {
+            this.showAlert('login-alert', 'Something went wrong: ' + (err.message || err), 'error');
+        }
+    },
+
+    /**
+     * Minimal HTML-escape for values interpolated into innerHTML (the ref the
+     * attendee typed). Prevents a stray '<' from breaking the markup.
+     */
+    _escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
     },
 
     /**
