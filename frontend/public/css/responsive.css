@@ -437,6 +437,41 @@
     justify-content: center;
   }
 
+  /* The stacked "card view" above depends on data-label attributes the markup
+     never emits, so it renders unlabeled — and it destroys the multi-column
+     admin tables and the balance heatmap. Every data-dense table lives inside
+     a .table-container (which now scrolls horizontally), so restore those to
+     real, scrollable tables. Simple key/value tables elsewhere keep the card
+     view. */
+  .table-container .table { display: table; min-width: 640px; }
+  .table-container .table thead { display: table-header-group; }
+  .table-container .table tbody { display: table-row-group; }
+  .table-container .table tr {
+    display: table-row;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+  .table-container .table th,
+  .table-container .table td {
+    display: table-cell;
+    width: auto;
+    text-align: left;
+    padding: var(--space-3);
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .table-container .table td::before { content: none; }
+  .table-container .table td:last-child {
+    margin-top: 0;
+    padding-top: var(--space-3);
+    border-top: none;
+    justify-content: flex-start;
+  }
+  /* Heatmap is wider than a generic table — give it room so it scrolls. */
+  .table-container .heatmap-table { min-width: 700px; }
+
   .action-buttons {
     flex-direction: row;
     flex-wrap: wrap;
@@ -648,8 +683,34 @@
   /* Larger touch targets */
   .btn,
   .tab-btn,
-  .sidebar-link {
+  .sidebar-link,
+  .att-nav-link,
+  .menu-toggle,
+  .att-sidebar-toggle-btn,
+  .modal-close,
+  .btn-icon,
+  .password-toggle-light,
+  .password-toggle,
+  .sched-star,
+  .community-del,
+  .community-type-btn,
+  .bg-seg {
     min-height: 44px;
+  }
+
+  /* Icon-only / inline controls also need width and centering to reach 44px. */
+  .menu-toggle,
+  .att-sidebar-toggle-btn,
+  .modal-close,
+  .btn-icon,
+  .password-toggle-light,
+  .password-toggle,
+  .sched-star,
+  .community-del {
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* Remove hover effects that don't work well on touch */
@@ -780,4 +841,20 @@
    ============================================ */
 @media (prefers-color-scheme: light) {
   /* Add light mode overrides here if implementing light theme */
+}
+
+/* ============================================
+   iOS input zoom guard
+   ============================================ */
+/* Mobile Safari zooms the viewport in whenever a focused form control has a
+   font-size below 16px. Floor every text control at 16px on touch pointers so
+   focusing a field never yanks the layout around. Scoped to coarse pointers so
+   desktop density is untouched; !important so it also wins over the inline
+   font-sizes on JS-injected attendee fields. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }

@@ -635,7 +635,7 @@ const AttendeeDashboard = {
             `<a href="${href}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:0.6rem; font-size:0.88rem; color:var(--text-secondary); text-decoration:none; padding:0.55rem 0.65rem; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);"><i class="fas ${icon}" style="color:${color}; width:1.1rem; text-align:center;"></i> ${text}</a>`;
 
         container.innerHTML = `
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:1.25rem; align-items:start;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap:1.25rem; align-items:start;">
                 <div class="data-table">
                     <div class="table-header"><h3 class="table-title"><i class="fas fa-map-location-dot"></i> Getting there</h3></div>
                     <div class="table-content" style="padding:1.25rem; display:grid; gap:1rem;">
@@ -838,7 +838,7 @@ const AttendeeDashboard = {
         // so contact info doesn't stretch across the full width on ultra-
         // wide screens — `auto-fill` plus a minmax floor at 320px gives
         // 1 column on mobile, 2 columns above ~720px, 3 above ~1080px.
-        container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.85rem; padding: 1rem 1.25rem;">${
+        container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 0.85rem; padding: 1rem 1.25rem;">${
             res.members.map((m) => {
                 const leadTag = m.is_group_lead ? '<span class="badge badge-success" style="margin-left:0.4rem;"><i class="fas fa-crown"></i> Lead</span>' : '';
                 const selfTag = m.is_self ? '<span class="badge badge-secondary" style="margin-left:0.4rem;">You</span>' : '';
@@ -2730,7 +2730,7 @@ const AttendeeDashboard = {
 
         // Card grid so multiple teams sit side-by-side on wide screens
         // instead of stacking in a narrow column.
-        container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.85rem;">${
+        container.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 0.85rem;">${
             teams.map(team => {
               const color = team.color || '#8b5cf6';
               return `
