@@ -160,11 +160,31 @@
             return chip;
         }
 
+        // Only surface the install chip once the user is actually inside the
+        // app (an auth token exists). The chip is fixed to the bottom-centre of
+        // the screen, so on the login / registration views it would float over
+        // the form inputs and the Sign In button. Poll until authed, then show
+        // it once.
+        function isInsideApp() {
+            try { return !!(localStorage.getItem('attendeeToken') || localStorage.getItem('adminToken')); }
+            catch (_) { return false; }
+        }
+        function showChipWhenReady(label, onClick) {
+            try { if (localStorage.getItem(DISMISS_KEY)) return; } catch (_) {}
+            if (document.getElementById('pwa-install-chip')) return;
+            if (isInsideApp()) { makeChip(label, onClick); return; }
+            const timer = setInterval(() => {
+                let dismissed = false;
+                try { dismissed = !!localStorage.getItem(DISMISS_KEY); } catch (_) {}
+                if (dismissed || document.getElementById('pwa-install-chip')) { clearInterval(timer); return; }
+                if (isInsideApp()) { clearInterval(timer); makeChip(label, onClick); }
+            }, 1500);
+        }
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            try { if (localStorage.getItem(DISMISS_KEY)) return; } catch (_) {}
-            makeChip('Install app', async () => {
+            showChipWhenReady('Install app', async () => {
                 if (!deferredPrompt) return;
                 deferredPrompt.prompt();
                 await deferredPrompt.userChoice;
@@ -189,7 +209,7 @@
             try { dismissed = !!localStorage.getItem(DISMISS_KEY); } catch (_) {}
             if (!dismissed) {
                 window.addEventListener('load', () => setTimeout(() => {
-                    makeChip('Add to Home Screen', () => {
+                    showChipWhenReady('Add to Home Screen', () => {
                         alert('To install: tap the Share button, then choose "Add to Home Screen".');
                     });
                 }, 2500));

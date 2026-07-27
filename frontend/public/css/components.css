@@ -2500,7 +2500,7 @@ select.form-input option,
 .pwa-install-chip {
   position: fixed;
   left: 50%;
-  bottom: 1.1rem;
+  bottom: calc(1.1rem + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: var(--z-toast, 700);
   display: inline-flex;
