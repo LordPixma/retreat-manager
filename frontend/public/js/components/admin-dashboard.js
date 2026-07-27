@@ -1687,6 +1687,11 @@ const AdminDashboard = {
                 refreshBtn.disabled = false;
             });
         }
+        const bulkGenderBtn = document.getElementById('bulk-gender-btn');
+        if (bulkGenderBtn && !bulkGenderBtn._bound) {
+            bulkGenderBtn._bound = true;
+            bulkGenderBtn.addEventListener('click', () => this.showBulkGenderModal());
+        }
     },
 
     async exportTeamsCsv() {
@@ -1777,8 +1782,10 @@ const AdminDashboard = {
 
         const genderNote = !bd.gender_available || (bd.totals.gender.male + bd.totals.gender.female === 0)
             ? `<div class="team-balance-note"><i class="fas fa-circle-info"></i>
-                 Gender isn't recorded for these attendees yet. Set it on an attendee's profile (Attendees → edit)
-                 to populate the Male / Female split.</div>`
+                 <span>Gender isn't recorded for these attendees yet — the Male / Female split stays empty until it's set.</span>
+                 <button type="button" class="btn btn-sm btn-secondary" id="open-bulk-gender-from-note" style="margin-left:auto; white-space:nowrap;">
+                   <i class="fas fa-venus-mars"></i> Set genders
+                 </button></div>`
             : '';
 
         wrap.innerHTML = `
@@ -1803,6 +1810,166 @@ const AdminDashboard = {
               </table>
             </div>
             ${genderNote}`;
+
+        const noteBtn = document.getElementById('open-bulk-gender-from-note');
+        if (noteBtn) noteBtn.addEventListener('click', () => this.showBulkGenderModal());
+    },
+
+    // ---- Bulk gender editor ----
+    async showBulkGenderModal() {
+        let data;
+        try {
+            data = await API.get('/admin/attendees/bulk-gender');
+        } catch (e) {
+            Utils.showAlert('Failed to load attendees: ' + (e.message || e), 'error');
+            return;
+        }
+        this._bulkGenderList = data.attendees || [];
+        this._bulkGenderChanges = new Map(); // id -> 'male' | 'female' | null
+
+        const existing = document.getElementById('bulk-gender-modal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.id = 'bulk-gender-modal';
+        modal.innerHTML = `
+            <div class="modal" style="max-width: 640px;">
+                <div class="modal-header">
+                    <h3 class="modal-title"><i class="fas fa-venus-mars"></i> Set Attendee Gender</h3>
+                    <button type="button" class="modal-close" id="bulk-gender-close"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div id="bulk-gender-alert" class="alert alert-error hidden"></div>
+                    <p style="font-size:0.82rem; color:var(--text-secondary); margin:0 0 0.75rem;">
+                        Set gender to populate the Male / Female balance. Changes are saved together when you click Save.
+                    </p>
+                    <div class="bulk-gender-toolbar">
+                        <input type="text" id="bulk-gender-search" class="form-input" placeholder="Search name or reference…">
+                        <label class="bulk-gender-filter"><input type="checkbox" id="bulk-gender-unset-only"> Unset only</label>
+                    </div>
+                    <div id="bulk-gender-summary" class="bulk-gender-summary"></div>
+                    <div id="bulk-gender-list" class="bulk-gender-list"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="bulk-gender-cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="bulk-gender-save">Save changes</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+
+        const rerender = () => {
+            const filter = (document.getElementById('bulk-gender-search')?.value || '').trim().toLowerCase();
+            const unsetOnly = !!document.getElementById('bulk-gender-unset-only')?.checked;
+            this._renderBulkGenderList(filter, unsetOnly);
+        };
+
+        document.getElementById('bulk-gender-close').addEventListener('click', () => this.hideBulkGenderModal());
+        document.getElementById('bulk-gender-cancel').addEventListener('click', () => this.hideBulkGenderModal());
+        modal.addEventListener('click', (e) => { if (e.target === modal) this.hideBulkGenderModal(); });
+        document.getElementById('bulk-gender-search').addEventListener('input', rerender);
+        document.getElementById('bulk-gender-unset-only').addEventListener('change', rerender);
+        document.getElementById('bulk-gender-save').addEventListener('click', () => this._saveBulkGender());
+
+        // Delegated segment clicks.
+        document.getElementById('bulk-gender-list').addEventListener('click', (e) => {
+            const btn = e.target.closest('.bg-seg');
+            if (!btn) return;
+            const id = Number(btn.dataset.id);
+            const val = btn.dataset.val ? btn.dataset.val : null;
+            const original = this._currentGenderOf(id);
+            if (val === original) this._bulkGenderChanges.delete(id);
+            else this._bulkGenderChanges.set(id, val);
+            const row = btn.closest('.bulk-gender-row');
+            row.querySelectorAll('.bg-seg').forEach(b => b.classList.toggle('active', (b.dataset.val ? b.dataset.val : null) === val));
+            this._updateBulkGenderSummary();
+        });
+
+        this._renderBulkGenderList();
+        this._updateBulkGenderSummary();
+        setTimeout(() => document.getElementById('bulk-gender-search')?.focus(), 100);
+    },
+
+    _currentGenderOf(id) {
+        const a = this._bulkGenderList.find(x => x.id === id);
+        const g = a && typeof a.gender === 'string' ? a.gender.toLowerCase() : null;
+        return g === 'male' || g === 'female' ? g : null;
+    },
+    _effectiveGenderOf(a) {
+        if (this._bulkGenderChanges.has(a.id)) return this._bulkGenderChanges.get(a.id);
+        return this._currentGenderOf(a.id);
+    },
+
+    _renderBulkGenderList(filter = '', unsetOnly = false) {
+        const container = document.getElementById('bulk-gender-list');
+        if (!container) return;
+        let rows = this._bulkGenderList;
+        if (filter) rows = rows.filter(a =>
+            a.name.toLowerCase().includes(filter) || (a.ref_number || '').toLowerCase().includes(filter));
+        if (unsetOnly) rows = rows.filter(a => this._effectiveGenderOf(a) === null);
+
+        if (rows.length === 0) {
+            container.innerHTML = `<div style="padding:1rem; text-align:center; color:var(--text-tertiary); font-size:0.85rem;">No attendees match.</div>`;
+            return;
+        }
+
+        container.innerHTML = rows.map(a => {
+            const g = this._effectiveGenderOf(a);
+            const changed = this._bulkGenderChanges.has(a.id);
+            const seg = (val, label, icon) => {
+                const active = (val ? val : null) === g ? ' active' : '';
+                return `<button type="button" class="bg-seg${active}" data-id="${a.id}" data-val="${val}">${icon}${label}</button>`;
+            };
+            return `
+                <div class="bulk-gender-row${changed ? ' changed' : ''}">
+                    <div class="bg-person">
+                        <span class="bg-name">${Utils.escapeHtml(a.name)}</span>
+                        <span class="bg-ref">${Utils.escapeHtml(a.ref_number || '')}${a.group_name ? ' · ' + Utils.escapeHtml(a.group_name) : ''}</span>
+                    </div>
+                    <div class="bg-segments">
+                        ${seg('', 'Unknown', '')}
+                        ${seg('male', 'Male', '<i class="fas fa-mars"></i> ')}
+                        ${seg('female', 'Female', '<i class="fas fa-venus"></i> ')}
+                    </div>
+                </div>`;
+        }).join('');
+    },
+
+    _updateBulkGenderSummary() {
+        const el = document.getElementById('bulk-gender-summary');
+        if (!el) return;
+        const total = this._bulkGenderList.length;
+        let set = 0;
+        this._bulkGenderList.forEach(a => { if (this._effectiveGenderOf(a) !== null) set++; });
+        const pending = this._bulkGenderChanges.size;
+        el.innerHTML = `<span>${set} of ${total} set</span>
+            ${pending ? `<span class="bulk-gender-pending">${pending} unsaved change${pending === 1 ? '' : 's'}</span>` : ''}`;
+        const saveBtn = document.getElementById('bulk-gender-save');
+        if (saveBtn) saveBtn.textContent = pending ? `Save ${pending} change${pending === 1 ? '' : 's'}` : 'Save changes';
+    },
+
+    async _saveBulkGender() {
+        const updates = Array.from(this._bulkGenderChanges.entries()).map(([id, gender]) => ({ id, gender }));
+        if (updates.length === 0) { this.hideBulkGenderModal(); return; }
+        const btn = document.getElementById('bulk-gender-save');
+        const alert = document.getElementById('bulk-gender-alert');
+        try {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…'; }
+            const res = await API.post('/admin/attendees/bulk-gender', { updates });
+            this.hideBulkGenderModal();
+            Utils.showAlert(`Gender updated for ${res.updated} attendee${res.updated === 1 ? '' : 's'}`, 'success');
+            // Refresh the balance heatmap + roster chips with the new data.
+            await this.loadTeamBreakdown();
+            this.updateActivityTeamsDisplay();
+        } catch (e) {
+            if (alert) { alert.className = 'alert alert-error'; alert.textContent = e.message || 'Save failed'; alert.classList.remove('hidden'); }
+            if (btn) { btn.disabled = false; this._updateBulkGenderSummary(); }
+        }
+    },
+
+    hideBulkGenderModal() {
+        const modal = document.getElementById('bulk-gender-modal');
+        if (modal) modal.remove();
     },
 
     updateActivityTeamsDisplay() {
