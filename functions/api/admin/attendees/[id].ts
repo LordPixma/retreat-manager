@@ -76,6 +76,17 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
 
     const attendee = results[0] as unknown as AttendeeRow;
 
+    // Gender lives in an optional column (migration 031). Fetch it separately
+    // and defensively so this endpoint keeps working if the column isn't there
+    // yet — the edit modal simply shows "unknown" until it's migrated/filled.
+    let gender: string | null = null;
+    try {
+      const g = await context.env.DB.prepare('SELECT gender FROM attendees WHERE id = ?').bind(id).first();
+      gender = ((g?.gender as string | null) ?? null);
+    } catch {
+      gender = null;
+    }
+
     const formattedResult = {
       id: attendee.id,
       ref_number: attendee.ref_number,
@@ -84,6 +95,7 @@ export async function onRequestGet(context: PagesContext<IdParams>): Promise<Res
       first_name: attendee.first_name,
       last_name: attendee.last_name,
       date_of_birth: attendee.date_of_birth,
+      gender,
       payment_due: attendee.payment_due || 0,
       payment_option: attendee.payment_option || 'full',
       room_id: attendee.room_id,
@@ -181,7 +193,7 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     }
 
     // Build dynamic UPDATE query
-    const allowedFields = ['name', 'first_name', 'last_name', 'date_of_birth', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'payment_option', 'password'];
+    const allowedFields = ['name', 'first_name', 'last_name', 'date_of_birth', 'gender', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'payment_option', 'password'];
     const updateFields: string[] = [];
     const updateValues: (string | number | null)[] = [];
 
@@ -193,6 +205,11 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
             updateFields.push('password_hash = ?');
             updateValues.push(hashedPassword);
           }
+        } else if (key === 'gender') {
+          // Normalise to the stored lower-case form; anything else clears it.
+          const g = typeof value === 'string' ? value.trim().toLowerCase() : '';
+          updateFields.push('gender = ?');
+          updateValues.push(g === 'male' || g === 'female' ? g : null);
         } else {
           updateFields.push(`${key} = ?`);
           updateValues.push(value === '' ? null : value as string | number | null);
@@ -207,7 +224,34 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
     updateValues.push(id);
 
     const updateQuery = `UPDATE attendees SET ${updateFields.join(', ')} WHERE id = ?`;
-    const result = await context.env.DB.prepare(updateQuery).bind(...updateValues).run();
+    let result;
+    try {
+      result = await context.env.DB.prepare(updateQuery).bind(...updateValues).run();
+    } catch (err) {
+      // Pre-migration safety: if the optional `gender` column (migration 031)
+      // hasn't been applied yet, retry the update without it so every other
+      // field still saves instead of the whole edit failing.
+      const msg = String((err as Error)?.message || '');
+      const genderIdx = updateFields.findIndex(f => f.startsWith('gender ='));
+      if (genderIdx !== -1 && /no such column|gender/i.test(msg)) {
+        const fields2 = updateFields.filter((_, i) => i !== genderIdx);
+        const values2 = updateValues.filter((_, i) => i !== genderIdx); // id stays at the tail
+        if (fields2.length === 0) {
+          // Only gender was being set and the column is missing — treat as a
+          // no-op success rather than surfacing an error to the admin.
+          return createResponse({
+            success: true,
+            message: 'Attendee updated successfully',
+            id: parseInt(id),
+            warning: 'Gender not stored yet — pending database migration.',
+          });
+        }
+        const query2 = `UPDATE attendees SET ${fields2.join(', ')} WHERE id = ?`;
+        result = await context.env.DB.prepare(query2).bind(...values2).run();
+      } else {
+        throw err;
+      }
+    }
 
     if (!result.success) {
       throw new Error('Failed to update attendee');

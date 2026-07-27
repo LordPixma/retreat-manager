@@ -642,6 +642,24 @@
 
     <!-- Activity Teams Tab -->
     <div class="tab-content" id="activity-teams-tab">
+        <!-- Team Balance heatmap -->
+        <div class="data-table" style="margin-bottom: 1.5rem;">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-scale-balanced"></i> Team Balance</h3>
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <button class="btn btn-sm btn-ghost" id="refresh-team-balance-btn" title="Refresh balance">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn btn-sm btn-secondary" id="export-teams-csv-btn">
+                        <i class="fas fa-file-csv"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+            <div id="team-balance-heatmap" class="team-balance-wrap">
+                <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading team balance…</div>
+            </div>
+        </div>
+
         <div class="data-table">
             <div class="table-header">
                 <h3 class="table-title">Activity Teams</h3>
@@ -655,16 +673,17 @@
                 <table class="table">
                     <thead>
                         <tr>
+                            <th style="width: 2.5rem;"></th>
                             <th>Team Name</th>
-                            <th>Description</th>
                             <th>Leader</th>
+                            <th>Balance</th>
                             <th>Members</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="activity-teams-table-body">
                         <tr>
-                            <td colspan="5" class="loading-placeholder">
+                            <td colspan="6" class="loading-placeholder">
                                 <i class="fas fa-spinner fa-spin"></i> Loading activity teams...
                             </td>
                         </tr>

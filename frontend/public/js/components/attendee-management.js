@@ -64,6 +64,8 @@ const AttendeeManagement = {
             document.getElementById('attendee-first-name').value = editData.first_name || '';
             document.getElementById('attendee-last-name').value = editData.last_name || '';
             document.getElementById('attendee-dob').value = editData.date_of_birth || '';
+            const genderSelect = document.getElementById('attendee-gender');
+            if (genderSelect) genderSelect.value = (editData.gender || '').toLowerCase();
             document.getElementById('attendee-ref').value = editData.ref_number || '';
             document.getElementById('attendee-payment').value = editData.payment_due || 0;
             document.getElementById('attendee-payment-option').value = editData.payment_option || 'full';
@@ -158,7 +160,7 @@ const AttendeeManagement = {
         }
         
         // Convert empty strings to null for optional fields
-        ['room_id', 'group_id', 'email', 'first_name', 'last_name', 'date_of_birth'].forEach(field => {
+        ['room_id', 'group_id', 'email', 'first_name', 'last_name', 'date_of_birth', 'gender'].forEach(field => {
             if (data[field] === '') {
                 data[field] = null;
             }

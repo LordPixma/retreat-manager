@@ -25,12 +25,14 @@ const STATEMENTS = [
     tshirt_size TEXT,
     arrival_method TEXT,
     vehicle_registration TEXT,
+    gender TEXT,
     password_hash TEXT NOT NULL,
     payment_due REAL DEFAULT 0,
     payment_option TEXT DEFAULT 'full',
     payment_status TEXT DEFAULT 'pending',
     is_group_lead INTEGER DEFAULT 0,
     must_reset_password INTEGER DEFAULT 0,
+    checked_in INTEGER DEFAULT 0,
     room_id INTEGER,
     group_id INTEGER,
     last_login DATETIME,
@@ -105,6 +107,15 @@ const STATEMENTS = [
     user_type TEXT NOT NULL,
     user_id TEXT NOT NULL,
     login_time DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_user TEXT,
+    action TEXT,
+    entity_type TEXT,
+    entity_id INTEGER,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`,
 ];
 

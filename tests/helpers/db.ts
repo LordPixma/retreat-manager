@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:test';
-import { hashPassword } from '../../functions/_shared/auth.js';
+import { hashPassword, generateAdminToken } from '../../functions/_shared/auth.js';
 import { createSchema } from './schema.js';
 
 // Fresh focused schema for each test (isolated storage gives each test its own
@@ -9,11 +9,14 @@ export async function setupDb() {
 }
 
 // Seed an attendee and return its id. `password` defaults to a valid one.
+// Optional demographic fields (date_of_birth, gender, dietary_requirements,
+// medical_conditions, accessibility_needs, checked_in) support the activity-team
+// balance tests; they default to null/0 so existing callers are unaffected.
 export async function seedAttendee(o) {
   const hash = await hashPassword(o.password ?? 'Password123');
   await env.DB.prepare(
-    `INSERT INTO attendees (name, first_name, last_name, ref_number, email, password_hash, payment_due, payment_status, must_reset_password, room_id, group_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`
+    `INSERT INTO attendees (name, first_name, last_name, ref_number, email, password_hash, payment_due, payment_status, must_reset_password, room_id, group_id, date_of_birth, gender, dietary_requirements, medical_conditions, accessibility_needs, checked_in)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     o.name ?? 'Test User',
     o.first_name ?? 'Test',
@@ -24,10 +27,22 @@ export async function seedAttendee(o) {
     o.payment_due ?? 0,
     o.must_reset ? 1 : 0,
     o.room_id ?? null,
-    o.group_id ?? null
+    o.group_id ?? null,
+    o.date_of_birth ?? null,
+    o.gender ?? null,
+    o.dietary_requirements ?? null,
+    o.medical_conditions ?? null,
+    o.accessibility_needs ?? null,
+    o.checked_in ? 1 : 0
   ).run();
   const row = await env.DB.prepare('SELECT id FROM attendees WHERE ref_number = ?').bind(o.ref).first();
   return row.id;
+}
+
+// Authorization header for an admin token (super_admin by default).
+export async function adminBearer(user = 'TestAdmin', role = 'super_admin') {
+  const token = await generateAdminToken(user, role, env.JWT_SECRET);
+  return { Authorization: `Bearer ${token}` };
 }
 
 // Build a JSON POST request for a Pages Function handler.
