@@ -3,6 +3,7 @@ import { checkAdminAuth, handleCORS } from '../../_shared/auth.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../_shared/errors.js';
 import { splitFullName, ageFromDateOfBirth } from '../../_shared/names.js';
 import { csvCell } from '../../_shared/sanitize.js';
+import { fetchTeamMemberRows, ageBand, normaliseGender, AGE_BAND_LABELS } from '../../_shared/team-demographics.js';
 
 // Hard cap on rows returned from a single export. D1 has its own row limits,
 // and walking everything in one query is fine for the foreseeable retreat
@@ -137,6 +138,36 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
         csv += row([r.id, r.name, r.email, r.phone, r.status, r.payment_option, r.total_amount, r.member_count, r.submitted_at, r.reviewed_at]);
       }
       filename = `registrations-${new Date().toISOString().split('T')[0]}.csv`;
+
+    } else if (type === 'activity-teams') {
+      // One row per team membership, with the member's demographics. Mirrors
+      // the admin balance heatmap so admins can pivot the same data offline.
+      const { rows } = await fetchTeamMemberRows(context.env.DB);
+
+      const genderLabel: Record<string, string> = { male: 'Male', female: 'Female', unknown: 'Unknown' };
+      csv = 'Team,Team Leader,Member Name,Reference,Email,Phone,Age,Age Band,Gender,Group,Dietary,Medical,Accessibility,Checked In\n';
+      for (const r of rows) {
+        const age = ageFromDateOfBirth(r.date_of_birth);
+        const band = ageBand(r.date_of_birth);
+        csv += row([
+          r.team_name,
+          r.leader_name,
+          r.name,
+          r.ref_number,
+          r.email,
+          r.phone,
+          age,
+          AGE_BAND_LABELS[band],
+          genderLabel[normaliseGender(r.gender)],
+          r.group_name,
+          r.dietary_requirements,
+          r.medical_conditions,
+          r.accessibility_needs,
+          r.checked_in ? 'Yes' : 'No',
+        ]);
+      }
+      filename = `activity-teams-${new Date().toISOString().split('T')[0]}.csv`;
+
     } else {
       return createErrorResponse(errors.badRequest('Invalid export type', requestId));
     }

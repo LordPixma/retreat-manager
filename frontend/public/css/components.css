@@ -2633,3 +2633,93 @@ select.form-input option,
   line-height: 1.5;
 }
 .checkin-qr-hint i { color: #fbbf24; }
+
+/* ===================== Activity Teams — balance heatmap ===================== */
+.team-balance-wrap { padding: 0.25rem; }
+
+.heatmap-table { border-collapse: separate; border-spacing: 0; font-size: 0.8rem; }
+.heatmap-table th,
+.heatmap-table td { padding: 0.4rem 0.55rem; }
+.heatmap-table thead th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  background: var(--bg-secondary, rgba(255,255,255,0.03));
+}
+.heatmap-table td[style*="sticky"],
+.heatmap-table th[style*="sticky"] {
+  background: var(--bg-card, #1b1b2b);
+  z-index: 1;
+}
+.heat-cell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  border-radius: 4px;
+  color: var(--text-primary);
+  transition: outline 0.1s;
+}
+.heat-cell:hover { outline: 1px solid rgba(255,255,255,0.35); }
+.heat-total-row td {
+  border-top: 2px solid var(--glass-border, rgba(255,255,255,0.12));
+  font-weight: 600;
+}
+.team-balance-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.75rem 0.25rem 0.25rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: rgba(59,130,246,0.10);
+  border: 1px solid rgba(59,130,246,0.25);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.team-balance-note i { color: #60a5fa; margin-top: 0.15rem; }
+
+/* Compact per-team balance bar in the teams table */
+.balance-bar {
+  display: flex;
+  height: 8px;
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
+  margin-bottom: 3px;
+}
+.balance-bar > span { display: block; min-width: 3px; }
+
+/* Small inline chips (age band / gender) */
+.mini-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Expandable member roster */
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.4rem;
+  padding: 0.5rem 0.25rem;
+}
+.roster-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  font-size: 0.78rem;
+}
+.roster-name { font-weight: 600; color: var(--text-primary); }
+.roster-ref { font-size: 0.68rem; color: var(--text-tertiary); margin-left: auto; }
+.roster-flag { font-size: 0.72rem; color: var(--text-secondary); }
+

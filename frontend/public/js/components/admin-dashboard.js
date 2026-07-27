@@ -1649,16 +1649,186 @@ const AdminDashboard = {
             console.error('Failed to load activity teams:', error);
             this.data.activityTeams = [];
         }
+        // Load the demographic breakdown in parallel with the base list; it
+        // powers the balance heatmap and the per-team roster chips.
+        await this.loadTeamBreakdown();
+        this._bindTeamBalanceControls();
+    },
+
+    async loadTeamBreakdown() {
+        try {
+            const res = await API.get('/admin/activity-teams/breakdown');
+            this.data.teamBreakdown = res || null;
+            this._teamBreakdownById = {};
+            (res?.teams || []).forEach(t => { this._teamBreakdownById[t.id] = t; });
+        } catch (error) {
+            console.error('Failed to load team breakdown:', error);
+            this.data.teamBreakdown = null;
+            this._teamBreakdownById = {};
+        }
+        this.renderTeamBalanceHeatmap();
+    },
+
+    // Wire the Export CSV + Refresh buttons once (guarded flags — the tab HTML
+    // is static so the nodes persist across re-renders).
+    _bindTeamBalanceControls() {
+        const exportBtn = document.getElementById('export-teams-csv-btn');
+        if (exportBtn && !exportBtn._bound) {
+            exportBtn._bound = true;
+            exportBtn.addEventListener('click', () => this.exportTeamsCsv());
+        }
+        const refreshBtn = document.getElementById('refresh-team-balance-btn');
+        if (refreshBtn && !refreshBtn._bound) {
+            refreshBtn._bound = true;
+            refreshBtn.addEventListener('click', async () => {
+                refreshBtn.disabled = true;
+                await this.loadActivityTeams();
+                this.updateActivityTeamsDisplay();
+                refreshBtn.disabled = false;
+            });
+        }
+    },
+
+    async exportTeamsCsv() {
+        const btn = document.getElementById('export-teams-csv-btn');
+        try {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting…'; }
+            const response = await fetch('/api/admin/export?type=activity-teams', {
+                headers: { 'Authorization': `Bearer ${Auth.getToken('admin')}` }
+            });
+            if (!response.ok) throw new Error('Export failed');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `activity-teams-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            Utils.showAlert('Activity teams exported', 'success');
+        } catch (err) {
+            Utils.showAlert('Export failed: ' + (err.message || err), 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-csv"></i> Export CSV'; }
+        }
+    },
+
+    // Render the teams × demographics balance matrix. Each demographic cell is
+    // shaded by that bucket's share of the team, so imbalances jump out.
+    renderTeamBalanceHeatmap() {
+        const wrap = document.getElementById('team-balance-heatmap');
+        if (!wrap) return;
+
+        const bd = this.data.teamBreakdown;
+        if (!bd || !bd.teams || bd.teams.length === 0) {
+            wrap.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: var(--text-secondary);">
+                <i class="fas fa-people-group" style="font-size: 1.5rem; display:block; margin-bottom:0.5rem;"></i>
+                No teams yet — create a team to see its balance.</div>`;
+            return;
+        }
+
+        // Column groups: [key, label, group-hue rgb]
+        const AGE = '99, 102, 241';      // indigo
+        const GEN = '236, 72, 153';      // pink
+        const FLG = '245, 158, 11';      // amber
+        const cols = [
+            { key: 'adult', group: 'age', label: 'Adults', rgb: AGE },
+            { key: 'child', group: 'age', label: 'Children', rgb: AGE },
+            { key: 'under5', group: 'age', label: 'Under 5', rgb: AGE },
+            { key: 'unknown', group: 'age', label: 'Age ?', rgb: '120,120,140' },
+            { key: 'male', group: 'gender', label: 'Male', rgb: GEN },
+            { key: 'female', group: 'gender', label: 'Female', rgb: GEN },
+            { key: 'genderUnknown', group: 'gender', label: 'Gender ?', rgb: '120,120,140' },
+            { key: 'dietary', group: 'flags', label: 'Dietary', rgb: FLG },
+            { key: 'medical', group: 'flags', label: 'Medical', rgb: FLG },
+            { key: 'accessibility', group: 'flags', label: 'Access', rgb: FLG },
+            { key: 'checked_in', group: 'flags', label: 'In', rgb: '16,185,129' },
+        ];
+
+        const valueFor = (t, key) => {
+            if (key === 'genderUnknown') return t.gender.unknown;
+            if (['adult', 'child', 'under5', 'unknown'].includes(key)) return t.age[key];
+            if (['male', 'female'].includes(key)) return t.gender[key];
+            return t.flags[key];
+        };
+
+        const cell = (count, denom, rgb) => {
+            const share = denom > 0 ? count / denom : 0;
+            const intensity = count === 0 ? 0 : (0.14 + 0.66 * share).toFixed(3);
+            const bg = count === 0 ? 'transparent' : `rgba(${rgb}, ${intensity})`;
+            const txt = count === 0 ? '<span style="color:var(--text-tertiary)">·</span>' : count;
+            const title = denom > 0 ? `${count} of ${denom} (${Math.round(share * 100)}%)` : `${count}`;
+            return `<td class="heat-cell" style="background:${bg};" title="${title}">${txt}</td>`;
+        };
+
+        const headerGroup = (label, span, rgb) =>
+            `<th colspan="${span}" style="text-align:center; border-bottom:2px solid rgba(${rgb},0.5);">${label}</th>`;
+
+        const rowFor = (t, isTotal = false) => {
+            const denom = t.member_count;
+            const nameCell = isTotal
+                ? `<td style="position:sticky; left:0;"><strong>All teams</strong></td>`
+                : `<td style="position:sticky; left:0;"><span style="display:inline-flex; align-items:center; gap:0.4rem;">
+                       <span class="team-color-dot" style="background:${Utils.escapeHtml(t.color)};"></span>
+                       <span style="white-space:nowrap;">${Utils.escapeHtml(t.name)}</span></span></td>`;
+            const countCell = `<td style="text-align:center;"><strong>${t.member_count}</strong></td>`;
+            const cells = cols.map(c => cell(valueFor(t, c.key), denom, c.rgb)).join('');
+            return `<tr class="${isTotal ? 'heat-total-row' : ''}">${nameCell}${countCell}${cells}</tr>`;
+        };
+
+        const genderNote = !bd.gender_available || (bd.totals.gender.male + bd.totals.gender.female === 0)
+            ? `<div class="team-balance-note"><i class="fas fa-circle-info"></i>
+                 Gender isn't recorded for these attendees yet. Set it on an attendee's profile (Attendees → edit)
+                 to populate the Male / Female split.</div>`
+            : '';
+
+        wrap.innerHTML = `
+            <div class="table-container">
+              <table class="table heatmap-table">
+                <thead>
+                  <tr>
+                    <th rowspan="2" style="position:sticky; left:0;">Team</th>
+                    <th rowspan="2" style="text-align:center;">Size</th>
+                    ${headerGroup('Age', 4, AGE)}
+                    ${headerGroup('Gender', 3, GEN)}
+                    ${headerGroup('Needs & status', 4, FLG)}
+                  </tr>
+                  <tr>
+                    ${cols.map(c => `<th style="text-align:center; font-size:0.7rem; white-space:nowrap;">${c.label}</th>`).join('')}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${bd.teams.map(t => rowFor(t)).join('')}
+                  ${rowFor(bd.totals, true)}
+                </tbody>
+              </table>
+            </div>
+            ${genderNote}`;
     },
 
     updateActivityTeamsDisplay() {
         const tbody = document.getElementById('activity-teams-table-body');
         if (!tbody) return;
 
+        // Delegated expand/collapse for the member rosters — bound once.
+        if (!tbody._expandBound) {
+            tbody._expandBound = true;
+            tbody.addEventListener('click', (e) => {
+                const toggle = e.target.closest('.team-expand-toggle');
+                if (!toggle) return;
+                const id = toggle.dataset.id;
+                const roster = tbody.querySelector(`.team-roster-row[data-id="${id}"]`);
+                if (roster) {
+                    const open = roster.classList.toggle('hidden');
+                    const icon = toggle.querySelector('i');
+                    if (icon) icon.className = open ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+                }
+            });
+        }
+
         if (this.data.activityTeams.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
                         <i class="fas fa-people-group" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                         No activity teams created yet
                     </td>
@@ -1666,19 +1836,84 @@ const AdminDashboard = {
             return;
         }
 
+        const bandChip = (band) => {
+            const map = {
+                adult: ['Adult', 'rgba(99,102,241,0.18)', '#c7d2fe'],
+                child: ['Child', 'rgba(59,130,246,0.18)', '#bfdbfe'],
+                under5: ['Under 5', 'rgba(14,165,233,0.20)', '#bae6fd'],
+                unknown: ['Age ?', 'rgba(120,120,140,0.18)', 'var(--text-tertiary)'],
+            };
+            const [label, bg, fg] = map[band] || map.unknown;
+            return `<span class="mini-chip" style="background:${bg}; color:${fg};">${label}</span>`;
+        };
+        const genderChip = (g) => {
+            if (g === 'male') return `<span class="mini-chip" style="background:rgba(59,130,246,0.18); color:#bfdbfe;"><i class="fas fa-mars"></i></span>`;
+            if (g === 'female') return `<span class="mini-chip" style="background:rgba(236,72,153,0.18); color:#fbcfe8;"><i class="fas fa-venus"></i></span>`;
+            return '';
+        };
+
         tbody.innerHTML = this.data.activityTeams.map(team => {
+            const bd = this._teamBreakdownById ? this._teamBreakdownById[team.id] : null;
+            const color = team.color || '#8b5cf6';
+
+            // Compact balance summary bar (age + gender) from the breakdown.
+            let balanceCell = '<span style="color: var(--text-tertiary);">—</span>';
+            if (bd && bd.member_count > 0) {
+                const a = bd.age, g = bd.gender;
+                const seg = (n, rgb) => n > 0 ? `<span style="flex:${n}; background:rgba(${rgb},0.75);" title="${n}"></span>` : '';
+                const ageBar = `<div class="balance-bar">
+                    ${seg(a.adult, '99,102,241')}${seg(a.child, '59,130,246')}${seg(a.under5, '14,165,233')}${seg(a.unknown, '120,120,140')}
+                </div>`;
+                const genderBar = (g.male + g.female) > 0 ? `<div class="balance-bar">
+                    ${seg(g.male, '59,130,246')}${seg(g.female, '236,72,153')}${seg(g.unknown, '120,120,140')}
+                </div>` : '';
+                balanceCell = `<div style="min-width:120px;">
+                    ${ageBar}${genderBar}
+                    <div style="font-size:0.65rem; color:var(--text-tertiary); margin-top:2px;">
+                        ${a.adult}A · ${a.child + a.under5}C${(g.male + g.female) > 0 ? ` · ${g.male}M/${g.female}F` : ''}
+                    </div>
+                </div>`;
+            }
+
             const memberList = team.members && team.members.length > 0
-                ? team.members.slice(0, 5).join(', ') + (team.members.length > 5 ? ` +${team.members.length - 5} more` : '')
+                ? team.members.slice(0, 4).join(', ') + (team.members.length > 4 ? ` +${team.members.length - 4} more` : '')
                 : '<span style="color: var(--text-tertiary);">No members</span>';
 
-            const color = team.color || '#8b5cf6';
+            // Roster row (hidden by default) with a chip per member.
+            let rosterHtml = '';
+            if (bd && bd.members && bd.members.length > 0) {
+                const chips = bd.members.map(m => `
+                    <div class="roster-chip">
+                        <span class="roster-name">${Utils.escapeHtml(m.name)}</span>
+                        <span class="roster-ref">${Utils.escapeHtml(m.ref_number)}</span>
+                        ${bandChip(m.age_band)}${genderChip(m.gender)}
+                        ${m.dietary ? '<i class="fas fa-utensils roster-flag" title="Dietary need"></i>' : ''}
+                        ${m.medical ? '<i class="fas fa-notes-medical roster-flag" title="Medical note"></i>' : ''}
+                        ${m.accessibility ? '<i class="fas fa-wheelchair roster-flag" title="Accessibility need"></i>' : ''}
+                        ${m.checked_in ? '<i class="fas fa-circle-check roster-flag" style="color:var(--success);" title="Checked in"></i>' : ''}
+                    </div>`).join('');
+                rosterHtml = `
+                    <tr class="team-roster-row hidden" data-id="${team.id}">
+                        <td colspan="6" style="background:rgba(255,255,255,0.02);">
+                            <div class="roster-grid">${chips}</div>
+                        </td>
+                    </tr>`;
+            }
+
+            const hasRoster = bd && bd.members && bd.members.length > 0;
             return `
                 <tr>
-                    <td><span style="display: inline-flex; align-items: center; gap: 0.5rem;"><span class="team-color-dot" style="background: ${Utils.escapeHtml(color)};"></span><strong>${Utils.escapeHtml(team.name)}</strong></span></td>
-                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHtml(team.description || '-')}</td>
+                    <td style="text-align:center;">
+                        ${hasRoster ? `<button class="btn-icon team-expand-toggle" data-id="${team.id}" title="Show members"><i class="fas fa-chevron-right"></i></button>` : ''}
+                    </td>
+                    <td>
+                        <span style="display: inline-flex; align-items: center; gap: 0.5rem;"><span class="team-color-dot" style="background: ${Utils.escapeHtml(color)};"></span><strong>${Utils.escapeHtml(team.name)}</strong></span>
+                        ${team.description ? `<div style="font-size:0.7rem; color:var(--text-tertiary); margin-top:0.15rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${Utils.escapeHtml(team.description)}</div>` : ''}
+                    </td>
                     <td>${team.leader_name
                         ? `<span class="badge badge-primary"><i class="fas fa-crown"></i> ${Utils.escapeHtml(team.leader_name)}</span>`
                         : '<span style="color: var(--text-tertiary);">None</span>'}</td>
+                    <td>${balanceCell}</td>
                     <td>
                         <span class="badge badge-secondary">${team.member_count} members</span>
                         <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 0.25rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${memberList}</div>
@@ -1693,7 +1928,8 @@ const AdminDashboard = {
                             </button>
                         </div>
                     </td>
-                </tr>`;
+                </tr>
+                ${rosterHtml}`;
         }).join('');
     },
 
