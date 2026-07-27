@@ -306,6 +306,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            min-height: 44px;
             color: var(--primary);
             text-decoration: none;
             margin-top: 2rem;
@@ -314,6 +315,13 @@
 
         .back-link:hover {
             text-decoration: underline;
+        }
+
+        /* Reclaim horizontal space on small phones — the stacked body + card
+           padding leaves member cards very narrow otherwise. */
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            .form-card { padding: 1.25rem; }
         }
 
         .loading-spinner {

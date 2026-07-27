@@ -62,8 +62,9 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0;
 }
 
-h1 { font-size: var(--text-4xl); }
-h2 { font-size: var(--text-3xl); }
+/* Fluid headings so a raw h1/h2 scales down on phones instead of only wrapping. */
+h1 { font-size: clamp(1.65rem, 1.1rem + 2.6vw, var(--text-4xl)); }
+h2 { font-size: clamp(1.45rem, 1.05rem + 1.9vw, var(--text-3xl)); }
 h3 { font-size: var(--text-2xl); }
 h4 { font-size: var(--text-xl); }
 h5 { font-size: var(--text-lg); }
@@ -297,10 +298,10 @@ a:hover {
   }
 }
 
-/* Container */
+/* Container — the effective max-width is defined once in layout.css
+   (.container / .container-lg); this rule only owns the responsive padding. */
 .container {
   width: 100%;
-  max-width: var(--container-xl);
   margin: 0 auto;
   padding: 0 var(--space-4);
 }

@@ -252,7 +252,9 @@
   .modal {
     margin: var(--space-4);
     max-height: calc(100vh - var(--space-8));
-    max-width: calc(100vw - var(--space-8));
+    /* 100% (not 100vw) so the scrollbar width can't push the modal wider than
+       the viewport. */
+    max-width: calc(100% - var(--space-8));
     border-radius: var(--radius-xl);
   }
 
@@ -856,5 +858,18 @@
   textarea,
   select {
     font-size: 16px !important;
+  }
+}
+
+/* ============================================
+   Grid utilities — collapse on phones
+   ============================================ */
+/* .grid-cols-2/3/4 have no intrinsic responsive behaviour; stack them so they
+   never force multi-column overflow if used on small screens. */
+@media (max-width: 480px) {
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: 1fr;
   }
 }
