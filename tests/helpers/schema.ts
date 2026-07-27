@@ -33,6 +33,7 @@ const STATEMENTS = [
     is_group_lead INTEGER DEFAULT 0,
     must_reset_password INTEGER DEFAULT 0,
     checked_in INTEGER DEFAULT 0,
+    is_archived INTEGER DEFAULT 0,
     room_id INTEGER,
     group_id INTEGER,
     last_login DATETIME,
