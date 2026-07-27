@@ -861,7 +861,7 @@ const AttendeeDashboard = {
                             <div>${dueLine}</div>
                         </div>
                         <div style="font-size: 0.78rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.3rem;">
-                            ${m.email ? `<div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><i class="fas fa-envelope" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.email)}</div>` : ''}
+                            ${m.email ? `<div style="word-break: break-word;"><i class="fas fa-envelope" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.email)}</div>` : ''}
                             ${m.phone ? `<div><i class="fas fa-phone" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.phone)}</div>` : ''}
                             ${m.emergency_contact ? `<div><i class="fas fa-life-ring" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.emergency_contact)}</div>` : ''}
                             ${m.dietary_requirements ? `<div><i class="fas fa-utensils" style="width:1rem; color: var(--text-tertiary);"></i> ${this._escape(m.dietary_requirements)}</div>` : ''}
@@ -2631,7 +2631,7 @@ const AttendeeDashboard = {
             const unit = (val, label) => `
                 <div style="text-align: center;">
                     <div style="font-size: 1.75rem; font-weight: 700; color: #fff; line-height: 1;">${val}</div>
-                    <div style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-top: 0.2rem;">${label}</div>
+                    <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-top: 0.2rem;">${label}</div>
                 </div>`;
             display.innerHTML = unit(days, 'Days') + unit(hours, 'Hours') + unit(mins, 'Mins') + unit(secs, 'Secs');
         };

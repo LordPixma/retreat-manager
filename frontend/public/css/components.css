@@ -1874,7 +1874,8 @@ select.form-input option,
   font-weight: var(--font-medium);
   color: #6b7280;
   text-decoration: none;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  min-height: 44px;
   border-radius: 8px;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
@@ -2481,8 +2482,10 @@ select.form-input option,
   .attendee-sidebar.open::after {
     content: '';
     position: fixed;
-    top: 0; left: 260px;
-    width: 100vw; height: 100vh;
+    /* right:0 instead of width:100vw so the backdrop never extends past the
+       viewport edge (which nudged horizontal overflow while the drawer is open). */
+    top: 0; left: 260px; right: 0;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.4);
     z-index: -1;
   }
@@ -2802,5 +2805,61 @@ select.form-input option,
   .bulk-gender-row { flex-direction: column; align-items: stretch; gap: 0.4rem; }
   .bulk-gender-row .bg-segments { width: 100%; }
   .bulk-gender-row .bg-seg { flex: 1; }
+}
+
+/* ===================== Attendee announcement cards ===================== */
+/* These were rendered with no CSS and fell back to bare block flow. Give them
+   a proper card treatment with a priority-coded left accent. */
+.announcement-card {
+  background: var(--bg-card, rgba(255,255,255,0.03));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-left: 3px solid var(--primary-500);
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+  margin-bottom: 0.85rem;
+}
+.announcement-card.priority-urgent { border-left-color: var(--error, #ef4444); }
+.announcement-card.priority-high   { border-left-color: var(--warning, #f59e0b); }
+.announcement-card.priority-normal { border-left-color: var(--primary-500); }
+.announcement-card.priority-low    { border-left-color: var(--neutral-500, #64748b); }
+.announcement-card[data-new="true"] { box-shadow: 0 0 0 1px rgba(139,92,246,0.35); }
+
+.announcement-header { margin-bottom: 0.5rem; }
+.announcement-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.announcement-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.announcement-badges { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; }
+.announcement-meta { margin-top: 0.35rem; color: var(--text-tertiary); font-size: 0.75rem; }
+.announcement-meta i { margin-right: 0.2rem; }
+.announcement-content { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+.announcement-content p { margin: 0 0 0.5rem; color: inherit; }
+.announcement-footer {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--glass-border, rgba(255,255,255,0.06));
+}
+.new-badge {
+  background: var(--primary-500);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  vertical-align: middle;
 }
 

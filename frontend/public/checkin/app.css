@@ -128,8 +128,8 @@ body {
     background: transparent;
     border: none;
     color: var(--text-dim);
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     cursor: pointer;
     font-size: 0.95rem;
 }
