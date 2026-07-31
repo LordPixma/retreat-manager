@@ -50,10 +50,17 @@
                         <input type="text" id="attendee-ref" name="ref_number" class="form-input" required>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="attendee-password-group">
                         <label for="attendee-password" class="form-label">Password</label>
-                        <input type="password" id="attendee-password" name="password" class="form-input" required>
-                        <small class="form-help" id="password-help">Leave blank to keep current password when editing</small>
+                        <input type="password" id="attendee-password" name="password" class="form-input" autocomplete="new-password" required>
+                        <small class="form-help" id="password-help">Set the attendee's initial password</small>
+                    </div>
+                    <div class="form-group hidden" id="attendee-reset-group">
+                        <label class="form-label">Password</label>
+                        <button type="button" class="btn btn-secondary" id="attendee-reset-password-btn">
+                            <i class="fas fa-key"></i> Reset Password
+                        </button>
+                        <small class="form-help">Editing a profile never changes the password. Use this to issue a new temporary one — the attendee sets their own on next login.</small>
                     </div>
                 </div>
                 

@@ -368,7 +368,7 @@ const MAX_LOGIN_ATTEMPTS_PER_IP = 20;
 export async function checkRateLimit(
   db: D1Database,
   identifier: string,
-  userType: 'admin' | 'attendee',
+  userType: 'admin' | 'attendee' | 'forgot',
   ipAddress?: string | null
 ): Promise<{ allowed: boolean; remainingAttempts: number; resetTime: number; reason?: string }> {
   const windowStart = Date.now() - RATE_LIMIT_WINDOW_MS;
@@ -415,7 +415,7 @@ export async function checkRateLimit(
 export async function recordLoginAttempt(
   db: D1Database,
   identifier: string,
-  userType: 'admin' | 'attendee',
+  userType: 'admin' | 'attendee' | 'forgot',
   success: boolean,
   ipAddress?: string
 ): Promise<void> {

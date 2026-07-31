@@ -32,6 +32,124 @@ const Login = {
         this.bindPasswordToggle();
         this.bindNavigation();
         this.bindKeyboardShortcuts();
+        this.bindForgotPassword();
+    },
+
+    /**
+     * Wire the "Forgot password?" link (attendee login only).
+     */
+    bindForgotPassword() {
+        const link = document.getElementById('forgot-password-link');
+        if (link) {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showForgotPasswordForm();
+            });
+        }
+    },
+
+    /**
+     * Swap the login form for the self-service recovery form: reference number
+     * + email, POSTed to /api/forgot-password. The server always replies with
+     * the same generic message (no account enumeration), and emails a temporary
+     * password if the details match — which drops the attendee into the
+     * forced-reset flow on next login.
+     */
+    showForgotPasswordForm() {
+        const container = document.querySelector('.login-form-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="login-header">
+                <h2>Reset Password</h2>
+                <p>Enter your reference number and the email on your booking — we'll send a temporary password.</p>
+            </div>
+
+            <div id="forgot-alert" class="alert alert-error hidden"></div>
+
+            <form id="forgot-form" class="login-form" novalidate>
+                <div class="form-group">
+                    <label for="forgot-ref" class="form-label-light">Reference Number</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-card input-icon"></i>
+                        <input type="text" id="forgot-ref" class="form-input-light" required
+                               placeholder="Your reference number" autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="forgot-email" class="form-label-light">Email</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-envelope input-icon"></i>
+                        <input type="email" id="forgot-email" class="form-input-light" required
+                               placeholder="Email on your booking" autocomplete="email">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-signin" id="forgot-btn">
+                    <span id="forgot-text">Send Reset Email</span>
+                    <div id="forgot-spinner" class="loading-spinner hidden"></div>
+                </button>
+            </form>
+
+            <div class="login-footer-links">
+                <a href="#" id="forgot-back-link" class="admin-access-link">
+                    <i class="fas fa-arrow-left"></i> Back to Sign In
+                </a>
+            </div>
+        `;
+
+        const form = document.getElementById('forgot-form');
+        if (form) {
+            form.addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                this._submitForgotPassword();
+            });
+        }
+        const back = document.getElementById('forgot-back-link');
+        if (back) {
+            back.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                await this.switchToAttendee();
+            });
+        }
+        setTimeout(() => {
+            const el = document.getElementById('forgot-ref');
+            if (el) el.focus();
+        }, 100);
+    },
+
+    async _submitForgotPassword() {
+        const refEl = document.getElementById('forgot-ref');
+        const emailEl = document.getElementById('forgot-email');
+        const ref = refEl ? refEl.value.trim() : '';
+        const email = emailEl ? emailEl.value.trim() : '';
+
+        this.hideAlert('forgot-alert');
+        if (!ref || !email) {
+            this.showAlert('forgot-alert', 'Enter your reference number and email.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('forgot-btn');
+        try {
+            this.showButtonLoading(btn, 'forgot-spinner', 'forgot-text');
+            const response = await fetch('/api/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ref, email }),
+            });
+            const body = await response.json().catch(() => ({}));
+            // The endpoint deliberately returns the same message whether or not
+            // an account matched — always show it as success.
+            this.showAlert('forgot-alert',
+                body.message || 'If an account matches those details, a temporary password has been emailed to the address on file.',
+                'success');
+        } catch (err) {
+            this.showAlert('forgot-alert', 'Something went wrong. Please try again in a moment.', 'error');
+        } finally {
+            this.hideButtonLoading(btn, 'forgot-spinner', 'forgot-text', 'Send Reset Email');
+        }
     },
 
     /**

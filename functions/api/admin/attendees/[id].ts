@@ -1,7 +1,7 @@
 // Individual attendee operations with TypeScript and validation
 
 import type { PagesContext } from '../../../_shared/types.js';
-import { createResponse, checkAdminAuth, handleCORS, hashPassword } from '../../../_shared/auth.js';
+import { createResponse, checkAdminAuth, handleCORS } from '../../../_shared/auth.js';
 import { validate, attendeeUpdateSchema } from '../../../_shared/validation.js';
 import { errors, createErrorResponse, generateRequestId, handleError } from '../../../_shared/errors.js';
 import { sendRoomAssignedEmail } from '../../../_shared/notifications.js';
@@ -192,20 +192,21 @@ export async function onRequestPut(context: PagesContext<IdParams>): Promise<Res
       }
     }
 
-    // Build dynamic UPDATE query
-    const allowedFields = ['name', 'first_name', 'last_name', 'date_of_birth', 'gender', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'payment_option', 'password'];
+    // Build dynamic UPDATE query.
+    //
+    // NOTE: `password` is deliberately NOT in this list. A profile edit must
+    // never change an attendee's password — otherwise a stray value in the
+    // form's password field (browser/password-manager autofill is the common
+    // culprit) silently re-hashes it and locks the attendee out. Password
+    // changes go through the dedicated /reset-password endpoint (admin) or the
+    // attendee's own change-password / forgot-password flow.
+    const allowedFields = ['name', 'first_name', 'last_name', 'date_of_birth', 'gender', 'email', 'ref_number', 'room_id', 'group_id', 'payment_due', 'payment_option'];
     const updateFields: string[] = [];
     const updateValues: (string | number | null)[] = [];
 
     for (const [key, value] of Object.entries(updateData)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        if (key === 'password') {
-          if (value && typeof value === 'string' && value.trim() !== '') {
-            const hashedPassword = await hashPassword(value);
-            updateFields.push('password_hash = ?');
-            updateValues.push(hashedPassword);
-          }
-        } else if (key === 'gender') {
+        if (key === 'gender') {
           // Normalise to the stored lower-case form; anything else clears it.
           const g = typeof value === 'string' ? value.trim().toLowerCase() : '';
           updateFields.push('gender = ?');
