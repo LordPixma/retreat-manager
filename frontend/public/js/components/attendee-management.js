@@ -72,18 +72,24 @@ const AttendeeManagement = {
             document.getElementById('attendee-room').value = editData.room_id || '';
             document.getElementById('attendee-group').value = editData.group_id || '';
 
-            // Password not required when editing
+            // Editing: the profile form must NOT carry a password. Hide the
+            // password input entirely (so nothing — including browser autofill —
+            // can ride along and silently reset it) and offer an explicit
+            // "Reset Password" action instead.
             const passwordInput = document.getElementById('attendee-password');
             passwordInput.required = false;
-            passwordInput.placeholder = 'Leave blank to keep current password';
-
-            // Show password help text
-            document.getElementById('password-help').style.display = 'block';
+            passwordInput.value = '';
+            passwordInput.disabled = true; // disabled fields are excluded from FormData
+            document.getElementById('attendee-password-group').classList.add('hidden');
+            document.getElementById('attendee-reset-group').classList.remove('hidden');
         } else {
             // Reset form for new attendee
             document.getElementById('attendee-form').reset();
-            document.getElementById('attendee-password').required = true;
-            document.getElementById('password-help').style.display = 'none';
+            const passwordInput = document.getElementById('attendee-password');
+            passwordInput.disabled = false;
+            passwordInput.required = true;
+            document.getElementById('attendee-password-group').classList.remove('hidden');
+            document.getElementById('attendee-reset-group').classList.add('hidden');
         }
     },
 
@@ -123,6 +129,10 @@ const AttendeeManagement = {
     bindEvents() {
         // Form submission
         document.getElementById('attendee-form').addEventListener('submit', this.handleSubmit.bind(this));
+
+        // Explicit password reset (edit mode only)
+        const resetBtn = document.getElementById('attendee-reset-password-btn');
+        if (resetBtn) resetBtn.addEventListener('click', this.handleResetPassword.bind(this));
         
         // Close buttons
         document.getElementById('close-attendee-modal').addEventListener('click', this.hideModal.bind(this));
@@ -166,8 +176,9 @@ const AttendeeManagement = {
             }
         });
 
-        // Remove password if empty during edit
-        if (this.isEditing && !data.password) {
+        // A profile edit must never carry a password — the field is disabled in
+        // edit mode, but strip it defensively so nothing can slip through.
+        if (this.isEditing) {
             delete data.password;
         }
 
@@ -198,6 +209,52 @@ const AttendeeManagement = {
             this.showAlert(error.message, 'error');
         } finally {
             Utils.hideLoading(submitBtn);
+        }
+    },
+
+    /**
+     * Explicit password reset for the attendee being edited. The admin can
+     * generate a random temp password or type a specific one; either way the
+     * attendee is flagged to choose their own on next login. If they have an
+     * email on file it's sent to them; the temp password is also shown here so
+     * it can be relayed directly.
+     */
+    async handleResetPassword() {
+        const id = this.editingId;
+        if (!id) return;
+
+        const useGenerated = confirm(
+            'Reset this attendee\'s password?\n\n' +
+            'OK  – generate a temporary password (recommended)\n' +
+            'Cancel – type a specific password'
+        );
+
+        let payload;
+        if (useGenerated) {
+            payload = { notify: true };
+        } else {
+            const pw = prompt('Enter a new password for this attendee (at least 8 characters):');
+            if (!pw) return;
+            if (pw.length < 8) {
+                this.showAlert('Password must be at least 8 characters', 'error');
+                return;
+            }
+            payload = { new_password: pw, notify: true };
+        }
+
+        const btn = document.getElementById('attendee-reset-password-btn');
+        try {
+            if (btn) { btn.disabled = true; }
+            const res = await API.post(`/admin/attendees/${id}/reset-password`, payload);
+            const parts = ['Password reset.'];
+            if (res.emailed) parts.push('A temporary password was emailed to the attendee.');
+            if (res.temp_password) parts.push(`Temporary password: ${res.temp_password}`);
+            parts.push('They will set their own password on next login.');
+            this.showAlert(parts.join(' '), 'success');
+        } catch (error) {
+            this.showAlert('Reset failed: ' + (error.message || error), 'error');
+        } finally {
+            if (btn) { btn.disabled = false; }
         }
     },
 
