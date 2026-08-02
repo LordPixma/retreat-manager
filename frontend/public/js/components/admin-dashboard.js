@@ -3485,11 +3485,91 @@ const AdminDashboard = {
             // Reveal super-admin-only nav items.
             if (role === 'super_admin') {
                 document.querySelectorAll('.nav-link.super-only').forEach(el => el.removeAttribute('hidden'));
+                this.bindSeasonPanel();
             }
             this._currentAdmin = me;
         } catch (err) {
             console.warn('Failed to load admin profile', err);
         }
+    },
+
+    /**
+     * "Prepare for Next Season" danger-zone panel (Admins tab, super-admin
+     * only). Three gated steps: download a full backup, attest it's stored +
+     * type the exact confirmation phrase, then run the reset. The reset button
+     * stays disabled until the checkbox is ticked and the phrase matches.
+     */
+    bindSeasonPanel() {
+        const backupBtn = document.getElementById('season-backup-btn');
+        const checkbox = document.getElementById('season-backup-confirm');
+        const phrase = document.getElementById('season-phrase');
+        const resetBtn = document.getElementById('season-reset-btn');
+        const result = document.getElementById('season-result');
+        if (!backupBtn || !resetBtn || backupBtn._bound) return;
+        backupBtn._bound = true;
+
+        const PHRASE = 'RESET FOR NEW SEASON';
+        const updateState = () => {
+            resetBtn.disabled = !(checkbox.checked && phrase.value.trim() === PHRASE);
+        };
+        checkbox.addEventListener('change', updateState);
+        phrase.addEventListener('input', updateState);
+
+        // Step 1 — download the full JSON backup.
+        backupBtn.addEventListener('click', async () => {
+            const orig = backupBtn.innerHTML;
+            backupBtn.disabled = true;
+            backupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing…';
+            try {
+                const resp = await fetch('/api/admin/season/export', {
+                    headers: { 'Authorization': `Bearer ${Auth.getToken('admin')}` },
+                });
+                if (!resp.ok) throw new Error(`Backup failed (HTTP ${resp.status})`);
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `retreat-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                checkbox.checked = true;
+                updateState();
+                Utils.showAlert('Backup downloaded. Store it somewhere safe before resetting.', 'success');
+            } catch (e) {
+                Utils.showAlert('Backup failed: ' + (e.message || e), 'error');
+            } finally {
+                backupBtn.disabled = false;
+                backupBtn.innerHTML = orig;
+            }
+        });
+
+        // Step 3 — run the reset (guarded by the phrase + a final confirm).
+        resetBtn.addEventListener('click', async () => {
+            const value = phrase.value.trim();
+            if (value !== PHRASE) return;
+            if (!confirm('FINAL CONFIRMATION\n\nThis permanently deletes ALL attendee and event data. Admin accounts and settings are kept. This cannot be undone.\n\nProceed?')) return;
+
+            const orig = resetBtn.innerHTML;
+            resetBtn.disabled = true;
+            resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting…';
+            if (result) result.textContent = '';
+            try {
+                const res = await API.post('/admin/season/reset', { confirm: value });
+                if (result) {
+                    result.style.color = 'var(--success)';
+                    result.textContent = res.message || `Reset complete — cleared ${res.rows_cleared} rows.`;
+                }
+                Utils.showAlert('Season reset complete. Reloading…', 'success');
+                setTimeout(() => window.location.reload(), 2500);
+            } catch (e) {
+                if (result) {
+                    result.style.color = 'var(--error)';
+                    result.textContent = 'Reset failed: ' + (e.message || e);
+                }
+                resetBtn.disabled = false;
+                resetBtn.innerHTML = orig;
+            }
+        });
     },
 
     openChangePassword() {
