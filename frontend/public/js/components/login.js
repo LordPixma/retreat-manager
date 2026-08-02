@@ -10,6 +10,28 @@ const Login = {
         this.bindEvents();
         this.setupValidation();
         this.setupAccessibility();
+        this.applyRetreatConfig();
+    },
+
+    /**
+     * Pull the current retreat details (name, theme, scripture, dates, venue,
+     * host) from /api/config and drop them into any [data-config] element, so
+     * the landing page always shows this year's info without a redeploy. Silent
+     * no-op on failure — the template's baked-in defaults stay put.
+     */
+    async applyRetreatConfig() {
+        try {
+            const cfg = await API.get('/config');
+            document.querySelectorAll('[data-config]').forEach(el => {
+                const key = el.getAttribute('data-config');
+                if (cfg[key] !== undefined && cfg[key] !== null && String(cfg[key]).trim() !== '') {
+                    el.textContent = cfg[key];
+                }
+            });
+            if (cfg.name) document.title = cfg.name + ' — Portal';
+        } catch (_) {
+            /* keep the template defaults */
+        }
     },
 
     /**
@@ -687,7 +709,8 @@ const Login = {
         this.bindEvents();
         this.setupValidation();
         this.setupAccessibility();
-        
+        this.applyRetreatConfig();
+
         // Focus on reference field
         setTimeout(() => {
             document.getElementById('login-ref').focus();

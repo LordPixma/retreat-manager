@@ -7,6 +7,7 @@ import { errors, createErrorResponse, generateRequestId, handleError } from '../
 import { escapeHtml } from '../_shared/sanitize.js';
 import { sendEmailOrThrow, isEmailReady } from '../_shared/email.js';
 import { getRegistrationsOpen } from '../_shared/settings.js';
+import { getRetreatConfig } from '../_shared/retreat-config.js';
 
 // Pricing constants
 const PRICING = {
@@ -53,13 +54,14 @@ export async function onRequestGet(context: PagesContext): Promise<Response> {
     // Return public info about registration options
     const roomTypes = ['family', 'single', 'double', 'suite', 'standard'];
     const registrationsOpen = await getRegistrationsOpen(context.env.DB);
+    const cfg = await getRetreatConfig(context.env.DB);
 
     return createResponse({
       roomTypes,
       pricing: {
-        adult: { price: PRICING.adult, description: 'Adults (17+ years)' },
-        child: { price: PRICING.child, description: 'Children (6-16 years)' },
-        infant: { price: PRICING.infant, description: 'Under 6 years (FREE)' }
+        adult: { price: cfg.price_adult, description: 'Adults (17+ years)' },
+        child: { price: cfg.price_child, description: 'Children (6-16 years)' },
+        infant: { price: cfg.price_infant, description: 'Under 6 years (FREE)' }
       },
       registrationsOpen,
       message: registrationsOpen
@@ -171,8 +173,13 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
       ));
     }
 
-    // Calculate total and verify
-    const calculatedTotal = calculateTotal(data.members);
+    // Calculate total and verify, using the configured per-year prices.
+    const cfg = await getRetreatConfig(context.env.DB);
+    const calculatedTotal = calculateTotal(data.members, {
+      adult: cfg.price_adult,
+      child: cfg.price_child,
+      infant: cfg.price_infant,
+    });
     const primaryMember = data.members[0];
 
     // Insert new registration with family members as JSON
@@ -261,12 +268,16 @@ function validateRegistration(body: Record<string, unknown>): Array<{field: stri
   return validationErrors;
 }
 
-// Calculate total amount based on members
-function calculateTotal(members: FamilyMember[]): number {
+// Calculate total amount based on members, using the configured per-year prices
+// (falls back to the PRICING defaults when not supplied).
+function calculateTotal(
+  members: FamilyMember[],
+  pricing: { adult: number; child: number; infant: number } = PRICING,
+): number {
   return members.reduce((total, member) => {
-    if (member.member_type === 'adult') return total + PRICING.adult;
-    if (member.member_type === 'child') return total + PRICING.child;
-    return total; // infant is free
+    if (member.member_type === 'adult') return total + pricing.adult;
+    if (member.member_type === 'child') return total + pricing.child;
+    return total + pricing.infant; // infants free by default
   }, 0);
 }
 
