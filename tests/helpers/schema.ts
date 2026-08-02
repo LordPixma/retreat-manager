@@ -118,6 +118,25 @@ const STATEMENTS = [
     details TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`,
+  // Preserved-across-seasons tables (kept by the season reset).
+  `CREATE TABLE admins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'admin',
+    full_name TEXT,
+    email TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    must_reset_password INTEGER NOT NULL DEFAULT 0,
+    last_login DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_by TEXT
+  )`,
 ];
 
 export async function createSchema() {

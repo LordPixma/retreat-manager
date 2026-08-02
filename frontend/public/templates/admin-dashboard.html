@@ -1067,6 +1067,50 @@
                 </table>
             </div>
         </div>
+
+        <!-- Prepare for Next Season — archive + reset (super-admin only) -->
+        <div class="data-table" id="season-panel" style="border: 1px solid rgba(239,68,68,0.4);">
+            <div class="table-header">
+                <h3 class="table-title" style="color:#f87171;"><i class="fas fa-rotate"></i> Prepare for Next Season</h3>
+            </div>
+            <div style="padding: 1.25rem 1.5rem;">
+                <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.6; margin:0 0 1.25rem;">
+                    Archive this year and reset the platform for the next retreat. <strong>Admin accounts and settings are kept.</strong>
+                    All attendee and event data — attendees, registrations, payments, rooms, groups, teams, program, announcements,
+                    check-ins, community posts and allergy/medical info — is <strong>permanently cleared</strong>. This can't be undone,
+                    so download the backup first.
+                </p>
+
+                <div style="display:flex; flex-direction:column; gap:1.25rem; max-width:560px;">
+                    <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                        <span class="season-step-num">1</span>
+                        <div style="flex:1;">
+                            <button class="btn btn-secondary" id="season-backup-btn"><i class="fas fa-download"></i> Download full backup</button>
+                            <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:0.35rem;">A complete JSON snapshot of every table. Store it somewhere safe before continuing.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                        <span class="season-step-num">2</span>
+                        <div style="flex:1;">
+                            <label style="display:flex; align-items:flex-start; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary); cursor:pointer;">
+                                <input type="checkbox" id="season-backup-confirm"> I have downloaded and safely stored the backup.
+                            </label>
+                            <label class="form-label" style="margin-top:0.85rem; display:block; font-size:0.8rem;">Type <code style="color:#f87171;">RESET FOR NEW SEASON</code> to confirm</label>
+                            <input type="text" id="season-phrase" class="form-input" placeholder="RESET FOR NEW SEASON" autocomplete="off" style="max-width:360px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                        <span class="season-step-num">3</span>
+                        <div style="flex:1;">
+                            <button class="btn btn-danger" id="season-reset-btn" disabled><i class="fas fa-triangle-exclamation"></i> Reset platform for next season</button>
+                            <div id="season-result" style="font-size:0.82rem; margin-top:0.6rem;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     </div><!-- /.dashboard-main -->

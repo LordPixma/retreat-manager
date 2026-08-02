@@ -2863,3 +2863,24 @@ select.form-input option,
   vertical-align: middle;
 }
 
+
+/* ===================== Season reset (danger zone) step badges ============== */
+.season-step-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+#season-panel code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
