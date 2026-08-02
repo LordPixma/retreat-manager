@@ -628,12 +628,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-mountain"></i> Growth & Wisdom Family Retreat 2026</h1>
-            <p class="header-theme">"The Abundant Life"</p>
-            <p class="header-scripture"><i class="fas fa-book-open"></i> John 10:10 — "I have come that they may have life, and have it to the full."</p>
+            <h1><i class="fas fa-mountain"></i> <span data-config="name">Growth &amp; Wisdom Family Retreat 2026</span></h1>
+            <p class="header-theme">&ldquo;<span data-config="tagline">The Abundant Life</span>&rdquo;</p>
+            <p class="header-scripture"><i class="fas fa-book-open"></i> <span data-config="scripture">John 10:10 — "I have come that they may have life, and have it to the full."</span></p>
             <div class="header-details">
-                <span><i class="fas fa-calendar-alt"></i> July 31 - August 2, 2026</span>
-                <span><i class="fas fa-map-marker-alt"></i> The Hayes, Swanwick, Derbyshire</span>
+                <span><i class="fas fa-calendar-alt"></i> <span data-config="dates">July 31 - August 2, 2026</span></span>
+                <span><i class="fas fa-map-marker-alt"></i> <span data-config="venue">The Hayes, Swanwick, Derbyshire</span></span>
             </div>
         </div>
 
@@ -644,15 +644,15 @@
                     <h3><i class="fas fa-tag"></i> Retreat Pricing</h3>
                     <div class="pricing-grid">
                         <div class="pricing-item">
-                            <div class="price">£200</div>
+                            <div class="price" id="price-adult">£200</div>
                             <div class="label">Adults (17+)</div>
                         </div>
                         <div class="pricing-item">
-                            <div class="price">£60</div>
+                            <div class="price" id="price-child">£60</div>
                             <div class="label">Children (6-16 years)</div>
                         </div>
                         <div class="pricing-item free">
-                            <div class="price">FREE</div>
+                            <div class="price" id="price-infant">FREE</div>
                             <div class="label">Under 6 years</div>
                         </div>
                     </div>
@@ -837,12 +837,40 @@
     </div>
 
     <script>
-        // Pricing constants
+        // Pricing constants (overridden from /api/config at load so the form
+        // always reflects the admin-configured, current-year prices).
         const PRICING = {
             adult: 200,      // 17+
             child: 60,       // 6-16
             infant: 0        // Under 6
         };
+
+        // Pull the current retreat details + prices and apply them to the page.
+        async function applyRetreatConfig() {
+            try {
+                const resp = await fetch('/api/config');
+                if (!resp.ok) return;
+                const cfg = await resp.json();
+                document.querySelectorAll('[data-config]').forEach(el => {
+                    const k = el.getAttribute('data-config');
+                    if (cfg[k] !== undefined && cfg[k] !== null && String(cfg[k]).trim() !== '') {
+                        el.textContent = cfg[k];
+                    }
+                });
+                if (cfg.name) document.title = 'Register — ' + cfg.name;
+                const fmt = (n) => (Number(n) === 0 ? 'FREE' : '£' + n);
+                const setPrice = (field, id) => {
+                    if (typeof cfg[field] === 'number') {
+                        PRICING[field.replace('price_', '')] = cfg[field];
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = fmt(cfg[field]);
+                    }
+                };
+                setPrice('price_adult', 'price-adult');
+                setPrice('price_child', 'price-child');
+                setPrice('price_infant', 'price-infant');
+            } catch (_) { /* keep template defaults */ }
+        }
 
         let memberCount = 1;
 
@@ -1006,6 +1034,9 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
+            // Apply the current-year retreat details + prices first.
+            await applyRetreatConfig();
+
             // If an admin has closed registration, replace the form with a
             // notice and skip wiring the (now-absent) form controls.
             try {

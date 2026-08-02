@@ -2219,6 +2219,11 @@ const AdminDashboard = {
                     this.loadCommunityPosts();
                 }
 
+                // Retreat settings editor
+                if (tabName === 'settings') {
+                    this.loadRetreatSettings();
+                }
+
                 // Lazy-load allergy registry
                 if (tabName === 'allergies' && window.AllergyRegistry) {
                     if (!window.AllergyRegistry._initialised) {
@@ -3584,6 +3589,66 @@ const AdminDashboard = {
             body: JSON.stringify({ current_password: current, new_password: next }),
         }).then(() => Utils.showAlert('Password updated', 'success'))
           .catch(err => Utils.showAlert('Failed: ' + (err.message || err), 'error'));
+    },
+
+    /**
+     * Retreat Information (Settings tab) — load the current config into the
+     * form and save edits back. Powers the login/registration branding + prices.
+     */
+    async loadRetreatSettings() {
+        const form = document.getElementById('retreat-settings-form');
+        if (!form) return;
+        if (!form._bound) {
+            form._bound = true;
+            form.addEventListener('submit', (e) => this.saveRetreatSettings(e));
+        }
+        try {
+            const cfg = await API.get('/admin/settings/retreat');
+            const set = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+            set('cfg-name', cfg.name);
+            set('cfg-tagline', cfg.tagline);
+            set('cfg-scripture', cfg.scripture);
+            set('cfg-dates', cfg.dates);
+            set('cfg-venue', cfg.venue);
+            set('cfg-host', cfg.host);
+            set('cfg-price-adult', cfg.price_adult);
+            set('cfg-price-child', cfg.price_child);
+            set('cfg-price-infant', cfg.price_infant);
+        } catch (e) {
+            Utils.showAlert('Failed to load retreat settings: ' + (e.message || e), 'error');
+        }
+    },
+
+    async saveRetreatSettings(e) {
+        if (e) e.preventDefault();
+        const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+        const payload = {
+            name: val('cfg-name'),
+            tagline: val('cfg-tagline'),
+            scripture: val('cfg-scripture'),
+            dates: val('cfg-dates'),
+            venue: val('cfg-venue'),
+            host: val('cfg-host'),
+        };
+        ['adult', 'child', 'infant'].forEach(k => {
+            const el = document.getElementById('cfg-price-' + k);
+            if (el && el.value !== '') payload['price_' + k] = Number(el.value);
+        });
+        // Don't send blank strings — the server rejects empty required fields.
+        Object.keys(payload).forEach(k => { if (payload[k] === '') delete payload[k]; });
+
+        const alert = document.getElementById('retreat-settings-alert');
+        const btn = document.getElementById('retreat-settings-save');
+        try {
+            if (btn) btn.disabled = true;
+            await API.request('/admin/settings/retreat', { method: 'PUT', body: JSON.stringify(payload) });
+            if (alert) alert.classList.add('hidden');
+            Utils.showAlert('Retreat information updated — the login and registration pages now show the new details.', 'success');
+        } catch (err) {
+            if (alert) { alert.className = 'alert alert-error'; alert.textContent = err.message || 'Save failed'; alert.classList.remove('hidden'); }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     },
 
     // ==================== ENHANCEMENT FEATURES ====================

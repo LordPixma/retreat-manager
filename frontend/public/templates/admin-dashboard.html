@@ -41,6 +41,7 @@
                 <span class="nav-section-label">System</span>
                 <button class="tab-btn nav-link" data-tab="analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
                 <button class="tab-btn nav-link" data-tab="reports"><i class="fas fa-chart-bar"></i> Reports</button>
+                <button class="tab-btn nav-link" data-tab="settings"><i class="fas fa-sliders"></i> Settings</button>
                 <button class="tab-btn nav-link super-only" data-tab="admins" hidden><i class="fas fa-user-shield"></i> Admins</button>
             </div>
         </nav>
@@ -1042,6 +1043,69 @@
     </div>
 
     <!-- Admin Management Tab (super-admin only — nav link is hidden for non-super) -->
+    <!-- Settings Tab: editable retreat information (per-year) -->
+    <div class="tab-content" id="settings-tab">
+        <div class="data-table">
+            <div class="table-header">
+                <h3 class="table-title"><i class="fas fa-sliders"></i> Retreat Information</h3>
+                <button class="btn btn-sm btn-primary" id="retreat-settings-save" form="retreat-settings-form" type="submit">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+            <div style="padding: 1.25rem 1.5rem;">
+                <p style="color:var(--text-secondary); font-size:0.88rem; margin:0 0 1.25rem;">
+                    These details appear on the login and registration pages. Update them each year — they're kept when you start a new season.
+                </p>
+                <div id="retreat-settings-alert" class="alert alert-error hidden" style="margin-bottom:1rem;"></div>
+                <form id="retreat-settings-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="cfg-name">Retreat name</label>
+                            <input type="text" id="cfg-name" name="name" class="form-input" maxlength="120" placeholder="Growth & Wisdom Family Retreat 2027">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="cfg-tagline">Theme / tagline</label>
+                            <input type="text" id="cfg-tagline" name="tagline" class="form-input" maxlength="120" placeholder="The Abundant Life">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="cfg-scripture">Scripture</label>
+                        <textarea id="cfg-scripture" name="scripture" class="form-input" rows="2" maxlength="500" placeholder='John 10:10 — "..."'></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="cfg-dates">Dates</label>
+                            <input type="text" id="cfg-dates" name="dates" class="form-input" maxlength="120" placeholder="July 30 – August 1, 2027">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="cfg-venue">Venue</label>
+                            <input type="text" id="cfg-venue" name="venue" class="form-input" maxlength="160" placeholder="The Hayes, Swanwick, Derbyshire">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="cfg-host">Host</label>
+                        <input type="text" id="cfg-host" name="host" class="form-input" maxlength="160" placeholder="Cloverleaf Christian Centre">
+                    </div>
+                    <h4 style="margin:1.25rem 0 0.5rem; color:var(--text-primary);"><i class="fas fa-tag"></i> Pricing (£)</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="cfg-price-adult">Adult (17+)</label>
+                            <input type="number" id="cfg-price-adult" name="price_adult" class="form-input" min="0" step="1" placeholder="200">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="cfg-price-child">Child (6–16)</label>
+                            <input type="number" id="cfg-price-child" name="price_child" class="form-input" min="0" step="1" placeholder="60">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="cfg-price-infant">Under 6</label>
+                            <input type="number" id="cfg-price-infant" name="price_infant" class="form-input" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="tab-content" id="admins-tab">
         <div class="data-table" style="margin-bottom: 1.5rem;">
             <div class="table-header">
